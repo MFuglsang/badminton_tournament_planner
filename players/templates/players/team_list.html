@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>Team List</h1>
+<a href="{% url 'team_add' %}">Add Team</a>
+<table>
+    <thead>
+        <tr>
+            <th>Team Name</th>
+            <th>Player 1</th>
+            <th>Player 2</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for team in teams %}
+        <tr>
+            <td>{{ team.name }}</td>
+            <td>{{ team.player1.name }}</td>
+            <td>{{ team.player2.name }}</td>
+            <td>
+                <a href="{% url 'team_edit' team.id %}">Edit</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

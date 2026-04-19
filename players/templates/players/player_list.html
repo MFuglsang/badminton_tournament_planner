@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>Player List</h1>
+<a href="{% url 'player_add' %}">Add Player</a>
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Age</th>
+            <th>Ranking</th>
+            <th>Division</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for player in players %}
+        <tr>
+            <td>{{ player.name }}</td>
+            <td>{{ player.age }}</td>
+            <td>{{ player.ranking }}</td>
+            <td>{{ player.get_division_display }}</td>
+            <td>
+                <a href="{% url 'player_edit' player.id %}">Edit</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
