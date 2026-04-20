@@ -17,6 +17,8 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.shortcuts import render
+from django.conf import settings
+from django.conf.urls.static import static
 from tournaments.models import Tournament
 import datetime
 
@@ -30,4 +32,4 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('players/', include('players.urls')),
     path('tournaments/', include('tournaments.urls')),
-]
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -16,7 +16,7 @@ def tournament_list(request):
 
 def tournament_create(request):
     if request.method == 'POST':
-        form = TournamentForm(request.POST)
+        form = TournamentForm(request.POST, request.FILES)
         if form.is_valid():
             tournament = form.save()
             messages.success(request, f'Turnering "{tournament.name}" er oprettet.')
@@ -29,7 +29,7 @@ def tournament_create(request):
 def tournament_edit(request, pk):
     tournament = get_object_or_404(Tournament, pk=pk)
     if request.method == 'POST':
-        form = TournamentForm(request.POST, instance=tournament)
+        form = TournamentForm(request.POST, request.FILES, instance=tournament)
         if form.is_valid():
             form.save()
             messages.success(request, f'Turnering "{tournament.name}" er opdateret.')
@@ -219,6 +219,35 @@ def tournament_scoresheet(request, pk):
         'tournament': tournament,
         'matches': matches,
         'title_suffix': None,
+    })
+
+
+def tournament_program_print(request, pk):
+    """Print-venligt samlet kampprogram for hele turneringen, division for division."""
+    tournament = get_object_or_404(Tournament, pk=pk)
+    divisions = tournament.divisions.prefetch_related(
+        'teams', 'teams__player1', 'teams__player2',
+        'matches__team1', 'matches__team2',
+    ).order_by('name')
+    division_data = []
+    for division in divisions:
+        teams = list(division.teams.select_related('player1', 'player2').order_by('name'))
+        matches = list(
+            division.matches
+            .exclude(match_number=None)
+            .exclude(team2__isnull=True)
+            .exclude(team1__isnull=True)
+            .select_related('team1', 'team2')
+            .order_by('match_round', 'match_number')
+        )
+        division_data.append({
+            'division': division,
+            'teams': teams,
+            'matches': matches,
+        })
+    return render(request, 'tournaments/tournament_program_print.html', {
+        'tournament': tournament,
+        'division_data': division_data,
     })
 
 

@@ -87,7 +87,7 @@ def team_delete(request, pk):
 
 def player_schedule_print(request, pk):
     """Print-venlig spilleplan for en enkelt spiller på tværs af turneringer."""
-    from tournaments.models import Match
+    from tournaments.models import Match, Tournament
     player = get_object_or_404(Player, pk=pk)
     # Find alle teams som spilleren er en del af
     teams = Team.objects.filter(Q(player1=player) | Q(player2=player))
@@ -100,7 +100,13 @@ def player_schedule_print(request, pk):
         .select_related('team1', 'team2', 'division', 'division__tournament', 'winner')
         .order_by('scheduled_time')
     )
+    # Brug logo fra den eneste turnering hvis alle kampe er fra samme turnering
+    tournament_ids = set(m.division.tournament_id for m in matches)
+    logo_tournament = None
+    if len(tournament_ids) == 1:
+        logo_tournament = matches[0].division.tournament if matches else None
     return render(request, 'players/player_schedule_print.html', {
         'player': player,
         'matches': matches,
+        'logo_tournament': logo_tournament,
     })

@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<title>Kampprogram – {{ tournament.name }}</title>
+<style>
+  /* ── Base ─── */
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f4f7fb;
+    margin: 0;
+    padding: 1.5rem;
+    color: #111;
+    font-size: 0.92rem;
+  }
+
+  /* ── Screen header (hidden at print) ─── */
+  .screen-header {
+    max-width: 800px;
+    margin: 0 auto 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .screen-header h1 { margin: 0; font-size: 1.4rem; flex: 1; }
+  .btn {
+    display: inline-block;
+    padding: 0.5rem 1.2rem;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    cursor: pointer;
+    border: none;
+  }
+  .btn-primary   { background: #005BAC; color: #fff; }
+  .btn-secondary { background: #e9ecef; color: #333; }
+
+  /* ── Tournament header block ─── */
+  .tournament-header {
+    max-width: 800px;
+    margin: 0 auto 2rem;
+    border: 2px solid #005BAC;
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+  }
+  .tournament-header-logo {
+    flex-shrink: 0;
+    max-height: 70px;
+    max-width: 140px;
+    object-fit: contain;
+  }
+  .tournament-header-text { flex: 1; }
+  .tournament-header h2 {
+    margin: 0 0 0.4rem;
+    font-size: 1.6rem;
+    color: #005BAC;
+  }
+  .tournament-header p {
+    margin: 0;
+    color: #555;
+    font-size: 0.85rem;
+  }
+
+  /* ── Division section ─── */
+  .division-section {
+    max-width: 800px;
+    margin: 0 auto 2.5rem;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .division-heading {
+    background: #005BAC;
+    color: #fff;
+    padding: 0.65rem 1.2rem;
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+  }
+  .division-heading h3 { margin: 0; font-size: 1.1rem; }
+  .division-heading span {
+    font-size: 0.78rem;
+    opacity: 0.85;
+  }
+
+  /* ── Players list ─── */
+  .players-block {
+    padding: 0.75rem 1.2rem 0.25rem;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .players-block h4 {
+    margin: 0 0 0.5rem;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #64748b;
+  }
+  .players-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.25rem 1.5rem;
+    margin-bottom: 0.75rem;
+  }
+  .player-entry {
+    font-size: 0.88rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.15rem 0;
+  }
+  .player-bullet {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #005BAC;
+    flex-shrink: 0;
+  }
+
+  /* ── Matches table ─── */
+  .matches-block {
+    padding: 0.75rem 1.2rem 1rem;
+  }
+  .matches-block h4 {
+    margin: 0 0 0.5rem;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #64748b;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  thead th {
+    background: #f1f5f9;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: left;
+    border-bottom: 2px solid #e2e8f0;
+    color: #475569;
+  }
+  tbody tr { border-bottom: 1px solid #f1f5f9; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody td { padding: 0.4rem 0.6rem; vertical-align: middle; }
+  .match-no { font-weight: 700; color: #005BAC; white-space: nowrap; }
+  .round-col { color: #888; white-space: nowrap; font-size: 0.83rem; }
+  .tid-col { white-space: nowrap; font-weight: 600; }
+  .court-col { color: #555; white-space: nowrap; }
+  .teams-col { font-weight: 600; }
+  .vs { color: #94a3b8; font-weight: 400; font-size: 0.8rem; margin: 0 0.3rem; }
+
+  .no-matches { color: #94a3b8; font-style: italic; font-size: 0.85rem; padding: 0.5rem 0; }
+
+  /* ── Empty state ─── */
+  .empty-state {
+    max-width: 800px;
+    margin: 2rem auto;
+    text-align: center;
+    color: #888;
+    background: #fff;
+    border-radius: 8px;
+    padding: 3rem;
+  }
+
+  /* ── Print overrides ─── */
+  @media print {
+    @page {
+      size: A4 portrait;
+      margin: 12mm 12mm;
+    }
+    body { background: none; padding: 0; }
+    .screen-header { display: none; }
+    .tournament-header {
+      border-color: #000;
+      box-shadow: none;
+      margin-bottom: 8mm;
+    }
+    .tournament-header h2 { color: #000; }
+    .division-section {
+      box-shadow: none;
+      border: 1px solid #aaa;
+      margin-bottom: 8mm;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .division-heading { background: #000; }
+    thead th { background: #f1f5f9; }
+    .match-no { color: #000; }
+    .player-bullet { background: #000; }
+  }
+</style>
+</head>
+<body>
+
+<div class="screen-header">
+  <h1>Kampprogram – {{ tournament.name }}</h1>
+  <button class="btn btn-primary" onclick="window.print()">🖨 Udskriv / Gem PDF</button>
+  <a href="{% url 'tournament_detail' tournament.pk %}" class="btn btn-secondary">← Turnering</a>
+</div>
+
+<div class="tournament-header">
+  {% if tournament.logo %}
+  <img src="{{ tournament.logo.url }}" alt="Logo" class="tournament-header-logo">
+  {% endif %}
+  <div class="tournament-header-text">
+    <h2>{{ tournament.name }}</h2>
+    <p>
+      <strong>Dato:</strong> {{ tournament.date }} &nbsp;·&nbsp;
+      <strong>Scoring:</strong> {{ tournament.get_scoring_model_display }} &nbsp;·&nbsp;
+      <strong>Baner:</strong> {{ tournament.court_count }}
+      {% if tournament.start_time %} &nbsp;·&nbsp; <strong>Start:</strong> {{ tournament.start_time|time:"H:i" }}{% endif %}
+    </p>
+  </div>
+</div>
+
+{% if division_data %}
+  {% for dd in division_data %}
+  <div class="division-section">
+
+    <div class="division-heading">
+      <h3>{{ dd.division.name }}</h3>
+      <span>{{ dd.division.get_discipline_display }} &nbsp;·&nbsp; {{ dd.division.get_tournament_type_display }}</span>
+    </div>
+
+    {# ── Spillerliste ─── #}
+    <div class="players-block">
+      <h4>Deltagere ({{ dd.teams|length }})</h4>
+      {% if dd.teams %}
+      <div class="players-grid">
+        {% for team in dd.teams %}
+        <div class="player-entry">
+          <span class="player-bullet"></span>
+          {{ team.name }}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="no-matches">Ingen deltagere tilmeldt endnu.</p>
+      {% endif %}
+    </div>
+
+    {# ── Kampliste ─── #}
+    <div class="matches-block">
+      <h4>Kampe ({{ dd.matches|length }})</h4>
+      {% if dd.matches %}
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Runde</th>
+            {% if dd.matches.0.scheduled_time %}<th>Tidspunkt</th><th>Bane</th>{% endif %}
+            <th>Kamp</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for match in dd.matches %}
+          <tr>
+            <td class="match-no">{{ match.match_number }}</td>
+            <td class="round-col">R{{ match.match_round }}</td>
+            {% if match.scheduled_time %}
+            <td class="tid-col">{{ match.scheduled_time|time:"H:i" }}</td>
+            <td class="court-col">{{ match.court|default:"–" }}</td>
+            {% elif dd.matches.0.scheduled_time %}
+            <td class="tid-col">–</td>
+            <td class="court-col">–</td>
+            {% endif %}
+            <td class="teams-col">
+              {{ match.team1.name }}<span class="vs">vs</span>{{ match.team2.name }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="no-matches">Ingen kampe genereret endnu for denne division.</p>
+      {% endif %}
+    </div>
+
+  </div>
+  {% endfor %}
+
+{% else %}
+<div class="empty-state">
+  <div style="font-size:2rem; margin-bottom:0.5rem;">📋</div>
+  <p>Ingen divisioner fundet i denne turnering.</p>
+</div>
+{% endif %}
+
+</body>
+</html>

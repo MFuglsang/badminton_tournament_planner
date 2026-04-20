@@ -11,6 +11,7 @@ class TournamentForm(forms.ModelForm):
             'name', 'date', 'division_model',
             'scoring_model', 'court_count', 'start_time',
             'single_match_duration', 'double_match_duration', 'player_break_time',
+            'logo',
         ]
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date'}),

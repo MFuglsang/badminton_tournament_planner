@@ -45,6 +45,18 @@
     align-items: center;
     gap: 1.5rem;
   }
+  .player-card-logo {
+    max-height: 56px;
+    max-width: 110px;
+    object-fit: contain;
+    flex-shrink: 0;
+  }
+  .player-card-divider {
+    width: 1px;
+    height: 48px;
+    background: #e2e8f0;
+    flex-shrink: 0;
+  }
   .player-avatar {
     width: 56px;
     height: 56px;
@@ -155,6 +167,10 @@
 </div>
 
 <div class="player-card">
+  {% if logo_tournament.logo %}
+  <img src="{{ logo_tournament.logo.url }}" alt="Logo" class="player-card-logo">
+  <div class="player-card-divider"></div>
+  {% endif %}
   <div class="player-avatar">{{ player.name|first|upper }}</div>
   <div class="player-info">
     <h2>{{ player.name }}</h2>

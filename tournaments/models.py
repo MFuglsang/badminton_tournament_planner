@@ -51,6 +51,12 @@ class Tournament(models.Model):
         verbose_name=_("Program låst"),
         help_text=_("Når programmet er låst, kan kampprogram og spilleplan ikke ændres."),
     )
+    logo = models.ImageField(
+        upload_to='tournament_logos/',
+        null=True, blank=True,
+        verbose_name=_("Logo"),
+        help_text=_("Logo vises på udprintede programmer og spilleplaner."),
+    )
 
     def __str__(self):
         return f"{self.name} ({self.scoring_model})"
