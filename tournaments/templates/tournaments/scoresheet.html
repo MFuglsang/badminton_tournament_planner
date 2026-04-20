@@ -97,6 +97,11 @@
     font-weight: 600;
     line-height: 1.2;
   }
+  .team-name-line {
+    flex: 1;
+    border-bottom: 1.2px solid #333;
+    height: 5mm;
+  }
   .vs-divider {
     text-align: center;
     font-size: 0.7rem;
@@ -231,12 +236,20 @@
   <div class="teams">
     <div class="team-row">
       <div class="team-bullet"></div>
+      {% if match.team1 %}
       <span class="team-name">{{ match.team1.name }}</span>
+      {% else %}
+      <div class="team-name-line" title="{{ match.bracket_label }}"></div>
+      {% endif %}
     </div>
     <div class="vs-divider">— VS —</div>
     <div class="team-row">
       <div class="team-bullet"></div>
+      {% if match.team2 %}
       <span class="team-name">{{ match.team2.name }}</span>
+      {% else %}
+      <div class="team-name-line"></div>
+      {% endif %}
     </div>
   </div>
 
@@ -260,12 +273,18 @@
     <div class="score-line"></div>
   </div>
 
-  <div class="winner-section">
+    <div class="winner-section">
     <div class="winner-section-label">Vinder – sæt ring om</div>
     <div class="winner-options">
+      {% if match.team1 and match.team2 %}
       <div class="winner-option">{{ match.team1.name }}</div>
       <div class="winner-vs">eller</div>
       <div class="winner-option">{{ match.team2.name }}</div>
+      {% else %}
+      <div class="winner-option winner-option-blank"></div>
+      <div class="winner-vs">eller</div>
+      <div class="winner-option winner-option-blank"></div>
+      {% endif %}
     </div>
   </div>
 

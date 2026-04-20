@@ -292,8 +292,7 @@ def tournament_scoresheet(request, pk):
         Match.objects
         .filter(division__tournament=tournament)
         .exclude(match_number=None)
-        .exclude(team2__isnull=True)
-        .exclude(team1__isnull=True)
+        .exclude(walkover=True)
         .select_related('team1', 'team2', 'division')
         .order_by('match_number')
     )
@@ -344,8 +343,7 @@ def division_scoresheet(request, pk):
         Match.objects
         .filter(division=division)
         .exclude(match_number=None)
-        .exclude(team2__isnull=True)
-        .exclude(team1__isnull=True)
+        .exclude(walkover=True)
         .select_related('team1', 'team2', 'division')
         .order_by('match_number')
     )
