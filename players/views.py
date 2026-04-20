@@ -15,7 +15,6 @@ def player_list(request):
         'name': 'name',
         'gender': 'gender',
         'age': 'age',
-        'ranking': 'ranking',
         'division': 'division',
     }
     sort_field = VALID_SORT_FIELDS.get(sort, 'name')
@@ -44,7 +43,6 @@ def player_list(request):
             ('name',     'Navn'),
             ('gender',   'Køn'),
             ('age',      'Alder'),
-            ('ranking',  'Ranking'),
             ('division', 'Division'),
             ('',         ''),
         ],

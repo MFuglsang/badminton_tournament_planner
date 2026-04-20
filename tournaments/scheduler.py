@@ -2,6 +2,7 @@
 Scheduling logic for generating match schedules based on tournament type.
 - Round-robin: all teams play against each other (group tournaments)
 - Bracket: single elimination bracket (tree tournaments)
+- Playoff: group stage (round-robin per group) + single-elimination bracket
 """
 import itertools
 import math
@@ -78,7 +79,7 @@ def generate_bracket(division):
     if n < 2:
         return []
 
-    teams.sort(key=lambda t: t.player1.ranking + (t.player2.ranking if t.player2 else 0))
+    teams.sort(key=lambda t: t.player1.name)
 
     total_rounds = math.ceil(math.log2(n))
     bracket_size = 2 ** total_rounds
@@ -183,23 +184,33 @@ def advance_bracket(match):
 
 def get_bracket_data(division):
     """
-    Build the bracket visualisation data for a tree division.
+    Build the bracket visualisation data for a tree or playoff division.
     Returns {'rounds': [...], 'total_rounds': int} or None.
     """
-    matches = list(
-        division.matches
-        .select_related('team1', 'team2', 'winner')
-        .order_by('match_round', 'bracket_slot')
-    )
+    if division.tournament_type == 'playoff':
+        matches = list(
+            division.matches
+            .filter(phase='playoff')
+            .select_related('team1', 'team2', 'winner')
+            .order_by('match_round', 'bracket_slot')
+        )
+    else:
+        matches = list(
+            division.matches
+            .select_related('team1', 'team2', 'winner')
+            .order_by('match_round', 'bracket_slot')
+        )
+
     if not matches:
         return None
 
-    round1 = [m for m in matches if m.match_round == 1]
+    round1 = [m for m in matches if m.match_round == min(m.match_round for m in matches)]
     if not round1:
         return None
 
     bracket_size = len(round1) * 2
-    total_rounds = int(math.log2(bracket_size))
+    total_rounds = int(math.log2(bracket_size)) if bracket_size > 1 else 1
+    min_round = min(m.match_round for m in matches)
 
     # Key by (round, bracket_slot)
     lookup = {(m.match_round, m.bracket_slot): m for m in matches}
@@ -207,9 +218,10 @@ def get_bracket_data(division):
     BASE_HEIGHT = 80  # px per round-1 slot
 
     rounds = []
-    for r in range(1, total_rounds + 1):
-        n_slots = bracket_size // (2 ** r)
-        slot_height = BASE_HEIGHT * (2 ** (r - 1))
+    for r_offset in range(total_rounds):
+        r = min_round + r_offset
+        n_slots = bracket_size // (2 ** (r_offset + 1))
+        slot_height = BASE_HEIGHT * (2 ** r_offset)
         slots = [
             {
                 'slot': s,
@@ -219,9 +231,9 @@ def get_bracket_data(division):
             for s in range(1, n_slots + 1)
         ]
         rounds.append({
-            'label': get_round_label(r, total_rounds),
+            'label': get_round_label(r_offset + 1, total_rounds),
             'round': r,
-            'is_last': r == total_rounds,
+            'is_last': r_offset == total_rounds - 1,
             'slot_height': slot_height,
             'slots': slots,
         })
@@ -232,9 +244,156 @@ def get_bracket_data(division):
 # ---------------------------------------------------------------------------
 # Router
 # ---------------------------------------------------------------------------
+# Playoff (group stage + bracket)
+# ---------------------------------------------------------------------------
+
+def generate_playoff(division):
+    """
+    Generate a playoff schedule:
+    1. Divide teams into groups and generate round-robin within each group.
+    2. Create a single-elimination bracket for the advancing teams,
+       with byes if the total is not a power of 2.
+
+    Groups are filled snake-style: A,B,C,D,D,C,B,A,A,...
+    so teams are spread evenly when listed alphabetically.
+    """
+    from .models import Match
+
+    teams = list(division.teams.all().order_by('name'))
+    n = len(teams)
+    group_count = max(1, division.group_count)
+    advance_count = max(1, division.advance_count)
+
+    if n < group_count * 2:
+        return []  # Not enough teams
+
+    # Delete existing matches cleanly
+    Match.objects.filter(division=division).delete()
+
+    # ── Divide teams into groups (snake order) ────────────────────────
+    groups = [[] for _ in range(group_count)]
+    for i, team in enumerate(teams):
+        cycle = i // group_count
+        pos = i % group_count
+        group_idx = pos if cycle % 2 == 0 else (group_count - 1 - pos)
+        groups[group_idx].append(team)
+
+    created = []
+
+    # ── Group stage: round-robin per group ────────────────────────────
+    for g_idx, group_teams in enumerate(groups):
+        group_num = g_idx + 1
+        pairs = list(itertools.combinations(group_teams, 2))
+        for round_num, (team1, team2) in enumerate(pairs, start=1):
+            match = Match.objects.create(
+                division=division,
+                team1=team1,
+                team2=team2,
+                match_round=round_num,
+                group_number=group_num,
+                phase='group',
+                status='pending',
+            )
+            created.append(match)
+
+    # ── Playoff bracket ───────────────────────────────────────────────
+    total_advancing = group_count * advance_count
+    total_rounds = math.ceil(math.log2(total_advancing)) if total_advancing > 1 else 1
+    bracket_size = 2 ** total_rounds
+    byes_needed = bracket_size - total_advancing
+
+    # Bracket round numbering starts after group rounds
+    max_group_round = max((m.match_round for m in created), default=0)
+    bracket_base_round = max_group_round + 1
+
+    seed_order = _seeding_order(bracket_size)
+
+    # Slot → label: "V1G1" means "winner X of group 1"
+    # Pattern: advance_count winners from G1, then G2, etc.
+    advancing_seeds = []
+    for advance_pos in range(1, advance_count + 1):
+        for g_num in range(1, group_count + 1):
+            advancing_seeds.append(f'Nr.{advance_pos} gr.{g_num}')
+
+    slots = []
+    for s in seed_order:
+        if s <= total_advancing:
+            slots.append(advancing_seeds[s - 1])
+        else:
+            slots.append(None)  # bye
+
+    # Round 1 of bracket
+    n_r1_slots = bracket_size // 2
+    for i in range(n_r1_slots):
+        slot_num = i + 1
+        t1_label = slots[i * 2]
+        t2_label = slots[i * 2 + 1]
+
+        if t1_label is None and t2_label is None:
+            continue
+
+        if t2_label is None:
+            # bye – auto-completed placeholder
+            match = Match.objects.create(
+                division=division,
+                team1=None, team2=None,
+                winner=None, score='Bye',
+                match_round=bracket_base_round,
+                bracket_slot=slot_num,
+                bracket_label=f'{t1_label} (fri)',
+                phase='playoff',
+                status='completed',
+                walkover=True,
+            )
+        elif t1_label is None:
+            match = Match.objects.create(
+                division=division,
+                team1=None, team2=None,
+                winner=None, score='Bye',
+                match_round=bracket_base_round,
+                bracket_slot=slot_num,
+                bracket_label=f'{t2_label} (fri)',
+                phase='playoff',
+                status='completed',
+                walkover=True,
+            )
+        else:
+            match = Match.objects.create(
+                division=division,
+                team1=None, team2=None,
+                match_round=bracket_base_round,
+                bracket_slot=slot_num,
+                bracket_label=f'{t1_label} vs {t2_label}',
+                phase='playoff',
+                status='pending',
+            )
+        created.append(match)
+
+    # Remaining bracket rounds (placeholders)
+    for r_offset in range(1, total_rounds):
+        r = bracket_base_round + r_offset
+        n_slots = bracket_size // (2 ** (r_offset + 1))
+        for s in range(1, n_slots + 1):
+            match = Match.objects.create(
+                division=division,
+                team1=None, team2=None,
+                match_round=r,
+                bracket_slot=s,
+                bracket_label=f'R{r-1}S{2*s-1}vsR{r-1}S{2*s}',
+                phase='playoff',
+                status='pending',
+            )
+            created.append(match)
+
+    return created
+
+
+# ---------------------------------------------------------------------------
 
 def generate_schedule(division):
     """Generate schedule based on the division's own tournament_type."""
     if division.tournament_type == 'tree':
         return generate_bracket(division)
+    if division.tournament_type == 'playoff':
+        return generate_playoff(division)
     return generate_round_robin(division)

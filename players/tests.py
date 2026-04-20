@@ -7,13 +7,13 @@ from .models import Player, Team
 # Helpers
 # ---------------------------------------------------------------------------
 
-def make_player(name="Alice", age=20, ranking=1, division="A", gender="K"):
-    return Player.objects.create(name=name, age=age, ranking=ranking, division=division, gender=gender)
+def make_player(name="Alice", age=20, division="A", gender="K"):
+    return Player.objects.create(name=name, age=age, division=division, gender=gender)
 
 
 def make_team(p1=None, p2=None):
-    p1 = p1 or make_player("Alice", ranking=1)
-    p2 = p2 or make_player("Bob", ranking=2)
+    p1 = p1 or make_player("Alice")
+    p2 = p2 or make_player("Bob")
     return Team.objects.create(player1=p1, player2=p2)
 
 
@@ -42,14 +42,14 @@ class PlayerModelTest(TestCase):
 
 class TeamModelTest(TestCase):
     def test_auto_name_from_players(self):
-        p1 = make_player("Alice", ranking=1)
-        p2 = make_player("Bob", ranking=2)
+        p1 = make_player("Alice")
+        p2 = make_player("Bob")
         team = Team.objects.create(player1=p1, player2=p2)
         self.assertEqual(team.name, "Alice & Bob")
 
     def test_custom_name_is_preserved(self):
-        p1 = make_player("Alice", ranking=1)
-        p2 = make_player("Bob", ranking=2)
+        p1 = make_player("Alice")
+        p2 = make_player("Bob")
         team = Team.objects.create(player1=p1, player2=p2, name="Dream Team")
         self.assertEqual(team.name, "Dream Team")
 
@@ -77,7 +77,7 @@ class PlayerViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_player_add_post_creates_player(self):
-        data = {"name": "Charlie", "age": 18, "ranking": 5, "division": "B", "gender": "M"}
+        data = {"name": "Charlie", "age": 18, "division": "B", "gender": "M"}
         response = self.client.post(reverse("player_add"), data)
         self.assertRedirects(response, reverse("player_list"))
         self.assertTrue(Player.objects.filter(name="Charlie").exists())
@@ -91,7 +91,7 @@ class PlayerViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_player_edit_post_updates_player(self):
-        data = {"name": "Alice Updated", "age": 21, "ranking": 2, "division": "A", "gender": "K"}
+        data = {"name": "Alice Updated", "age": 21, "division": "A", "gender": "K"}
         response = self.client.post(reverse("player_edit", args=[self.player.pk]), data)
         self.assertRedirects(response, reverse("player_list"))
         self.player.refresh_from_db()
@@ -138,40 +138,40 @@ class TeamViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_team_add_post_creates_team(self):
-        p1 = make_player("Dave", ranking=10, gender='M')
-        p2 = make_player("Eve", ranking=11, gender='M')  # same gender → double
+        p1 = make_player("Dave", gender='M')
+        p2 = make_player("Eve", gender='M')  # same gender → double
         data = {"player1": p1.pk, "player2": p2.pk, "pair_type": "double"}
         response = self.client.post(reverse("team_add"), data)
         self.assertRedirects(response, reverse("team_list"))
         self.assertTrue(Team.objects.filter(player1=p1, player2=p2).exists())
 
     def test_team_add_double_wrong_gender_fails(self):
-        p1 = make_player("Man1", ranking=10, gender='M')
-        p2 = make_player("Woman1", ranking=11, gender='K')
+        p1 = make_player("Man1", gender='M')
+        p2 = make_player("Woman1", gender='K')
         data = {"player1": p1.pk, "player2": p2.pk, "pair_type": "double"}
         response = self.client.post(reverse("team_add"), data)
         self.assertEqual(response.status_code, 200)  # form error, no redirect
         self.assertFalse(Team.objects.filter(player1=p1, player2=p2).exists())
 
     def test_team_add_mixed_wrong_gender_fails(self):
-        p1 = make_player("Man2", ranking=12, gender='M')
-        p2 = make_player("Man3", ranking=13, gender='M')
+        p1 = make_player("Man2", gender='M')
+        p2 = make_player("Man3", gender='M')
         data = {"player1": p1.pk, "player2": p2.pk, "pair_type": "mixed"}
         response = self.client.post(reverse("team_add"), data)
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Team.objects.filter(player1=p1, player2=p2).exists())
 
     def test_team_add_mixed_correct_genders_succeeds(self):
-        p1 = make_player("Man4", ranking=14, gender='M')
-        p2 = make_player("Woman2", ranking=15, gender='K')
+        p1 = make_player("Man4", gender='M')
+        p2 = make_player("Woman2", gender='K')
         data = {"player1": p1.pk, "player2": p2.pk, "pair_type": "mixed"}
         response = self.client.post(reverse("team_add"), data)
         self.assertRedirects(response, reverse("team_list"))
         self.assertTrue(Team.objects.filter(player1=p1, player2=p2, pair_type='mixed').exists())
 
     def test_team_add_no_pair_type_with_two_players_fails(self):
-        p1 = make_player("Man5", ranking=16, gender='M')
-        p2 = make_player("Man6", ranking=17, gender='M')
+        p1 = make_player("Man5", gender='M')
+        p2 = make_player("Man6", gender='M')
         data = {"player1": p1.pk, "player2": p2.pk}
         response = self.client.post(reverse("team_add"), data)
         self.assertEqual(response.status_code, 200)

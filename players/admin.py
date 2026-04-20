@@ -3,7 +3,7 @@ from .models import Player, Team
 
 @admin.register(Player)
 class PlayerAdmin(admin.ModelAdmin):
-    list_display = ('name', 'gender', 'age', 'ranking', 'division')
+    list_display = ('name', 'gender', 'age', 'division')
     list_filter = ('gender', 'division')
     search_fields = ('name',)
 

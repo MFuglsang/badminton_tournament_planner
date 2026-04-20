@@ -21,7 +21,7 @@
     {% endif %}
 </p>
 
-{# ── Opret ny division ─────────────────────────────────────────────────── #}
+{# ── Opret division: skjul gruppe-indstillinger medmindre playoff ─── #}
 <div class="card" style="max-width:560px;">
     <h2 style="margin-top:0; font-size:1.1rem;">Opret division</h2>
     <form method="post" action="{% url 'division_create' tournament.pk %}">
@@ -40,8 +40,27 @@
                 {% if division_form.tournament_type.errors %}<ul class="errorlist">{% for e in division_form.tournament_type.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
             </div>
         </div>
+        <div id="playoff-settings" style="display:none; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.75rem; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:0.75rem;">
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+                <label style="white-space:nowrap; font-size:0.85rem; font-weight:600;">Antal grupper:</label>
+                {{ division_form.group_count }}
+            </div>
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+                <label style="white-space:nowrap; font-size:0.85rem; font-weight:600;">Antal der går videre pr. gruppe:</label>
+                {{ division_form.advance_count }}
+            </div>
+        </div>
         <button type="submit" class="btn btn-primary">+ Opret division</button>
     </form>
+    <script>
+    (function() {
+        var sel = document.querySelector('[name=tournament_type]');
+        var box = document.getElementById('playoff-settings');
+        function update() { box.style.display = sel.value === 'playoff' ? 'flex' : 'none'; }
+        sel.addEventListener('change', update);
+        update();
+    })();
+    </script>
 </div>
 
 {% for dd in division_data %}
@@ -107,6 +126,7 @@
     </div>
 </details>
 
+{# ── Stilling: normale grupper ─── #}
 {% if standings %}
 <h3>Stilling</h3>
 <table style="max-width:600px;">
@@ -133,8 +153,42 @@
 </table>
 {% endif %}
 
+{# ── Stilling: playoff – per gruppe ─── #}
+{% if dd.group_standings %}
+<h3>Gruppestillinger</h3>
+{% for g_num, g_rows in dd.group_standings %}
+<div style="margin-bottom:1rem;">
+    <div style="font-weight:700; font-size:0.9rem; color:#005BAC; margin-bottom:0.35rem;">Gruppe {{ g_num }}</div>
+    <table style="max-width:600px;">
+        <thead>
+            <tr><th>#</th><th>{% if division.discipline == 'single' %}Spiller{% else %}Par{% endif %}</th><th>Kampe</th><th>Vundet</th><th>Tabt</th><th>Point</th></tr>
+        </thead>
+        <tbody>
+            {% for row in g_rows %}
+            <tr {% if forloop.counter <= division.advance_count %}style="background:#f0fdf4;"{% endif %}>
+                <td>
+                    {% if forloop.counter == 1 %}<span class="rank-1">🥇</span>
+                    {% elif forloop.counter == 2 %}<span class="rank-2">🥈</span>
+                    {% elif forloop.counter == 3 %}<span class="rank-3">🥉</span>
+                    {% else %}{{ forloop.counter }}{% endif %}
+                    {% if forloop.counter <= division.advance_count %}<span style="font-size:0.7rem; color:#16a34a; margin-left:0.3rem;">↑ videre</span>{% endif %}
+                </td>
+                <td><strong>{{ row.team.name }}</strong></td>
+                <td>{{ row.played }}</td>
+                <td>{{ row.won }}</td>
+                <td>{{ row.lost }}</td>
+                <td><strong>{{ row.points }}</strong></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endfor %}
+{% endif %}
+
+{# ── Bracket ─── #}
 {% if dd.bracket_data %}
-<h3>Turnéringsdiagram</h3>
+<h3>{% if division.tournament_type == 'playoff' %}Slutspil{% else %}Turnéringsdiagram{% endif %}</h3>
 <div class="bracket-container">
   {% for round in dd.bracket_data.rounds %}
   <div class="bracket-round{% if round.is_last %} bracket-round-last{% endif %}">
@@ -144,16 +198,23 @@
          style="height:{{ round.slot_height }}px;">
       {% if slot.match %}
       <div class="bracket-card">
-        <div class="bracket-team{% if slot.match.winner_id == slot.match.team1_id %} winner{% endif %}">
-          {{ slot.match.team1.name }}
-          {% if slot.match.score and not slot.match.team2 %}<span style="font-size:0.75em;color:#aaa;"> Bye</span>{% endif %}
-        </div>
-        {% if slot.match.team2 %}
-        <div class="bracket-team{% if slot.match.winner_id == slot.match.team2_id %} winner{% endif %}">
-          {{ slot.match.team2.name }}
-        </div>
+        {% if slot.match.bracket_label and not slot.match.team1 and not slot.match.team2 %}
+          {# Placeholder – waiting for group results #}
+          <div class="bracket-team" style="color:#888; font-style:italic; font-size:0.8rem;">{{ slot.match.bracket_label }}</div>
         {% else %}
-        <div class="bracket-team bye">Bye</div>
+          <div class="bracket-team{% if slot.match.winner_id == slot.match.team1_id %} winner{% endif %}">
+            {% if slot.match.team1 %}{{ slot.match.team1.name }}{% elif slot.match.bracket_label %}{{ slot.match.bracket_label }}{% else %}TBD{% endif %}
+            {% if slot.match.score and not slot.match.team2 %}<span style="font-size:0.75em;color:#aaa;"> Bye</span>{% endif %}
+          </div>
+          {% if slot.match.team2 %}
+          <div class="bracket-team{% if slot.match.winner_id == slot.match.team2_id %} winner{% endif %}">
+            {{ slot.match.team2.name }}
+          </div>
+          {% elif slot.match.status == 'completed' %}
+          <div class="bracket-team bye">Fri</div>
+          {% else %}
+          <div class="bracket-team bye">TBD</div>
+          {% endif %}
         {% endif %}
       </div>
       {% else %}
@@ -181,19 +242,24 @@
 {% if division.matches.all %}
 {% if division.tournament_type == 'tree' %}
 <h3>Kampe</h3>
+{% elif division.tournament_type == 'playoff' %}
+<h3>Gruppekampe</h3>
 {% else %}
 <h3>Kampprogram</h3>
 {% endif %}
 <table>
     <thead>
         <tr>
+            {% if division.tournament_type == 'playoff' %}<th>Gruppe</th>{% endif %}
             <th>Runde</th><th>#</th><th>Hold 1</th><th>Hold 2</th><th>Resultat</th><th>Vinder</th><th>Status</th><th></th>
         </tr>
     </thead>
     <tbody>
         {% for match in division.matches.all|dictsort:"match_number" %}
-        {% if match.team2 or match.bracket_label %}{# skip byes, show real + placeholder #}
+        {% if match.phase != 'playoff' %}
+        {% if match.team2 or match.bracket_label %}
         <tr>
+            {% if division.tournament_type == 'playoff' %}<td style="font-size:0.82rem; color:#005BAC; font-weight:600;">G{{ match.group_number }}</td>{% endif %}
             <td>{{ match.match_round }}</td>
             <td style="color:#888; font-size:0.85rem;">{% if match.match_number %}#{{ match.match_number }}{% else %}–{% endif %}</td>
             {% if match.bracket_label %}
@@ -206,11 +272,8 @@
             <td>{{ match.winner.name|default:"–" }}</td>
             <td>
                 {% if match.status == 'completed' %}
-                    {% if match.walkover %}
-                        <span class="badge badge-walkover">WO</span>
-                    {% else %}
-                        <span class="badge badge-completed">Afsluttet</span>
-                    {% endif %}
+                    {% if match.walkover %}<span class="badge badge-walkover">WO</span>
+                    {% else %}<span class="badge badge-completed">Afsluttet</span>{% endif %}
                 {% elif match.status == 'in_progress' %}
                     <span class="badge badge-in-progress">I gang</span>
                 {% else %}
@@ -237,10 +300,78 @@
                 {% endif %}
             </td>
         </tr>
-        {% endif %}{# end if team2 or bracket_label #}
+        {% endif %}
+        {% endif %}
         {% endfor %}
     </tbody>
 </table>
+
+{# Slutspilskampe (playoff) #}
+{% if division.tournament_type == 'playoff' %}
+{% with playoff_matches=division.matches.all %}
+{% if playoff_matches %}
+<h3 style="margin-top:1.5rem;">Slutspilskampe</h3>
+<table>
+    <thead>
+        <tr>
+            <th>Runde</th><th>#</th><th>Kamp</th><th>Resultat</th><th>Vinder</th><th>Status</th><th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for match in division.matches.all|dictsort:"match_number" %}
+        {% if match.phase == 'playoff' %}
+        {% if match.status == 'completed' and match.score == 'Bye' %}{% else %}
+        <tr>
+            <td>{{ match.match_round }}</td>
+            <td style="color:#888; font-size:0.85rem;">{% if match.match_number %}#{{ match.match_number }}{% else %}–{% endif %}</td>
+            <td>
+                {% if match.team1 and match.team2 %}
+                    {{ match.team1.name }} <span style="color:#94a3b8;">vs</span> {{ match.team2.name }}
+                {% elif match.bracket_label %}
+                    <span style="color:#888; font-style:italic;">{{ match.bracket_label }}</span>
+                {% else %}–{% endif %}
+            </td>
+            <td>{{ match.score|default:"–" }}</td>
+            <td>{{ match.winner.name|default:"–" }}</td>
+            <td>
+                {% if match.status == 'completed' %}
+                    {% if match.walkover %}<span class="badge badge-walkover">WO</span>
+                    {% else %}<span class="badge badge-completed">Afsluttet</span>{% endif %}
+                {% elif match.status == 'in_progress' %}
+                    <span class="badge badge-in-progress">I gang</span>
+                {% else %}
+                    <span class="badge badge-pending">Afventer</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if match.team1 and match.team2 %}
+                {% if match.status == 'pending' %}
+                <form method="post" action="{% url 'match_start' match.pk %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-secondary btn-sm">▶ Start</button>
+                </form>
+                {% endif %}
+                {% if match.status == 'in_progress' or match.status == 'pending' %}
+                <a href="{% url 'match_record_result' match.pk %}" class="btn btn-primary btn-sm" style="margin-left:0.25rem;">Registrer resultat</a>
+                <a href="{% url 'match_walkover' match.pk %}" class="btn btn-secondary btn-sm" style="margin-left:0.25rem;">WO</a>
+                {% endif %}
+                {% if match.status == 'completed' %}
+                <a href="{% url 'match_record_result' match.pk %}" class="btn btn-secondary btn-sm">Ret resultat</a>
+                {% endif %}
+                {% else %}
+                <span style="color:#aaa; font-size:0.8rem;">Afventer gruppespil</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endif %}
+        {% endif %}
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+{% endwith %}
+{% endif %}
+
 {% else %}
 <p><em style="color:#888;">Ingen kampe planlagt endnu.</em></p>
 {% endif %}

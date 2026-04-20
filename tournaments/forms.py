@@ -22,10 +22,27 @@ class TournamentForm(forms.ModelForm):
 class DivisionForm(forms.ModelForm):
     class Meta:
         model = Division
-        fields = ['name', 'discipline', 'tournament_type']
+        fields = ['name', 'discipline', 'tournament_type', 'group_count', 'advance_count']
         widgets = {
             'name': forms.TextInput(attrs={'placeholder': 'f.eks. Herresingle A, Damedouble B …'}),
+            'group_count': forms.NumberInput(attrs={'min': 2, 'max': 16}),
+            'advance_count': forms.NumberInput(attrs={'min': 1, 'max': 8}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['group_count'].required = False
+        self.fields['advance_count'].required = False
+        self.fields['group_count'].initial = 2
+        self.fields['advance_count'].initial = 2
+
+    def clean_group_count(self):
+        val = self.cleaned_data.get('group_count')
+        return val if val is not None else 2
+
+    def clean_advance_count(self):
+        val = self.cleaned_data.get('advance_count')
+        return val if val is not None else 2
 
 
 class DivisionPlayersForm(forms.Form):

@@ -4,7 +4,7 @@ from .models import Player, Team
 class PlayerForm(forms.ModelForm):
     class Meta:
         model = Player
-        fields = ['name', 'age', 'gender', 'ranking', 'division']
+        fields = ['name', 'age', 'gender', 'division']
 
 class TeamForm(forms.ModelForm):
     class Meta:

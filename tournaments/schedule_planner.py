@@ -39,6 +39,11 @@ def generate_time_schedule(tournament):
     if not matches:
         return 0
 
+    # Pre-compute the latest estimated end of all GROUP-phase matches per division,
+    # so that playoff-phase matches in same division are never scheduled before that.
+    # We calculate this after the greedy pass by doing a pre-scan estimating durations.
+    # We track it live during the greedy loop instead (see playoff_group_end below).
+
     # Base start: combine tournament date + start time → timezone-aware datetime
     naive_start = datetime.combine(tournament.date, tournament.start_time)
     start_dt = timezone.make_aware(naive_start) if timezone.is_naive(naive_start) else naive_start
@@ -52,6 +57,10 @@ def generate_time_schedule(tournament):
     # bracket_slot_end[(division_pk, match_round, bracket_slot)] = estimated end time
     # Used so placeholder matches know their earliest possible start
     bracket_slot_end = {}
+
+    # playoff_group_end[division_pk] = latest estimated end of any group-phase match
+    # Playoff bracket matches must not start before this point.
+    playoff_group_end = {}
 
     break_td = timedelta(minutes=tournament.player_break_time)
 
@@ -92,6 +101,11 @@ def generate_time_schedule(tournament):
             else:
                 player_earliest = start_dt
 
+        # For playoff-phase matches: must not start before all group matches in division are done
+        if getattr(match, 'phase', 'group') == 'playoff':
+            group_done = playoff_group_end.get(match.division_id, start_dt)
+            player_earliest = max(player_earliest, group_done + break_td)
+
         # Find court with the earliest slot that also satisfies player/feeder availability
         best_time = None
         best_court_idx = 0
@@ -111,6 +125,12 @@ def generate_time_schedule(tournament):
         if not is_placeholder:
             for pk in player_pks:
                 player_free[pk] = end_time
+
+        # Track latest group-phase end per division (for playoff barrier)
+        if getattr(match, 'phase', 'group') == 'group':
+            prev = playoff_group_end.get(match.division_id, start_dt)
+            if end_time > prev:
+                playoff_group_end[match.division_id] = end_time
 
         # Record this slot's end time for downstream bracket matches
         if match.bracket_slot is not None:

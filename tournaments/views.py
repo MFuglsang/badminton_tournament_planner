@@ -3,7 +3,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from .models import Tournament, Division, Match
 from .forms import MatchResultForm, DivisionForm, TournamentForm, get_participants_form, WalkoverForm
-from .standings import compute_standings
+from .standings import compute_standings, compute_group_standings
 from players.models import Team
 from .scheduler import generate_schedule, advance_bracket, get_bracket_data
 from .schedule_planner import generate_time_schedule
@@ -55,11 +55,12 @@ def tournament_detail(request, pk):
     division_data = [
         {
             'division': d,
-            'standings': compute_standings(d) if d.tournament_type != 'tree' else [],
+            'standings': compute_standings(d) if d.tournament_type == 'group' else [],
+            'group_standings': compute_group_standings(d) if d.tournament_type == 'playoff' else [],
             'participants_form': get_participants_form(d),
             'match_count': d.matches.count(),
             'pending_count': d.matches.filter(status='pending').count(),
-            'bracket_data': get_bracket_data(d) if d.tournament_type == 'tree' else None,
+            'bracket_data': get_bracket_data(d) if d.tournament_type in ('tree', 'playoff') else None,
         }
         for d in divisions
     ]
@@ -126,7 +127,8 @@ def division_generate_schedule(request, pk):
             return redirect('tournament_detail', pk=division.tournament.pk)
         matches = generate_schedule(division)
         if matches:
-            # Assign sequential match numbers across the whole tournament
+            # Assign sequential match numbers to ALL matches immediately
+            # (playoff bracket matches are visible in programs but scheduled after group stage)
             tournament_matches = Match.objects.filter(division__tournament=division.tournament)
             current_max = tournament_matches.exclude(
                 pk__in=[m.pk for m in matches]
@@ -145,7 +147,6 @@ def division_generate_schedule(request, pk):
                     if match.bracket_label is not None:
                         r = match.match_round
                         s = match.bracket_slot
-                        # feeder slots in previous round
                         t1_label = (
                             match.team1.name if match.team1
                             else f"V-kamp #{slot_to_num.get((r-1, 2*s-1), '?')}"
@@ -157,12 +158,19 @@ def division_generate_schedule(request, pk):
                         match.bracket_label = f"{t1_label} vs {t2_label}"
                         match.save(update_fields=['bracket_label'])
 
-        real_count = sum(1 for m in matches if m.team2 is not None or m.team1 is None)
-        placeholder_count = sum(1 for m in matches if m.team1 is None)
-        if placeholder_count:
+        group_count = sum(1 for m in matches if getattr(m, 'phase', 'group') == 'group')
+        playoff_count = sum(1 for m in matches if getattr(m, 'phase', 'group') == 'playoff' and not (m.team1 is None and m.team2 is None and m.score == 'Bye'))
+        placeholder_count = sum(1 for m in matches if m.team1 is None and m.phase != 'playoff')
+        if division.tournament_type == 'playoff':
             messages.success(
                 request,
-                f'Kampprogram genereret med {real_count - placeholder_count} kampe '
+                f'Kampprogram genereret: {group_count} gruppekampe fordelt i {division.group_count} grupper, '
+                f'+ {playoff_count} slutspilskampe (planlægges efter gruppespillet i spilleplanen).'
+            )
+        elif placeholder_count:
+            messages.success(
+                request,
+                f'Kampprogram genereret med {len(matches) - placeholder_count} kampe '
                 f'(+ {placeholder_count} finalekampe reserveret til bracket).'
             )
         else:

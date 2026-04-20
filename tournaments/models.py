@@ -82,6 +82,14 @@ class Division(models.Model):
         max_length=10, choices=TOURNAMENT_TYPE_CHOICES, default='group',
         verbose_name=_("Turneringstype")
     )
+    group_count = models.IntegerField(
+        default=2, verbose_name=_("Antal grupper"),
+        help_text=_("Antal grupper i gruppespillet (kun ved 'Gruppe med slutspil')."),
+    )
+    advance_count = models.IntegerField(
+        default=2, verbose_name=_("Antal der går videre"),
+        help_text=_("Antal spillere/hold der går videre fra hver gruppe til slutspillet."),
+    )
     teams = models.ManyToManyField('players.Team', related_name='divisions', blank=True, verbose_name=_("Deltagere"))
 
     def __str__(self):
@@ -106,6 +114,12 @@ class Match(models.Model):
     walkover = models.BooleanField(default=False, verbose_name=_("Walk-over"))
     scheduled_time = models.DateTimeField(verbose_name=_("Scheduled Time"), null=True, blank=True)
     court = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Court"))
+    group_number = models.IntegerField(null=True, blank=True, verbose_name=_("Gruppe nr."))
+    phase = models.CharField(
+        max_length=10, default='group',
+        choices=[('group', _('Gruppespil')), ('playoff', _('Slutspil'))],
+        verbose_name=_("Fase"),
+    )
 
     def __str__(self):
         t1 = self.team1 or self.bracket_label or 'TBD'

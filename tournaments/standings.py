@@ -102,6 +102,80 @@ def compute_standings(division):
     return _apply_tiebreakers(sorted_rows, h2h)
 
 
+def compute_group_standings(division):
+    """
+    For playoff divisions: return an ordered list of (group_number, standings_rows)
+    where each standings_rows is the result of compute_standings for that group's matches.
+    """
+    from django.db.models import Q
+
+    # Find all group numbers in use
+    group_numbers = sorted(
+        division.matches.filter(phase='group')
+        .values_list('group_number', flat=True)
+        .distinct()
+    )
+
+    cfg = STANDINGS_CONFIG
+    result = []
+    for g_num in group_numbers:
+        group_matches = list(
+            division.matches
+            .filter(phase='group', group_number=g_num, status='completed')
+            .select_related('team1', 'team2', 'winner')
+        )
+        # Collect all teams in this group from matches
+        team_pks = set()
+        for m in division.matches.filter(phase='group', group_number=g_num).select_related('team1', 'team2'):
+            if m.team1_id:
+                team_pks.add(m.team1_id)
+            if m.team2_id:
+                team_pks.add(m.team2_id)
+
+        from players.models import Team
+        teams_qs = Team.objects.filter(pk__in=team_pks)
+
+        rows = {
+            t.pk: {
+                'team': t,
+                'played': 0,
+                'won': 0,
+                'lost': 0,
+                'points': 0,
+                'score_for': 0,
+                'score_against': 0,
+            }
+            for t in teams_qs
+        }
+
+        h2h = {}
+        for match in group_matches:
+            t1, t2 = match.team1_id, match.team2_id
+            if t2 is None:
+                continue
+            sf1, sf2 = _parse_score(match.score)
+            for pk, sf, sa in ((t1, sf1, sf2), (t2, sf2, sf1)):
+                if pk in rows:
+                    rows[pk]['played'] += 1
+                    rows[pk]['score_for'] += sf
+                    rows[pk]['score_against'] += sa
+            if match.winner_id in rows:
+                rows[match.winner_id]['won'] += 1
+                rows[match.winner_id]['points'] += cfg['win_points']
+                loser_id = t2 if match.winner_id == t1 else t1
+                if loser_id in rows:
+                    rows[loser_id]['lost'] += 1
+                    rows[loser_id]['points'] += cfg['loss_points']
+            key = (min(t1, t2), max(t1, t2))
+            h2h[key] = match.winner_id
+
+        sorted_rows = sorted(rows.values(), key=lambda r: -r['points'])
+        sorted_rows = _apply_tiebreakers(sorted_rows, h2h)
+        result.append((g_num, sorted_rows))
+
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Tiebreaker engine
 # ---------------------------------------------------------------------------

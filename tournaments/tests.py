@@ -11,13 +11,13 @@ from .standings import compute_standings, _parse_score, STANDINGS_CONFIG
 # Helpers
 # ---------------------------------------------------------------------------
 
-def make_player(name="Alice", ranking=1, division="A"):
-    return Player.objects.create(name=name, age=20, ranking=ranking, division=division)
+def make_player(name="Alice", division="A"):
+    return Player.objects.create(name=name, age=20, division=division)
 
 
 def make_team(name=None, r1=1, r2=2):
-    p1 = make_player(f"P{r1}", ranking=r1)
-    p2 = make_player(f"P{r2}", ranking=r2)
+    p1 = make_player(f"P{r1}")
+    p2 = make_player(f"P{r2}")
     team = Team.objects.create(player1=p1, player2=p2)
     if name:
         team.name = name
@@ -248,10 +248,15 @@ class GenerateScheduleRouterTest(TestCase):
 
     def test_playoff_uses_round_robin(self):
         division = make_division(tournament_type='playoff')
+        division.group_count = 1
+        division.advance_count = 2
+        division.save()
         teams = [make_team(r1=i*2+1, r2=i*2+2) for i in range(3)]
         division.teams.set(teams)
         matches = generate_schedule(division)
-        self.assertEqual(len(matches), 3)
+        # 3 teams in 1 group: 3 group matches + 2 bracket slots (final)
+        group_matches = [m for m in matches if m.phase == 'group']
+        self.assertEqual(len(group_matches), 3)
 
 
 class TournamentCRUDViewTest(TestCase):
@@ -386,8 +391,8 @@ class TournamentViewTest(TestCase):
         single_div = Division.objects.create(
             tournament=self.tournament, name="Herresingle", discipline='single'
         )
-        p1 = make_player("Solo1", ranking=10)
-        p2 = make_player("Solo2", ranking=11)
+        p1 = make_player("Solo1")
+        p2 = make_player("Solo2")
         response = self.client.post(
             reverse("division_update_teams", args=[single_div.pk]),
             {'players': [p1.pk, p2.pk]},
