@@ -21,4 +21,5 @@ urlpatterns = [
     path('<int:pk>/schedule/', views.tournament_schedule, name='tournament_schedule'),
     path('<int:pk>/schedule/generate/', views.tournament_generate_time_schedule, name='tournament_generate_time_schedule'),
     path('<int:pk>/schedule/lock/', views.tournament_toggle_lock, name='tournament_toggle_lock'),
+    path('<int:pk>/bigscreen/', views.tournament_bigscreen, name='tournament_bigscreen'),
 ]

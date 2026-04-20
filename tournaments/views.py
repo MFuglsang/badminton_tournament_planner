@@ -354,6 +354,24 @@ def division_scoresheet(request, pk):
     })
 
 
+def tournament_bigscreen(request, pk):
+    """Storskærmsvisning – viser de 5 næste ikke-startede kampe."""
+    tournament = get_object_or_404(Tournament, pk=pk)
+    matches = list(
+        Match.objects
+        .filter(division__tournament=tournament, scheduled_time__isnull=False, status='pending')
+        .exclude(team1__isnull=True, team2__isnull=True, bracket_label__isnull=False)
+        .select_related('division', 'team1', 'team2')
+        .order_by('scheduled_time', 'court')
+    )[:5]
+    seed_lookup = _build_seed_lookup(tournament)
+    _apply_seed_labels(matches, seed_lookup)
+    return render(request, 'tournaments/bigscreen.html', {
+        'tournament': tournament,
+        'matches': matches,
+    })
+
+
 def tournament_schedule(request, pk):
     from django.utils import timezone
     tournament = get_object_or_404(Tournament, pk=pk)
