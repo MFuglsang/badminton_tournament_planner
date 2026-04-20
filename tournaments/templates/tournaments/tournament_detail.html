@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load tournament_extras %}
 {% block title %}{{ tournament.name }}{% endblock %}
 {% block content %}
 <div class="page-actions">
@@ -64,7 +65,7 @@
 </div>
 
 {% for dd in division_data %}
-{% with division=dd.division standings=dd.standings pform=dd.participants_form %}
+{% with division=dd.division standings=dd.standings pform=dd.participants_form seeds_dict=dd.seeds_dict %}
 <details class="division-block">
     <summary class="division-summary">
         <span class="division-summary-title">
@@ -126,6 +127,49 @@
     </div>
 </details>
 
+{# ── Seedning ──────────────────────────────────────────────────────────────── #}
+{% if division.teams.all and division.tournament_type != 'group' %}
+<details style="margin-bottom:1rem;">
+    <summary style="cursor:pointer; font-weight:600; color:#005BAC; padding:0.4rem 0;">
+        🎯 Seedning
+        {% with seed_count=division.seeds.count %}{% if seed_count %}<span style="font-weight:normal; color:#666; margin-left:0.4rem;">({{ seed_count }} seedet)</span>{% endif %}{% endwith %}
+    </summary>
+    <div class="card" style="margin-top:0.5rem; max-width:460px;">
+        <p style="color:#666; font-size:0.85rem; margin:0 0 0.75rem;">
+            Angiv seedningsnummer for de bedste {% if division.discipline == 'single' %}spillere{% else %}par{% endif %}.
+            Seed 1 er bedste, seed 2 næstbedste osv.
+            {% if division.tournament_type == 'tree' %}Seedede seedede mødes ikke i første runde.{% else %}Seedede fordeles i separate grupper (slangefordeling).{% endif %}
+            Useedede fordeles tilfældigt.
+        </p>
+        <form method="post" action="{% url 'division_update_seeds' division.pk %}">
+            {% csrf_token %}
+            <table style="width:100%; background:transparent;">
+                <thead>
+                    <tr>
+                        <th style="text-align:left;">{% if division.discipline == 'single' %}Spiller{% else %}Par{% endif %}</th>
+                        <th style="text-align:center; width:90px;">Seed #</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for team, seed_val in dd.seed_list %}
+                    <tr>
+                        <td>{{ team.name }}</td>
+                        <td style="text-align:center;">
+                            <input type="number" name="seed_{{ team.pk }}" value="{{ seed_val }}"
+                                   min="1" max="{{ division.teams.count }}"
+                                   style="width:60px; text-align:center;"
+                                   placeholder="–">
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <button type="submit" class="btn btn-primary btn-sm" style="margin-top:0.75rem;">Gem seedning</button>
+        </form>
+    </div>
+</details>
+{% endif %}
+
 {# ── Stilling: normale grupper ─── #}
 {% if standings %}
 <h3>Stilling</h3>
@@ -142,7 +186,7 @@
                 {% elif forloop.counter == 3 %}<span class="rank-3">🥉</span>
                 {% else %}{{ forloop.counter }}{% endif %}
             </td>
-            <td><strong>{{ row.team.name }}</strong></td>
+            <td><strong>{{ row.team.name }}</strong>{{ seeds_dict|dict_get:row.team.pk }}</td>
             <td>{{ row.played }}</td>
             <td>{{ row.won }}</td>
             <td>{{ row.lost }}</td>
@@ -173,7 +217,7 @@
                     {% else %}{{ forloop.counter }}{% endif %}
                     {% if forloop.counter <= division.advance_count %}<span style="font-size:0.7rem; color:#16a34a; margin-left:0.3rem;">↑ videre</span>{% endif %}
                 </td>
-                <td><strong>{{ row.team.name }}</strong></td>
+                <td><strong>{{ row.team.name }}</strong>{{ seeds_dict|dict_get:row.team.pk }}</td>
                 <td>{{ row.played }}</td>
                 <td>{{ row.won }}</td>
                 <td>{{ row.lost }}</td>
@@ -203,12 +247,12 @@
           <div class="bracket-team" style="color:#888; font-style:italic; font-size:0.8rem;">{{ slot.match.bracket_label }}</div>
         {% else %}
           <div class="bracket-team{% if slot.match.winner_id == slot.match.team1_id %} winner{% endif %}">
-            {% if slot.match.team1 %}{{ slot.match.team1.name }}{% elif slot.match.bracket_label %}{{ slot.match.bracket_label }}{% else %}TBD{% endif %}
+            {% if slot.match.team1 %}{{ slot.match.team1.name }}{{ slot.match.t1_seed }}{% elif slot.match.bracket_label %}{{ slot.match.bracket_label }}{% else %}TBD{% endif %}
             {% if slot.match.score and not slot.match.team2 %}<span style="font-size:0.75em;color:#aaa;"> Bye</span>{% endif %}
           </div>
           {% if slot.match.team2 %}
           <div class="bracket-team{% if slot.match.winner_id == slot.match.team2_id %} winner{% endif %}">
-            {{ slot.match.team2.name }}
+            {{ slot.match.team2.name }}{{ slot.match.t2_seed }}
           </div>
           {% elif slot.match.status == 'completed' %}
           <div class="bracket-team bye">Fri</div>
@@ -265,8 +309,8 @@
             {% if match.bracket_label %}
             <td colspan="2" style="color:#888; font-style:italic;">{{ match.bracket_label }}</td>
             {% else %}
-            <td>{{ match.team1.name }}</td>
-            <td>{{ match.team2.name }}</td>
+            <td>{{ match.team1.name }}{{ match.t1_seed }}</td>
+            <td>{{ match.team2.name }}{{ match.t2_seed }}</td>
             {% endif %}
             <td>{{ match.score|default:"–" }}</td>
             <td>{{ match.winner.name|default:"–" }}</td>
@@ -326,7 +370,7 @@
             <td style="color:#888; font-size:0.85rem;">{% if match.match_number %}#{{ match.match_number }}{% else %}–{% endif %}</td>
             <td>
                 {% if match.team1 and match.team2 %}
-                    {{ match.team1.name }} <span style="color:#94a3b8;">vs</span> {{ match.team2.name }}
+                    {{ match.team1.name }}{{ match.t1_seed }} <span style="color:#94a3b8;">vs</span> {{ match.team2.name }}{{ match.t2_seed }}
                 {% elif match.bracket_label %}
                     <span style="color:#888; font-style:italic;">{{ match.bracket_label }}</span>
                 {% else %}–{% endif %}

@@ -8,6 +8,19 @@ import itertools
 import math
 
 
+def _sort_teams_by_seed(division, teams):
+    """
+    Sort teams for bracket/playoff seeding:
+    - Seeded teams (with a DivisionSeed entry) come first, in ascending seed number order.
+    - Unseeded teams follow, sorted alphabetically by team name.
+    """
+    from .models import DivisionSeed
+    seeds = {s.team_id: s.seed_number for s in DivisionSeed.objects.filter(division=division)}
+    seeded = sorted([t for t in teams if t.pk in seeds], key=lambda t: seeds[t.pk])
+    unseeded = sorted([t for t in teams if t.pk not in seeds], key=lambda t: t.name)
+    return seeded + unseeded
+
+
 # ---------------------------------------------------------------------------
 # Round-robin
 # ---------------------------------------------------------------------------
@@ -22,7 +35,7 @@ def generate_round_robin(division):
 
     Match.objects.filter(division=division, status='pending').delete()
 
-    pairs = list(itertools.combinations(teams, 2))
+    pairs = list(itertools.combinations(sorted(teams, key=lambda t: t.player1.name), 2))
     created = []
     for round_num, (team1, team2) in enumerate(pairs, start=1):
         match = Match.objects.create(
@@ -79,7 +92,7 @@ def generate_bracket(division):
     if n < 2:
         return []
 
-    teams.sort(key=lambda t: t.player1.name)
+    teams = _sort_teams_by_seed(division, teams)
 
     total_rounds = math.ceil(math.log2(n))
     bracket_size = 2 ** total_rounds
@@ -260,6 +273,7 @@ def generate_playoff(division):
     from .models import Match
 
     teams = list(division.teams.all().order_by('name'))
+    teams = _sort_teams_by_seed(division, teams)
     n = len(teams)
     group_count = max(1, division.group_count)
     advance_count = max(1, division.advance_count)

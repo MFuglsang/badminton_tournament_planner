@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+{% load tournament_extras %}
 <html lang="da">
 <head>
 <meta charset="UTF-8">
@@ -240,7 +241,7 @@
         {% for team in dd.teams %}
         <div class="player-entry">
           <span class="player-bullet"></span>
-          {{ team.name }}
+          {{ team.name }}{{ dd.seeds_dict|dict_get:team.pk }}
         </div>
         {% endfor %}
       </div>
@@ -275,7 +276,7 @@
             <td class="court-col">–</td>
             {% endif %}
             <td class="teams-col">
-              {{ match.team1.name }}<span class="vs">vs</span>{{ match.team2.name }}
+              {{ match.team1.name }}{{ match.t1_seed }}<span class="vs">vs</span>{{ match.team2.name }}{{ match.t2_seed }}
             </td>
           </tr>
           {% endfor %}

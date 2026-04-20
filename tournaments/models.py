@@ -125,3 +125,17 @@ class Match(models.Model):
         t1 = self.team1 or self.bracket_label or 'TBD'
         t2 = self.team2 or ('Bye' if not self.bracket_label else 'TBD')
         return f"R{self.match_round}: {t1} vs {t2} ({self.division.name})"
+
+
+class DivisionSeed(models.Model):
+    """Records the seed number of a team within a division (optional seeding)."""
+    division = models.ForeignKey(Division, on_delete=models.CASCADE, related_name='seeds')
+    team = models.ForeignKey('players.Team', on_delete=models.CASCADE, related_name='division_seeds')
+    seed_number = models.PositiveIntegerField(verbose_name=_("Seedningsnummer"))
+
+    class Meta:
+        unique_together = [('division', 'team'), ('division', 'seed_number')]
+        ordering = ['seed_number']
+
+    def __str__(self):
+        return f"Seed {self.seed_number}: {self.team.name} ({self.division.name})"

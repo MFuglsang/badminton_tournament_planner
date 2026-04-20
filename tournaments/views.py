@@ -1,12 +1,42 @@
 from django.db.models import Max
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
-from .models import Tournament, Division, Match
+from .models import Tournament, Division, Match, DivisionSeed
 from .forms import MatchResultForm, DivisionForm, TournamentForm, get_participants_form, WalkoverForm
 from .standings import compute_standings, compute_group_standings
 from players.models import Team
 from .scheduler import generate_schedule, advance_bracket, get_bracket_data
 from .schedule_planner import generate_time_schedule
+
+
+# ---------------------------------------------------------------------------
+# Seed helpers
+# ---------------------------------------------------------------------------
+
+def _build_seed_lookup(tournament):
+    """Return {(division_pk, team_pk): seed_number} for every seed in the tournament."""
+    return {
+        (s.division_id, s.team_id): s.seed_number
+        for s in DivisionSeed.objects.filter(division__tournament=tournament)
+    }
+
+
+def _apply_seed_labels(matches, seed_lookup):
+    """Annotate match objects with .t1_seed / .t2_seed display strings, e.g. ' (1)'."""
+    for match in matches:
+        s1 = seed_lookup.get((match.division_id, match.team1_id))
+        s2 = seed_lookup.get((match.division_id, match.team2_id))
+        match.t1_seed = f' ({s1})' if s1 else ''
+        match.t2_seed = f' ({s2})' if s2 else ''
+
+
+def _seeds_dict_for_division(division, seed_lookup):
+    """Return {team_pk: ' (N)'} for use in standings / player-list templates."""
+    return {
+        team_pk: f' ({seed_num})'
+        for (div_pk, team_pk), seed_num in seed_lookup.items()
+        if div_pk == division.pk
+    }
 
 
 def tournament_list(request):
@@ -51,7 +81,14 @@ def tournament_delete(request, pk):
 
 def tournament_detail(request, pk):
     tournament = get_object_or_404(Tournament, pk=pk)
-    divisions = tournament.divisions.prefetch_related('teams', 'matches__team1', 'matches__team2', 'matches__winner')
+    divisions = tournament.divisions.prefetch_related('teams', 'matches__team1', 'matches__team2', 'matches__winner', 'seeds')
+
+    seed_lookup = _build_seed_lookup(tournament)
+
+    def _seed_list(d):
+        seeds_lkp = {team_pk: num for (div_pk, team_pk), num in seed_lookup.items() if div_pk == d.pk}
+        return [(team, seeds_lkp.get(team.pk, '')) for team in d.teams.all().order_by('name')]
+
     division_data = [
         {
             'division': d,
@@ -61,9 +98,16 @@ def tournament_detail(request, pk):
             'match_count': d.matches.count(),
             'pending_count': d.matches.filter(status='pending').count(),
             'bracket_data': get_bracket_data(d) if d.tournament_type in ('tree', 'playoff') else None,
+            'seed_list': _seed_list(d),
+            'seeds_dict': _seeds_dict_for_division(d, seed_lookup),
         }
         for d in divisions
     ]
+
+    # Annotate prefetched match objects with seed display strings
+    for dd in division_data:
+        _apply_seed_labels(dd['division'].matches.all(), seed_lookup)
+
     division_form = DivisionForm()
     return render(request, 'tournaments/tournament_detail.html', {
         'tournament': tournament,
@@ -102,6 +146,26 @@ def division_update_teams(request, pk):
             else:
                 division.teams.set(form.cleaned_data['pairs'])
                 messages.success(request, f'Par i "{division.name}" er opdateret.')
+    return redirect('tournament_detail', pk=division.tournament.pk)
+
+
+def division_update_seeds(request, pk):
+    """Save seed numbers for teams in a division."""
+    division = get_object_or_404(Division, pk=pk)
+    if request.method == 'POST':
+        DivisionSeed.objects.filter(division=division).delete()
+        seen = set()
+        for team in division.teams.all():
+            raw = request.POST.get(f'seed_{team.pk}', '').strip()
+            if raw:
+                try:
+                    seed_num = int(raw)
+                    if seed_num > 0 and seed_num not in seen:
+                        DivisionSeed.objects.create(division=division, team=team, seed_number=seed_num)
+                        seen.add(seed_num)
+                except ValueError:
+                    pass
+        messages.success(request, f'Seedning for "{division.name}" er gemt.')
     return redirect('tournament_detail', pk=division.tournament.pk)
 
 
@@ -247,6 +311,9 @@ def tournament_program_print(request, pk):
         'teams', 'teams__player1', 'teams__player2',
         'matches__team1', 'matches__team2',
     ).order_by('name')
+
+    seed_lookup = _build_seed_lookup(tournament)
+
     division_data = []
     for division in divisions:
         teams = list(division.teams.select_related('player1', 'player2').order_by('name'))
@@ -258,10 +325,12 @@ def tournament_program_print(request, pk):
             .select_related('team1', 'team2')
             .order_by('match_round', 'match_number')
         )
+        _apply_seed_labels(matches, seed_lookup)
         division_data.append({
             'division': division,
             'teams': teams,
             'matches': matches,
+            'seeds_dict': _seeds_dict_for_division(division, seed_lookup),
         })
     return render(request, 'tournaments/tournament_program_print.html', {
         'tournament': tournament,
@@ -290,12 +359,14 @@ def division_scoresheet(request, pk):
 def tournament_schedule(request, pk):
     from django.utils import timezone
     tournament = get_object_or_404(Tournament, pk=pk)
-    matches = (
+    matches = list(
         Match.objects
         .filter(division__tournament=tournament, scheduled_time__isnull=False)
         .select_related('division', 'team1', 'team2', 'winner')
         .order_by('scheduled_time', 'court')
     )
+    seed_lookup = _build_seed_lookup(tournament)
+    _apply_seed_labels(matches, seed_lookup)
     has_unscheduled = (
         Match.objects
         .filter(division__tournament=tournament, scheduled_time__isnull=True)

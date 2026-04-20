@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load tournament_extras %}
 {% block title %}Spilleplan – {{ tournament.name }}{% endblock %}
 {% block content %}
 
@@ -69,7 +70,7 @@
                     <span class="sched-dot dot-done"></span>
                     <span class="sched-card-no">#{{ match.match_number }}</span>
                     <span class="sched-card-court">Bane {{ match.court }}</span>
-                    <span class="sched-card-teams">{{ match.team1.name }} <span class="vs">vs</span> {{ match.team2.name }}</span>
+                    <span class="sched-card-teams">{{ match.team1.name }}{{ match.t1_seed }} <span class="vs">vs</span> {{ match.team2.name }}{{ match.t2_seed }}</span>
                     <span class="sched-card-result">{{ match.score|default:"" }}</span>
                     {% if match.walkover %}<span class="badge badge-walkover" style="margin-left:0.5rem;">WO</span>{% endif %}
                     <span class="sched-card-winner">🏆 {{ match.winner.name|default:"" }}</span>
@@ -87,7 +88,7 @@
                 <span class="sched-dot dot-active"></span>
                 <span class="sched-card-no">#{{ match.match_number }}</span>
                 <span class="sched-card-court">Bane {{ match.court }}</span>
-                <span class="sched-card-teams">{{ match.team1.name }} <span class="vs">vs</span> {{ match.team2.name }}</span>
+                <span class="sched-card-teams">{{ match.team1.name }}{{ match.t1_seed }} <span class="vs">vs</span> {{ match.team2.name }}{{ match.t2_seed }}</span>
                 <span class="sched-badge-active">I gang</span>
                 <span style="margin-left:auto; font-size:0.8rem; color:#888;">{{ match.division.name }}</span>
             </div>
@@ -96,7 +97,7 @@
                 <span class="sched-dot dot-upcoming"></span>
                 <span class="sched-card-no">#{{ match.match_number }}</span>
                 <span class="sched-card-court">Bane {{ match.court }}</span>
-                <span class="sched-card-teams">{{ match.team1.name }} <span class="vs">vs</span> {{ match.team2.name }}</span>
+                <span class="sched-card-teams">{{ match.team1.name }}{{ match.t1_seed }} <span class="vs">vs</span> {{ match.team2.name }}{{ match.t2_seed }}</span>
                 <span style="margin-left:auto; font-size:0.8rem; color:#888;">{{ match.division.name }}</span>
             </div>
         {% endif %}

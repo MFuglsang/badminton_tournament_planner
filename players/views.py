@@ -119,12 +119,12 @@ def team_delete(request, pk):
 
 def player_schedule_print(request, pk):
     """Print-venlig spilleplan for en enkelt spiller på tværs af turneringer."""
-    from tournaments.models import Match, Tournament
+    from tournaments.models import Match, Tournament, DivisionSeed
     player = get_object_or_404(Player, pk=pk)
     # Find alle teams som spilleren er en del af
     teams = Team.objects.filter(Q(player1=player) | Q(player2=player))
     # Find alle kampe (med tidspunkt) for disse teams, sorteret efter tidspunkt
-    matches = (
+    matches = list(
         Match.objects
         .filter(Q(team1__in=teams) | Q(team2__in=teams))
         .filter(scheduled_time__isnull=False)
@@ -132,8 +132,19 @@ def player_schedule_print(request, pk):
         .select_related('team1', 'team2', 'division', 'division__tournament', 'winner')
         .order_by('scheduled_time')
     )
-    # Brug logo fra den eneste turnering hvis alle kampe er fra samme turnering
+    # Annotate matches with seed display strings
     tournament_ids = set(m.division.tournament_id for m in matches)
+    seed_lookup = {
+        (s.division_id, s.team_id): s.seed_number
+        for s in DivisionSeed.objects.filter(division__tournament_id__in=tournament_ids)
+    }
+    for match in matches:
+        s1 = seed_lookup.get((match.division_id, match.team1_id))
+        s2 = seed_lookup.get((match.division_id, match.team2_id))
+        match.t1_seed = f' ({s1})' if s1 else ''
+        match.t2_seed = f' ({s2})' if s2 else ''
+
+    # Brug logo fra den eneste turnering hvis alle kampe er fra samme turnering
     logo_tournament = None
     if len(tournament_ids) == 1:
         logo_tournament = matches[0].division.tournament if matches else None
