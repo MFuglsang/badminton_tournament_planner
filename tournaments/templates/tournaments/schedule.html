@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+{% block title %}Spilleplan – {{ tournament.name }}{% endblock %}
+{% block content %}
+
+<div class="page-actions">
+    <h1>Spilleplan – {{ tournament.name }}</h1>
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+        <form method="post" action="{% url 'tournament_generate_time_schedule' tournament.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">⚡ {% if matches %}Generer ny{% else %}Generer{% endif %} spilleplan</button>
+        </form>
+        <a href="{% url 'tournament_detail' tournament.pk %}" class="btn btn-secondary">← Turnering</a>
+    </div>
+</div>
+
+{% if not tournament.start_time %}
+<div class="flash flash-warning">
+    Turneringen har intet starttidspunkt. <a href="{% url 'tournament_edit' tournament.pk %}">Angiv det her</a> for at generere spilleplanen.
+</div>
+{% endif %}
+
+{% if has_unscheduled %}
+<div class="flash flash-warning">
+    Nogle kampe mangler endnu et tidspunkt. Tryk "Generer ny spilleplan" for at planlægge alle kampe.
+</div>
+{% endif %}
+
+{# ── Legend ─── #}
+{% if matches %}
+<div style="display:flex; gap:1rem; align-items:center; flex-wrap:wrap; margin-bottom:1.25rem; font-size:0.85rem;">
+    <span><span class="sched-dot dot-done"></span> Afsluttet</span>
+    <span><span class="sched-dot dot-active"></span> I gang</span>
+    <span><span class="sched-dot dot-upcoming"></span> Kommende</span>
+</div>
+
+{# ── Match list ─── #}
+{% regroup matches by scheduled_time as time_groups %}
+{% for group in time_groups %}
+<div class="sched-timeslot">
+    <div class="sched-time-label">{{ group.grouper|time:"H:i" }}</div>
+    <div class="sched-matches">
+    {% for match in group.list %}
+        {% if match.bracket_label %}
+            {# Placeholder: participants not yet known #}
+            <div class="sched-card sched-upcoming" style="border-left-color:#aaa;">
+                <span class="sched-dot dot-upcoming" style="background:#aaa;"></span>
+                <span class="sched-card-no">#{{ match.match_number }}</span>
+                <span class="sched-card-court">Bane {{ match.court }}</span>
+                <span class="sched-card-teams" style="color:#888; font-style:italic;">{{ match.bracket_label }}</span>
+                <span style="margin-left:auto; font-size:0.8rem; color:#aaa;">{{ match.division.name }}</span>
+            </div>
+        {% elif match.status == 'completed' %}
+            <details class="sched-card sched-done">
+                <summary class="sched-card-summary">
+                    <span class="sched-dot dot-done"></span>
+                    <span class="sched-card-no">#{{ match.match_number }}</span>
+                    <span class="sched-card-court">Bane {{ match.court }}</span>
+                    <span class="sched-card-teams">{{ match.team1.name }} <span class="vs">vs</span> {{ match.team2.name }}</span>
+                    <span class="sched-card-result">{{ match.score|default:"" }}</span>
+                    {% if match.walkover %}<span class="badge badge-walkover" style="margin-left:0.5rem;">WO</span>{% endif %}
+                    <span class="sched-card-winner">🏆 {{ match.winner.name|default:"" }}</span>
+                </summary>
+                <div class="sched-card-detail">
+                    <strong>Division:</strong> {{ match.division.name }} &nbsp;·&nbsp;
+                    <strong>Runde:</strong> {{ match.match_round }} &nbsp;·&nbsp;
+                    <strong>Score:</strong> {{ match.score|default:"–" }} &nbsp;·&nbsp;
+                    <strong>Vinder:</strong> {{ match.winner.name|default:"–" }}
+                    {% if match.walkover %}&nbsp;·&nbsp;<em>Walk-over</em>{% endif %}
+                </div>
+            </details>
+        {% elif match.status == 'in_progress' %}
+            <div class="sched-card sched-active">
+                <span class="sched-dot dot-active"></span>
+                <span class="sched-card-no">#{{ match.match_number }}</span>
+                <span class="sched-card-court">Bane {{ match.court }}</span>
+                <span class="sched-card-teams">{{ match.team1.name }} <span class="vs">vs</span> {{ match.team2.name }}</span>
+                <span class="sched-badge-active">I gang</span>
+                <span style="margin-left:auto; font-size:0.8rem; color:#888;">{{ match.division.name }}</span>
+            </div>
+        {% else %}
+            <div class="sched-card sched-upcoming">
+                <span class="sched-dot dot-upcoming"></span>
+                <span class="sched-card-no">#{{ match.match_number }}</span>
+                <span class="sched-card-court">Bane {{ match.court }}</span>
+                <span class="sched-card-teams">{{ match.team1.name }} <span class="vs">vs</span> {{ match.team2.name }}</span>
+                <span style="margin-left:auto; font-size:0.8rem; color:#888;">{{ match.division.name }}</span>
+            </div>
+        {% endif %}
+    {% endfor %}
+    </div>
+</div>
+{% endfor %}
+
+{% else %}
+<div class="card" style="text-align:center; color:#94a3b8; padding:3rem 2rem;">
+    <div style="font-size:2rem; margin-bottom:0.5rem;">📅</div>
+    <p style="margin:0 0 1rem; color:#64748b;">Ingen spilleplan endnu. Generer kampprogram for alle divisioner, og tryk derefter "Generer spilleplan".</p>
+</div>
+{% endif %}
+
+<style>
+.sched-timeslot {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.4rem;
+    align-items: flex-start;
+}
+.sched-time-label {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #005BAC;
+    min-width: 3.5rem;
+    padding-top: 0.65rem;
+    flex-shrink: 0;
+    letter-spacing: -0.01em;
+}
+.sched-matches {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+.sched-card {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0.9rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    border: 1.5px solid #e2e8f0;
+    background: white;
+    transition: box-shadow 0.15s;
+}
+.sched-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+.sched-done {
+    background: #fafafa;
+    border-color: #e8ebee;
+}
+.sched-done summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 0.6rem; width: 100%; }
+.sched-done summary::-webkit-details-marker { display: none; }
+.sched-card-detail {
+    padding: 0.5rem 0.5rem 0.1rem 2rem;
+    font-size: 0.8rem;
+    color: #64748b;
+    border-top: 1px solid #f1f5f9;
+    margin-top: 0.3rem;
+}
+.sched-active {
+    background: #fff8f5;
+    border-color: #fb923c;
+    font-weight: 600;
+}
+.sched-badge-active {
+    background: #ea580c;
+    color: white;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 20px;
+    margin-left: 0.25rem;
+    letter-spacing: 0.04em;
+}
+.sched-upcoming {
+    background: white;
+}
+.sched-card-no  { font-weight: 700; min-width: 2.8rem; color: #005BAC; font-size: 0.82rem; }
+.sched-card-court { font-size: 0.75rem; color: #94a3b8; min-width: 4rem; background: #f1f5f9; padding: 0.15rem 0.5rem; border-radius: 4px; }
+.sched-card-teams { flex: 1; color: #1e293b; }
+.sched-card-result { font-size: 0.8rem; color: #475569; }
+.sched-card-winner { font-size: 0.8rem; color: #166534; font-weight: 700; }
+.vs { color: #94a3b8; font-size: 0.75rem; margin: 0 0.2rem; }
+.sched-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.dot-done     { background: #cbd5e1; }
+.dot-active   { background: #ea580c; }
+.dot-upcoming { background: #3b82f6; }
+
+@media (max-width: 600px) {
+    .sched-timeslot { flex-direction: column; gap: 0.2rem; }
+    .sched-time-label { padding-top: 0; }
+    .sched-card-court { display: none; }
+}
+</style>
+{% endblock %}

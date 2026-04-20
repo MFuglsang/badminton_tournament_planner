@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}Registrer resultat{% endblock %}
+{% block content %}
+<div style="max-width:600px; margin:0 auto;">
+    <div class="card">
+        <h1 style="margin-top:0;">{{ match.team1.name }} vs {{ match.team2.name|default:"Bye" }}</h1>
+        <div style="background:#f0f6ff; border-left:4px solid #005BAC; padding:0.75rem 1rem; border-radius:4px; margin-bottom:1.5rem;">
+            <strong>Division:</strong> {{ match.division.name }}<br>
+            <strong>Runde:</strong> {{ match.match_round }}
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            {% for field in form %}
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}
+            <ul class="errorlist">{% for error in field.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+            {% endif %}
+            {% endfor %}
+            <div style="margin-top:1.5rem;">
+                <button type="submit" class="btn btn-primary">Gem resultat</button>
+                <a href="{% url 'tournament_detail' match.division.tournament.pk %}" class="btn btn-secondary" style="margin-left:0.5rem;">Annuller</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

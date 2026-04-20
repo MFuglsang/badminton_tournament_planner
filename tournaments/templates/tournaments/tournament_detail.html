@@ -1,0 +1,250 @@
+{% extends 'base.html' %}
+{% block title %}{{ tournament.name }}{% endblock %}
+{% block content %}
+<div class="page-actions">
+    <h1>{{ tournament.name }}</h1>
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+        <a href="{% url 'tournament_edit' tournament.pk %}" class="btn btn-secondary">Rediger opsætning</a>
+        <a href="{% url 'tournament_schedule' tournament.pk %}" class="btn btn-secondary">📅 Spilleplan</a>
+        <a href="{% url 'tournament_scoresheet' tournament.pk %}" class="btn btn-secondary" target="_blank">🖨 Scoresedler</a>
+    </div>
+</div>
+<p style="color:#64748b; font-size:0.85rem; margin: -0.75rem 0 1.5rem; display:flex; flex-wrap:wrap; gap:0.4rem 1.25rem;">
+    <span><strong>Dato:</strong> {{ tournament.date }}</span>
+    <span><strong>Scoring:</strong> {{ tournament.get_scoring_model_display }}</span>
+    <span><strong>Baner:</strong> {{ tournament.court_count }}</span>
+    <span><strong>Start:</strong> {{ tournament.start_time|default:"–" }}</span>
+</p>
+
+{# ── Opret ny division ─────────────────────────────────────────────────── #}
+<div class="card" style="max-width:560px;">
+    <h2 style="margin-top:0; font-size:1.1rem;">Opret division</h2>
+    <form method="post" action="{% url 'division_create' tournament.pk %}">
+        {% csrf_token %}
+        <div style="display:flex; gap:0.75rem; align-items:flex-start; flex-wrap:wrap; margin-bottom:0.5rem;">
+            <div style="flex:1; min-width:200px;">
+                {{ division_form.name }}
+                {% if division_form.name.errors %}<ul class="errorlist">{% for e in division_form.name.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+            </div>
+            <div style="min-width:160px;">
+                {{ division_form.discipline }}
+                {% if division_form.discipline.errors %}<ul class="errorlist">{% for e in division_form.discipline.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+            </div>
+            <div style="min-width:180px;">
+                {{ division_form.tournament_type }}
+                {% if division_form.tournament_type.errors %}<ul class="errorlist">{% for e in division_form.tournament_type.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">+ Opret division</button>
+    </form>
+</div>
+
+{% for dd in division_data %}
+{% with division=dd.division standings=dd.standings pform=dd.participants_form %}
+<details class="division-block">
+    <summary class="division-summary">
+        <span class="division-summary-title">
+            {{ division.name }}
+        </span>
+        <span style="display:flex; gap:0.4rem; align-items:center; margin-left:0.75rem;">
+            <span class="badge badge-pending" style="font-size:0.67rem;">{{ division.get_discipline_display }}</span>
+            <span class="badge badge-in-progress" style="font-size:0.67rem;">{{ division.get_tournament_type_display }}</span>
+        </span>
+        <span style="font-size:0.8rem; color:#94a3b8; margin-left:0.75rem; font-weight:400;">
+            {{ division.teams.count }} deltager{{ division.teams.count|pluralize:"e" }}
+            {% if dd.match_count %}&middot; {{ dd.pending_count }}/{{ dd.match_count }} kampe mangler{% endif %}
+        </span>
+        <a href="{% url 'division_delete' division.pk %}" class="btn btn-danger btn-sm" onclick="event.stopPropagation();" style="margin-left:auto;">Slet</a>
+    </summary>
+    <div class="division-body">
+
+{# ── Vælg deltagere ────────────────────────────────────────────────────── #}
+<details {% if not division.teams.all %}open{% endif %} style="margin-bottom:1rem;">
+    <summary style="cursor:pointer; font-weight:600; color:#005BAC; padding:0.4rem 0;">
+        👥 {% if division.discipline == 'single' %}Tilmeld spillere{% else %}Tilmeld par{% endif %} ({{ division.teams.count }} tilmeldt)
+    </summary>
+    <div class="card" style="margin-top:0.5rem; max-width:700px;">
+        <form method="post" action="{% url 'division_update_teams' division.pk %}">
+            {% csrf_token %}
+            {% if division.discipline == 'single' %}
+                {% if pform.players.field.queryset.exists %}
+                <div style="columns: 2; gap:1.5rem; margin-bottom:1rem;">
+                    {% for choice in pform.players %}
+                    <label style="display:flex; gap:0.5rem; align-items:center; font-weight:normal; margin-bottom:0.4rem; break-inside:avoid;">
+                        {{ choice.tag }} {{ choice.choice_label }}
+                    </label>
+                    {% endfor %}
+                </div>
+                <p style="color:#888; font-size:0.85rem; margin:0 0 0.75rem;">
+                    Mangler nogen? <a href="{% url 'player_add' %}">Tilføj spiller her</a>.
+                </p>
+                {% else %}
+                <p style="color:#888;">Ingen spillere tilgængelige. <a href="{% url 'player_add' %}">Tilføj spiller</a> og kom tilbage.</p>
+                {% endif %}
+            {% else %}
+                {% if pform.pairs.field.queryset.exists %}
+                <div style="columns: 2; gap:1.5rem; margin-bottom:1rem;">
+                    {% for choice in pform.pairs %}
+                    <label style="display:flex; gap:0.5rem; align-items:center; font-weight:normal; margin-bottom:0.4rem; break-inside:avoid;">
+                        {{ choice.tag }} {{ choice.choice_label }}
+                    </label>
+                    {% endfor %}
+                </div>
+                <p style="color:#888; font-size:0.85rem; margin:0 0 0.75rem;">
+                    Mangler nogen? <a href="{% url 'team_add' %}">Opret par her</a>.
+                </p>
+                {% else %}
+                <p style="color:#888;">Ingen par tilgængelige. <a href="{% url 'team_add' %}">Opret par</a> og kom tilbage.</p>
+                {% endif %}
+            {% endif %}
+            <button type="submit" class="btn btn-primary btn-sm">Gem tilmelding</button>
+        </form>
+    </div>
+</details>
+
+{% if standings %}
+<h3>Stilling</h3>
+<table style="max-width:600px;">
+    <thead>
+        <tr><th>#</th><th>{% if division.discipline == 'single' %}Spiller{% else %}Par{% endif %}</th><th>Kampe</th><th>Vundet</th><th>Tabt</th><th>Point</th></tr>
+    </thead>
+    <tbody>
+        {% for row in standings %}
+        <tr>
+            <td>
+                {% if forloop.counter == 1 %}<span class="rank-1">🥇</span>
+                {% elif forloop.counter == 2 %}<span class="rank-2">🥈</span>
+                {% elif forloop.counter == 3 %}<span class="rank-3">🥉</span>
+                {% else %}{{ forloop.counter }}{% endif %}
+            </td>
+            <td><strong>{{ row.team.name }}</strong></td>
+            <td>{{ row.played }}</td>
+            <td>{{ row.won }}</td>
+            <td>{{ row.lost }}</td>
+            <td><strong>{{ row.points }}</strong></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+{% if dd.bracket_data %}
+<h3>Turnéringsdiagram</h3>
+<div class="bracket-container">
+  {% for round in dd.bracket_data.rounds %}
+  <div class="bracket-round{% if round.is_last %} bracket-round-last{% endif %}">
+    <div class="bracket-round-label">{{ round.label }}</div>
+    {% for slot in round.slots %}
+    <div class="bracket-slot {% if slot.is_odd %}bracket-slot-odd{% else %}bracket-slot-even{% endif %}"
+         style="height:{{ round.slot_height }}px;">
+      {% if slot.match %}
+      <div class="bracket-card">
+        <div class="bracket-team{% if slot.match.winner_id == slot.match.team1_id %} winner{% endif %}">
+          {{ slot.match.team1.name }}
+          {% if slot.match.score and not slot.match.team2 %}<span style="font-size:0.75em;color:#aaa;"> Bye</span>{% endif %}
+        </div>
+        {% if slot.match.team2 %}
+        <div class="bracket-team{% if slot.match.winner_id == slot.match.team2_id %} winner{% endif %}">
+          {{ slot.match.team2.name }}
+        </div>
+        {% else %}
+        <div class="bracket-team bye">Bye</div>
+        {% endif %}
+      </div>
+      {% else %}
+      <div class="bracket-card"><div class="bracket-tbd">Afventer…</div></div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="btn-group" style="margin-bottom:1rem;">
+    <form method="post" action="{% url 'division_generate_schedule' division.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-primary btn-sm">⚡ Generer kampprogram</button>
+    </form>
+    {% if division.matches.all %}
+    <a href="{% url 'division_scoresheet' division.pk %}" class="btn btn-secondary btn-sm" target="_blank">🖨 Scoresedler (PDF)</a>
+    {% endif %}
+</div>
+
+{% if division.matches.all %}
+{% if division.tournament_type == 'tree' %}
+<h3>Kampe</h3>
+{% else %}
+<h3>Kampprogram</h3>
+{% endif %}
+<table>
+    <thead>
+        <tr>
+            <th>Runde</th><th>#</th><th>Hold 1</th><th>Hold 2</th><th>Resultat</th><th>Vinder</th><th>Status</th><th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for match in division.matches.all|dictsort:"match_number" %}
+        {% if match.team2 or match.bracket_label %}{# skip byes, show real + placeholder #}
+        <tr>
+            <td>{{ match.match_round }}</td>
+            <td style="color:#888; font-size:0.85rem;">{% if match.match_number %}#{{ match.match_number }}{% else %}–{% endif %}</td>
+            {% if match.bracket_label %}
+            <td colspan="2" style="color:#888; font-style:italic;">{{ match.bracket_label }}</td>
+            {% else %}
+            <td>{{ match.team1.name }}</td>
+            <td>{{ match.team2.name }}</td>
+            {% endif %}
+            <td>{{ match.score|default:"–" }}</td>
+            <td>{{ match.winner.name|default:"–" }}</td>
+            <td>
+                {% if match.status == 'completed' %}
+                    {% if match.walkover %}
+                        <span class="badge badge-walkover">WO</span>
+                    {% else %}
+                        <span class="badge badge-completed">Afsluttet</span>
+                    {% endif %}
+                {% elif match.status == 'in_progress' %}
+                    <span class="badge badge-in-progress">I gang</span>
+                {% else %}
+                    <span class="badge badge-pending">Afventer</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if not match.bracket_label %}
+                {% if match.status == 'pending' %}
+                <form method="post" action="{% url 'match_start' match.pk %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-secondary btn-sm">▶ Start</button>
+                </form>
+                {% endif %}
+                {% if match.status == 'in_progress' or match.status == 'pending' %}
+                <a href="{% url 'match_record_result' match.pk %}" class="btn btn-primary btn-sm" style="margin-left:0.25rem;">Registrer resultat</a>
+                <a href="{% url 'match_walkover' match.pk %}" class="btn btn-secondary btn-sm" style="margin-left:0.25rem;" title="Walk-over">WO</a>
+                {% endif %}
+                {% if match.status == 'completed' %}
+                <a href="{% url 'match_record_result' match.pk %}" class="btn btn-secondary btn-sm">Ret resultat</a>
+                {% endif %}
+                {% else %}
+                <span style="color:#aaa; font-size:0.8rem;">Afventer spillere</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endif %}{# end if team2 or bracket_label #}
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p><em style="color:#888;">Ingen kampe planlagt endnu.</em></p>
+{% endif %}
+    </div>{# /division-body #}
+</details>{# /division-block #}
+{% endwith %}
+{% endfor %}
+
+{% if not division_data %}
+<div class="card" style="text-align:center; color:#888; margin-top:1rem;">
+    <p>Ingen divisioner oprettet endnu. Brug formularen ovenfor til at oprette den første.</p>
+</div>
+{% endif %}
+{% endblock %}

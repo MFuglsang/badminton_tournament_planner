@@ -1,28 +1,52 @@
 {% extends 'base.html' %}
-
+{% block title %}Hold{% endblock %}
 {% block content %}
-<h1>Team List</h1>
-<a href="{% url 'team_add' %}">Add Team</a>
+<div class="page-actions">
+    <h1>Hold</h1>
+    <a href="{% url 'team_add' %}" class="btn btn-primary">+ Tilføj hold</a>
+</div>
+
+{% if teams %}
 <table>
     <thead>
         <tr>
-            <th>Team Name</th>
-            <th>Player 1</th>
-            <th>Player 2</th>
-            <th>Actions</th>
+            <th>Hold</th>
+            <th>Type</th>
+            <th>Spiller 1</th>
+            <th>Spiller 2</th>
+            <th></th>
         </tr>
     </thead>
     <tbody>
         {% for team in teams %}
         <tr>
-            <td>{{ team.name }}</td>
-            <td>{{ team.player1.name }}</td>
-            <td>{{ team.player2.name }}</td>
+            <td><strong>{{ team.name }}</strong></td>
             <td>
-                <a href="{% url 'team_edit' team.id %}">Edit</a>
+                {% if team.pair_type == 'double' %}
+                    <span class="badge badge-completed">Double</span>
+                {% elif team.pair_type == 'mixed' %}
+                    <span class="badge badge-in-progress">Mix</span>
+                {% else %}
+                    <span style="color:#bbb; font-size:0.8rem;">–</span>
+                {% endif %}
+            </td>
+            <td>{{ team.player1.name }} <span class="badge badge-pending">{{ team.player1.get_division_display }}</span></td>
+            <td>{{ team.player2.name }} <span class="badge badge-pending">{{ team.player2.get_division_display }}</span></td>
+            <td>
+                <div class="btn-group">
+                    <a href="{% url 'team_edit' team.id %}" class="btn btn-secondary btn-sm">Rediger</a>
+                    <a href="{% url 'team_delete' team.id %}" class="btn btn-danger btn-sm">Slet</a>
+                </div>
             </td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
+{% else %}
+<div class="card" style="text-align:center; padding:3rem 2rem;">
+    <div style="font-size:2rem; margin-bottom:0.5rem;">🤝</div>
+    <p style="margin:0 0 1rem; color:#64748b;">Ingen hold oprettet endnu.</p>
+    <a href="{% url 'team_add' %}" class="btn btn-primary">Tilføj det første hold</a>
+</div>
+{% endif %}
 {% endblock %}

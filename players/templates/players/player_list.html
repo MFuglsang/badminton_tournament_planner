@@ -1,30 +1,60 @@
 {% extends 'base.html' %}
-
+{% block title %}Spillere{% endblock %}
 {% block content %}
-<h1>Player List</h1>
-<a href="{% url 'player_add' %}">Add Player</a>
+<div class="page-actions">
+    <h1>Spillere</h1>
+    <a href="{% url 'player_add' %}" class="btn btn-primary">+ Tilføj spiller</a>
+</div>
+
+<div class="filter-bar">
+    <form method="get" style="display:flex; gap:0.75rem; align-items:center;">
+        <label for="division" style="margin:0; font-weight:normal;">Filtrér:</label>
+        <select name="division" id="division" onchange="this.form.submit()">
+            <option value="">Alle divisioner</option>
+            {% for value, label in division_choices %}
+            <option value="{{ value }}" {% if value == selected_division %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        {% if selected_division %}<a href="{% url 'player_list' %}" class="btn btn-secondary btn-sm">Ryd filter</a>{% endif %}
+    </form>
+    <span style="color:#888; font-size:0.9rem;">{{ players|length }} spiller{{ players|length|pluralize:",e" }}</span>
+</div>
+
+{% if players %}
 <table>
     <thead>
         <tr>
-            <th>Name</th>
-            <th>Age</th>
+            <th>Navn</th>
+            <th>Køn</th>
+            <th>Alder</th>
             <th>Ranking</th>
             <th>Division</th>
-            <th>Actions</th>
+            <th></th>
         </tr>
     </thead>
     <tbody>
         {% for player in players %}
         <tr>
-            <td>{{ player.name }}</td>
+            <td><strong>{{ player.name }}</strong></td>
+            <td>{{ player.get_gender_display }}</td>
             <td>{{ player.age }}</td>
             <td>{{ player.ranking }}</td>
-            <td>{{ player.get_division_display }}</td>
+            <td><span class="badge badge-pending">{{ player.get_division_display }}</span></td>
             <td>
-                <a href="{% url 'player_edit' player.id %}">Edit</a>
+                <div class="btn-group">
+                    <a href="{% url 'player_edit' player.id %}" class="btn btn-secondary btn-sm">Rediger</a>
+                    <a href="{% url 'player_delete' player.id %}" class="btn btn-danger btn-sm">Slet</a>
+                </div>
             </td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
+{% else %}
+<div class="card" style="text-align:center; padding:3rem 2rem;">
+    <div style="font-size:2rem; margin-bottom:0.5rem;">👤</div>
+    <p style="margin:0 0 1rem; color:#64748b;">Ingen spillere fundet.</p>
+    <a href="{% url 'player_add' %}" class="btn btn-primary">Tilføj den første spiller</a>
+</div>
+{% endif %}
 {% endblock %}

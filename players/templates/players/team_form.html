@@ -1,10 +1,23 @@
 {% extends 'base.html' %}
-
+{% block title %}{% if form.instance.pk %}Rediger hold{% else %}Tilføj hold{% endif %}{% endblock %}
 {% block content %}
-<h1>{% if form.instance.pk %}Edit Team{% else %}Add Team{% endif %}</h1>
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Save</button>
-</form>
+<div style="max-width:560px;">
+    <h1>{% if form.instance.pk %}Rediger {{ team.name }}{% else %}Tilføj hold{% endif %}</h1>
+    <div class="card">
+        <form method="post">
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+            </div>
+            {% endfor %}
+            <div style="margin-top:1.5rem;" class="btn-group">
+                <button type="submit" class="btn btn-primary">Gem</button>
+                <a href="{% url 'team_list' %}" class="btn btn-secondary">Annuller</a>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}

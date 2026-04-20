@@ -1,16 +1,26 @@
 from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
 from .models import Player, Team
 from .forms import PlayerForm, TeamForm
 
 def player_list(request):
-    players = Player.objects.all()
-    return render(request, 'players/player_list.html', {'players': players})
+    division = request.GET.get('division', '')
+    players = Player.objects.all().order_by('division', 'ranking')
+    if division:
+        players = players.filter(division=division)
+    division_choices = Player.DIVISION_CHOICES
+    return render(request, 'players/player_list.html', {
+        'players': players,
+        'division_choices': division_choices,
+        'selected_division': division,
+    })
 
 def player_add(request):
     if request.method == 'POST':
         form = PlayerForm(request.POST)
         if form.is_valid():
-            form.save()
+            player = form.save()
+            messages.success(request, f'Spiller "{player.name}" er oprettet.')
             return redirect('player_list')
     else:
         form = PlayerForm()
@@ -22,20 +32,31 @@ def player_edit(request, pk):
         form = PlayerForm(request.POST, instance=player)
         if form.is_valid():
             form.save()
+            messages.success(request, f'Spiller "{player.name}" er opdateret.')
             return redirect('player_list')
     else:
         form = PlayerForm(instance=player)
-    return render(request, 'players/player_form.html', {'form': form})
+    return render(request, 'players/player_form.html', {'form': form, 'player': player})
+
+def player_delete(request, pk):
+    player = get_object_or_404(Player, pk=pk)
+    if request.method == 'POST':
+        name = player.name
+        player.delete()
+        messages.success(request, f'Spiller "{name}" er slettet.')
+        return redirect('player_list')
+    return render(request, 'players/player_confirm_delete.html', {'object': player, 'type': 'spiller'})
 
 def team_list(request):
-    teams = Team.objects.all()
+    teams = Team.objects.filter(player2__isnull=False).select_related('player1', 'player2').order_by('name')
     return render(request, 'players/team_list.html', {'teams': teams})
 
 def team_add(request):
     if request.method == 'POST':
         form = TeamForm(request.POST)
         if form.is_valid():
-            form.save()
+            team = form.save()
+            messages.success(request, f'Hold "{team.name}" er oprettet.')
             return redirect('team_list')
     else:
         form = TeamForm()
@@ -47,7 +68,17 @@ def team_edit(request, pk):
         form = TeamForm(request.POST, instance=team)
         if form.is_valid():
             form.save()
+            messages.success(request, f'Hold "{team.name}" er opdateret.')
             return redirect('team_list')
     else:
         form = TeamForm(instance=team)
-    return render(request, 'players/team_form.html', {'form': form})
+    return render(request, 'players/team_form.html', {'form': form, 'team': team})
+
+def team_delete(request, pk):
+    team = get_object_or_404(Team, pk=pk)
+    if request.method == 'POST':
+        name = team.name
+        team.delete()
+        messages.success(request, f'Hold "{name}" er slettet.')
+        return redirect('team_list')
+    return render(request, 'players/player_confirm_delete.html', {'object': team, 'type': 'hold'})

@@ -1,3 +1,199 @@
-from django.test import TestCase
+from django.test import TestCase, Client
+from django.urls import reverse
+from .models import Player, Team
 
-# Create your tests here.
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def make_player(name="Alice", age=20, ranking=1, division="A", gender="K"):
+    return Player.objects.create(name=name, age=age, ranking=ranking, division=division, gender=gender)
+
+
+def make_team(p1=None, p2=None):
+    p1 = p1 or make_player("Alice", ranking=1)
+    p2 = p2 or make_player("Bob", ranking=2)
+    return Team.objects.create(player1=p1, player2=p2)
+
+
+# ---------------------------------------------------------------------------
+# Model tests
+# ---------------------------------------------------------------------------
+
+class PlayerModelTest(TestCase):
+    def test_str_includes_name_and_division(self):
+        player = make_player(name="Alice", division="U13")
+        self.assertIn("Alice", str(player))
+        self.assertIn("U13", str(player))
+
+    def test_gender_choices(self):
+        m = make_player(name="Bob", gender="M")
+        k = make_player(name="Alice", gender="K")
+        self.assertEqual(m.get_gender_display(), "Mand")
+        self.assertEqual(k.get_gender_display(), "Kvinde")
+
+    def test_valid_division_choices(self):
+        valid_divisions = ["U9", "U11", "U13", "U15", "U17", "U19", "A", "B", "C"]
+        for div in valid_divisions:
+            p = make_player(division=div)
+            self.assertEqual(p.division, div)
+
+
+class TeamModelTest(TestCase):
+    def test_auto_name_from_players(self):
+        p1 = make_player("Alice", ranking=1)
+        p2 = make_player("Bob", ranking=2)
+        team = Team.objects.create(player1=p1, player2=p2)
+        self.assertEqual(team.name, "Alice & Bob")
+
+    def test_custom_name_is_preserved(self):
+        p1 = make_player("Alice", ranking=1)
+        p2 = make_player("Bob", ranking=2)
+        team = Team.objects.create(player1=p1, player2=p2, name="Dream Team")
+        self.assertEqual(team.name, "Dream Team")
+
+    def test_str_returns_name(self):
+        team = make_team()
+        self.assertEqual(str(team), team.name)
+
+
+# ---------------------------------------------------------------------------
+# View tests – Player
+# ---------------------------------------------------------------------------
+
+class PlayerViewTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.player = make_player()
+
+    def test_player_list_returns_200(self):
+        response = self.client.get(reverse("player_list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.player.name)
+
+    def test_player_add_get_returns_200(self):
+        response = self.client.get(reverse("player_add"))
+        self.assertEqual(response.status_code, 200)
+
+    def test_player_add_post_creates_player(self):
+        data = {"name": "Charlie", "age": 18, "ranking": 5, "division": "B", "gender": "M"}
+        response = self.client.post(reverse("player_add"), data)
+        self.assertRedirects(response, reverse("player_list"))
+        self.assertTrue(Player.objects.filter(name="Charlie").exists())
+
+    def test_player_add_post_invalid_does_not_redirect(self):
+        response = self.client.post(reverse("player_add"), {})
+        self.assertEqual(response.status_code, 200)
+
+    def test_player_edit_get_returns_200(self):
+        response = self.client.get(reverse("player_edit", args=[self.player.pk]))
+        self.assertEqual(response.status_code, 200)
+
+    def test_player_edit_post_updates_player(self):
+        data = {"name": "Alice Updated", "age": 21, "ranking": 2, "division": "A", "gender": "K"}
+        response = self.client.post(reverse("player_edit", args=[self.player.pk]), data)
+        self.assertRedirects(response, reverse("player_list"))
+        self.player.refresh_from_db()
+        self.assertEqual(self.player.name, "Alice Updated")
+
+    def test_player_list_filters_by_division(self):
+        make_player("A-spiller", division="A")
+        make_player("B-spiller", division="B")
+        response = self.client.get(reverse("player_list") + "?division=A")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "A-spiller")
+
+    def test_player_delete_get_shows_confirm(self):
+        response = self.client.get(reverse("player_delete", args=[self.player.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.player.name)
+
+    def test_player_delete_post_removes_player(self):
+        response = self.client.post(reverse("player_delete", args=[self.player.pk]))
+        self.assertRedirects(response, reverse("player_list"))
+        self.assertFalse(Player.objects.filter(pk=self.player.pk).exists())
+
+    def test_player_delete_nonexistent_returns_404(self):
+        response = self.client.post(reverse("player_delete", args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+
+# ---------------------------------------------------------------------------
+# View tests – Team
+# ---------------------------------------------------------------------------
+
+class TeamViewTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.team = make_team()
+
+    def test_team_list_returns_200(self):
+        response = self.client.get(reverse("team_list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.team.name, html=True)
+
+    def test_team_add_get_returns_200(self):
+        response = self.client.get(reverse("team_add"))
+        self.assertEqual(response.status_code, 200)
+
+    def test_team_add_post_creates_team(self):
+        p1 = make_player("Dave", ranking=10, gender='M')
+        p2 = make_player("Eve", ranking=11, gender='M')  # same gender → double
+        data = {"player1": p1.pk, "player2": p2.pk, "pair_type": "double"}
+        response = self.client.post(reverse("team_add"), data)
+        self.assertRedirects(response, reverse("team_list"))
+        self.assertTrue(Team.objects.filter(player1=p1, player2=p2).exists())
+
+    def test_team_add_double_wrong_gender_fails(self):
+        p1 = make_player("Man1", ranking=10, gender='M')
+        p2 = make_player("Woman1", ranking=11, gender='K')
+        data = {"player1": p1.pk, "player2": p2.pk, "pair_type": "double"}
+        response = self.client.post(reverse("team_add"), data)
+        self.assertEqual(response.status_code, 200)  # form error, no redirect
+        self.assertFalse(Team.objects.filter(player1=p1, player2=p2).exists())
+
+    def test_team_add_mixed_wrong_gender_fails(self):
+        p1 = make_player("Man2", ranking=12, gender='M')
+        p2 = make_player("Man3", ranking=13, gender='M')
+        data = {"player1": p1.pk, "player2": p2.pk, "pair_type": "mixed"}
+        response = self.client.post(reverse("team_add"), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Team.objects.filter(player1=p1, player2=p2).exists())
+
+    def test_team_add_mixed_correct_genders_succeeds(self):
+        p1 = make_player("Man4", ranking=14, gender='M')
+        p2 = make_player("Woman2", ranking=15, gender='K')
+        data = {"player1": p1.pk, "player2": p2.pk, "pair_type": "mixed"}
+        response = self.client.post(reverse("team_add"), data)
+        self.assertRedirects(response, reverse("team_list"))
+        self.assertTrue(Team.objects.filter(player1=p1, player2=p2, pair_type='mixed').exists())
+
+    def test_team_add_no_pair_type_with_two_players_fails(self):
+        p1 = make_player("Man5", ranking=16, gender='M')
+        p2 = make_player("Man6", ranking=17, gender='M')
+        data = {"player1": p1.pk, "player2": p2.pk}
+        response = self.client.post(reverse("team_add"), data)
+        self.assertEqual(response.status_code, 200)
+
+    def test_team_edit_get_returns_200(self):
+        response = self.client.get(reverse("team_edit", args=[self.team.pk]))
+        self.assertEqual(response.status_code, 200)
+
+    def test_team_edit_nonexistent_returns_404(self):
+        response = self.client.get(reverse("team_edit", args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_team_delete_get_shows_confirm(self):
+        response = self.client.get(reverse("team_delete", args=[self.team.pk]))
+        self.assertEqual(response.status_code, 200)
+
+    def test_team_delete_post_removes_team(self):
+        response = self.client.post(reverse("team_delete", args=[self.team.pk]))
+        self.assertRedirects(response, reverse("team_list"))
+        self.assertFalse(Team.objects.filter(pk=self.team.pk).exists())
+
+    def test_team_delete_nonexistent_returns_404(self):
+        response = self.client.post(reverse("team_delete", args=[9999]))
+        self.assertEqual(response.status_code, 404)
+

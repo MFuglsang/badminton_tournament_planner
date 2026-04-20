@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Badminton Tournament Planner{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* ── Reset ────────────────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            background: #eef1f6;
+            color: #1e293b;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            font-size: 15px;
+        }
+
+        /* ── Header ───────────────────────────────────────────── */
+        header {
+            background: #003e7e;
+            color: white;
+            padding: 0 2rem;
+            height: 58px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 12px rgba(0,30,80,0.22);
+        }
+        .header-brand {
+            display: flex; align-items: center; gap: 0.6rem;
+            font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em;
+        }
+        .header-brand a { color: white; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; }
+        .header-brand .logo-icon {
+            background: rgba(255,255,255,0.15); border-radius: 8px;
+            width: 34px; height: 34px; display:flex; align-items:center; justify-content:center;
+            font-size: 1.1rem;
+        }
+        nav { display: flex; gap: 0.15rem; }
+        nav a {
+            color: rgba(255,255,255,0.78);
+            text-decoration: none;
+            font-size: 0.83rem;
+            font-weight: 500;
+            padding: 0.4rem 0.85rem;
+            border-radius: 6px;
+            transition: background 0.15s, color 0.15s;
+            letter-spacing: 0.01em;
+        }
+        nav a:hover { color: white; background: rgba(255,255,255,0.14); }
+        .nav-toggle {
+            display: none; background: none; border: none; cursor: pointer;
+            padding: 0.3rem; border-radius: 5px;
+        }
+        .nav-toggle:hover { background: rgba(255,255,255,0.15); }
+        .nav-toggle span { display: block; width: 22px; height: 2px; background: white; margin: 5px 0; border-radius: 2px; transition: 0.2s; }
+
+        /* ── Layout ───────────────────────────────────────────── */
+        .container { max-width: 1220px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+        h1 { font-size: 1.65rem; font-weight: 700; color: #003e7e; margin: 0 0 0.2rem; letter-spacing: -0.025em; line-height: 1.2; }
+        h2 { font-size: 1.1rem; font-weight: 700; color: #003e7e; margin: 0 0 0.85rem; letter-spacing: -0.01em; }
+        h3 {
+            font-size: 0.72rem; font-weight: 700; color: #64748b;
+            margin: 1.25rem 0 0.6rem; text-transform: uppercase; letter-spacing: 0.08em;
+        }
+
+        a { color: #005BAC; text-decoration: none; }
+        a:hover { color: #003e7e; text-decoration: underline; }
+
+        /* ── Flash messages ───────────────────────────────────── */
+        .messages { list-style: none; padding: 0; margin: 0 0 1.5rem; }
+        .messages li {
+            padding: 0.7rem 1rem 0.7rem 1rem;
+            border-radius: 8px; margin-bottom: 0.5rem;
+            font-size: 0.875rem; font-weight: 500;
+            display: flex; align-items: center; gap: 0.6rem;
+            border: 1px solid;
+        }
+        .messages .success { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+        .messages .error   { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+        .messages .warning { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+
+        /* ── Section label (replaces h3 in templates) ─────────── */
+        .section-label {
+            font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.09em; color: #94a3b8; margin: 1.5rem 0 0.6rem;
+        }
+
+        /* ── Tables ───────────────────────────────────────────── */
+        table {
+            width: 100%; border-collapse: separate; border-spacing: 0;
+            background: white; border-radius: 12px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.05);
+            margin-bottom: 1.5rem;
+        }
+        th {
+            background: #f8fafc;
+            font-weight: 600; font-size: 0.72rem; text-transform: uppercase;
+            letter-spacing: 0.07em; color: #64748b;
+            text-align: left; padding: 0.7rem 1rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        td {
+            padding: 0.65rem 1rem; border-bottom: 1px solid #f1f5f9;
+            vertical-align: middle; font-size: 0.875rem;
+        }
+        tr:last-child td { border-bottom: none; }
+        tbody tr { transition: background 0.1s; }
+        tbody tr:hover td { background: #f0f7ff; }
+
+        /* ── Buttons ──────────────────────────────────────────── */
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem;
+            padding: 0.48rem 1.05rem; border-radius: 7px;
+            font-size: 0.83rem; font-weight: 600; cursor: pointer;
+            border: 1.5px solid transparent; text-decoration: none;
+            transition: all 0.13s ease; line-height: 1.4; white-space: nowrap;
+            font-family: inherit;
+        }
+        .btn:hover { text-decoration: none; transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); box-shadow: none !important; }
+
+        .btn-primary {
+            background: #005BAC; color: white; border-color: #005BAC;
+            box-shadow: 0 1px 4px rgba(0,91,172,0.28), inset 0 1px 0 rgba(255,255,255,0.1);
+        }
+        .btn-primary:hover {
+            background: #004a8f; border-color: #004a8f; color: white;
+            box-shadow: 0 4px 12px rgba(0,91,172,0.32);
+        }
+        .btn-secondary {
+            background: white; color: #334155; border-color: #d1d9e6;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+        }
+        .btn-secondary:hover {
+            background: #f8fafc; border-color: #9eb3cc; color: #1e293b;
+            box-shadow: 0 2px 8px rgba(0,62,126,0.1);
+        }
+        .btn-danger { background: white; color: #b91c1c; border-color: #f5c6c6; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+        .btn-danger:hover { background: #fef2f2; border-color: #f87171; box-shadow: 0 2px 8px rgba(185,28,28,0.12); }
+
+        .btn-sm { padding: 0.27rem 0.65rem; font-size: 0.75rem; border-radius: 5px; }
+        .btn-group { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; }
+
+        /* ── Badges ───────────────────────────────────────────── */
+        .badge {
+            display: inline-block; padding: 0.18rem 0.6rem; border-radius: 20px;
+            font-size: 0.7rem; font-weight: 600; letter-spacing: 0.03em;
+            white-space: nowrap; border: 1px solid transparent;
+        }
+        .badge-pending    { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+        .badge-in-progress { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; font-weight: 700; }
+        .badge-completed  { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+        .badge-walkover   { background: #fff7ed; color: #9a3412; border-color: #fed7aa; font-weight: 700; }
+
+        /* ── Cards ────────────────────────────────────────────── */
+        .card {
+            background: white; border-radius: 12px;
+            padding: 1.5rem 1.75rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.05);
+            border: 1px solid rgba(0,0,0,0.04);
+            margin-bottom: 1.5rem;
+        }
+
+        /* ── Division blocks ──────────────────────────────────── */
+        .division-block {
+            background: white; border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8f0;
+            margin-bottom: 1rem; overflow: hidden;
+            transition: box-shadow 0.2s, border-color 0.2s;
+        }
+        .division-block:hover { box-shadow: 0 4px 20px rgba(0,91,172,0.1); border-color: #c7d9ef; }
+        .division-summary {
+            display: flex; align-items: center; gap: 0.6rem;
+            padding: 1rem 1.5rem; cursor: pointer; list-style: none;
+            border-left: 4px solid #005BAC; user-select: none;
+            background: white; transition: background 0.12s;
+        }
+        .division-summary:hover { background: #f8faff; }
+        .division-summary::-webkit-details-marker { display: none; }
+        .division-summary::before {
+            content: '▶'; font-size: 0.6rem; color: #94a3b8;
+            transition: transform 0.2s; flex-shrink: 0; margin-right: 0.1rem;
+        }
+        details[open] .division-summary::before { transform: rotate(90deg); color: #005BAC; }
+        .division-summary-title { font-size: 1rem; font-weight: 700; color: #1e293b; }
+        .division-body { padding: 1.25rem 1.5rem; border-top: 1px solid #f1f5f9; background: #fafbfd; }
+
+        /* ── Forms ────────────────────────────────────────────── */
+        .form-group { margin-bottom: 1.1rem; }
+        label { display: block; font-weight: 600; margin-bottom: 0.32rem; font-size: 0.82rem; color: #374151; }
+        input[type=text], input[type=number], input[type=email],
+        input[type=date], input[type=time], select, textarea {
+            width: 100%; padding: 0.52rem 0.8rem;
+            border: 1.5px solid #d1d9e6; border-radius: 7px;
+            font-size: 0.875rem; font-family: inherit;
+            background: white; color: #1e293b;
+            transition: border-color 0.15s, box-shadow 0.15s;
+            appearance: none; -webkit-appearance: none;
+        }
+        select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.7rem center; padding-right: 2.2rem; }
+        input:focus, select:focus, textarea:focus {
+            outline: none; border-color: #005BAC;
+            box-shadow: 0 0 0 3px rgba(0,91,172,0.12);
+        }
+        input::placeholder { color: #94a3b8; }
+        .errorlist { color: #b91c1c; font-size: 0.8rem; list-style: none; padding: 0; margin: 0.28rem 0 0; }
+
+        /* ── Page actions bar ─────────────────────────────────── */
+        .page-actions {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 1.75rem; flex-wrap: wrap; gap: 0.75rem;
+        }
+        .page-actions h1 { margin: 0; }
+
+        /* ── Filter bar ───────────────────────────────────────── */
+        .filter-bar { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; }
+        .filter-bar select { width: auto; }
+
+        /* ── Rank medals ──────────────────────────────────────── */
+        .rank-1 { color: #d97706; font-weight: 700; }
+        .rank-2 { color: #64748b; font-weight: 700; }
+        .rank-3 { color: #92400e; font-weight: 700; }
+
+        /* ── Flash alerts (used in templates) ─────────────────── */
+        .flash {
+            display: flex; align-items: flex-start; gap: 0.6rem;
+            padding: 0.8rem 1rem; border-radius: 8px;
+            font-size: 0.875rem; margin-bottom: 1rem; border: 1px solid;
+        }
+        .flash-warning { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+        .flash-error   { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+
+        /* ── Footer ───────────────────────────────────────────── */
+        footer {
+            text-align: center; color: #94a3b8; font-size: 0.8rem;
+            padding: 1.5rem; border-top: 1px solid #e2e8f0;
+            margin-top: 4rem; background: white;
+        }
+
+        /* ── Mobile ───────────────────────────────────────────── */
+        @media (max-width: 700px) {
+            .nav-toggle { display: block; }
+            nav {
+                display: none; flex-direction: column; gap: 0;
+                position: absolute; top: 58px; left: 0; right: 0;
+                background: #002d5c; padding: 0.5rem;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            }
+            nav.open { display: flex; }
+            nav a { padding: 0.65rem 1rem; border-radius: 6px; }
+            .page-actions { flex-direction: column; align-items: flex-start; }
+            table { font-size: 0.82rem; }
+            td, th { padding: 0.5rem 0.6rem; }
+            .btn-group { flex-wrap: wrap; }
+            .card { padding: 1.1rem 1.25rem; }
+            header { padding: 0 1rem; }
+        }
+
+        /* ── Tournament bracket ───────────────────────────────── */
+        .bracket-container {
+            display: flex; overflow-x: auto;
+            padding: 1.25rem 0 1.5rem; gap: 0;
+            scrollbar-width: thin; scrollbar-color: #d1d9e6 transparent;
+        }
+        .bracket-round { display: flex; flex-direction: column; flex-shrink: 0; }
+        .bracket-round-label {
+            font-weight: 700; font-size: 0.68rem; text-align: center;
+            padding: 0.32rem 1.5rem 0.32rem 0;
+            text-transform: uppercase; letter-spacing: 0.08em; color: #64748b;
+            margin-bottom: 0.75rem;
+        }
+        .bracket-slot {
+            display: flex; align-items: center; position: relative;
+            padding-right: 2rem; box-sizing: border-box;
+        }
+        .bracket-slot::after {
+            content: ''; position: absolute; right: 0; top: 50%;
+            width: 2rem; height: 1px; background: #cbd5e1;
+        }
+        .bracket-slot-odd::before {
+            content: ''; position: absolute; right: 0; top: 50%;
+            width: 1px; height: 50%; background: #cbd5e1;
+        }
+        .bracket-slot-even::before {
+            content: ''; position: absolute; right: 0; top: 0;
+            width: 1px; height: 50%; background: #cbd5e1;
+        }
+        .bracket-round-last .bracket-slot::after,
+        .bracket-round-last .bracket-slot::before { display: none; }
+        .bracket-card {
+            border: 1.5px solid #e2e8f0; border-radius: 8px; background: white;
+            min-width: 170px; overflow: hidden; font-size: 0.82rem;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .bracket-card:hover { border-color: #9eb3cc; box-shadow: 0 4px 12px rgba(0,91,172,0.1); }
+        .bracket-team {
+            padding: 0.33rem 0.7rem; border-bottom: 1px solid #f1f5f9;
+            display: flex; justify-content: space-between; align-items: center;
+            font-weight: 500;
+        }
+        .bracket-team:last-child { border-bottom: none; }
+        .bracket-team.winner {
+            background: #f0fdf4; font-weight: 700; color: #166534;
+            border-left: 3px solid #22c55e; padding-left: calc(0.7rem - 3px);
+        }
+        .bracket-team.bye { color: #94a3b8; font-style: italic; font-weight: 400; }
+        .bracket-tbd { padding: 0.6rem 0.7rem; color: #94a3b8; font-style: italic; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-brand">
+            <div class="logo-icon">🏸</div>
+            <a href="/">Badminton Tournament Planner</a>
+        </div>
+        <button class="nav-toggle" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">
+            <span></span><span></span><span></span>
+        </button>
+        <nav>
+            <a href="/tournaments/">Turneringer</a>
+            <a href="/players/">Spillere</a>
+            <a href="/players/teams/">Hold</a>
+            <a href="/admin/">Admin</a>
+        </nav>
+    </header>
+    <div class="container">
+        {% if messages %}
+        <ul class="messages">
+            {% for message in messages %}
+            <li class="{{ message.tags }}">{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </div>
+    <footer>&copy; 2026 Badminton Tournament Planner</footer>
+</body>
+</html>

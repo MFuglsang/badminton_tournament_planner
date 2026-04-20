@@ -17,12 +17,17 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.shortcuts import render
+from tournaments.models import Tournament
+import datetime
 
 def home(request):
-    return render(request, 'home.html')
+    upcoming = Tournament.objects.filter(date__gte=datetime.date.today()).order_by('date')[:3]
+    recent = Tournament.objects.filter(date__lt=datetime.date.today()).order_by('-date')[:3]
+    return render(request, 'home.html', {'upcoming': upcoming, 'recent': recent})
 
 urlpatterns = [
     path('', home, name='home'),
     path('admin/', admin.site.urls),
     path('players/', include('players.urls')),
+    path('tournaments/', include('tournaments.urls')),
 ]

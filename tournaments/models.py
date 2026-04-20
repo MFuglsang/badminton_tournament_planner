@@ -5,11 +5,6 @@ from django.utils.translation import gettext_lazy as _
 
 class Tournament(models.Model):
     name = models.CharField(max_length=200, verbose_name=_("Name"))
-    tournament_type = models.CharField(
-        max_length=50,
-        choices=[('tree', _('Tree')), ('group', _('Group')), ('playoff', _('Group with Playoffs'))],
-        verbose_name=_("Tournament Type")
-    )
     date = models.DateField(verbose_name=_("Date"))
     DIVISION_MODEL_CHOICES = [
         ('youth', _('Youth Divisions (U9-U19)')),
@@ -41,23 +36,67 @@ class Tournament(models.Model):
         default=15,
         verbose_name=_("Player Break Time")
     )
+    court_count = models.IntegerField(
+        default=4,
+        verbose_name=_("Antal baner"),
+        help_text=_("Antal tilgængelige baner under turneringen"),
+    )
+    start_time = models.TimeField(
+        null=True, blank=True,
+        verbose_name=_("Starttidspunkt"),
+        help_text=_("Klokkeslæt for første kamp"),
+    )
 
     def __str__(self):
         return f"{self.name} ({self.scoring_model})"
 
 class Division(models.Model):
+    DISCIPLINE_CHOICES = [
+        ('single', _('Single')),
+        ('double', _('Double')),
+        ('mixed', _('Mixeddouble')),
+    ]
+    TOURNAMENT_TYPE_CHOICES = [
+        ('group', _('Gruppe (round-robin)')),
+        ('playoff', _('Gruppe med slutspil')),
+        ('tree', _('Enkeltelimination')),
+    ]
     tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name='divisions')
     name = models.CharField(max_length=100, verbose_name=_("Division Name"))
+    discipline = models.CharField(
+        max_length=10, choices=DISCIPLINE_CHOICES, default='single',
+        verbose_name=_("Disciplin")
+    )
+    tournament_type = models.CharField(
+        max_length=10, choices=TOURNAMENT_TYPE_CHOICES, default='group',
+        verbose_name=_("Turneringstype")
+    )
+    teams = models.ManyToManyField('players.Team', related_name='divisions', blank=True, verbose_name=_("Deltagere"))
 
     def __str__(self):
-        return f"{self.name} ({self.tournament.name})"
+        return f"{self.name} – {self.get_discipline_display()} ({self.tournament.name})"
 
 class Match(models.Model):
+    STATUS_CHOICES = [
+        ('pending', _('Pending')),
+        ('in_progress', _('In Progress')),
+        ('completed', _('Completed')),
+    ]
     division = models.ForeignKey(Division, on_delete=models.CASCADE, related_name='matches')
-    team1 = models.ForeignKey('players.Team', on_delete=models.CASCADE, related_name='team1_matches')
-    team2 = models.ForeignKey('players.Team', on_delete=models.CASCADE, related_name='team2_matches')
+    team1 = models.ForeignKey('players.Team', on_delete=models.SET_NULL, null=True, blank=True, related_name='team1_matches')
+    team2 = models.ForeignKey('players.Team', on_delete=models.SET_NULL, null=True, blank=True, related_name='team2_matches')
+    winner = models.ForeignKey('players.Team', on_delete=models.SET_NULL, null=True, blank=True, related_name='won_matches', verbose_name=_("Winner"))
     score = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Score"))
-    scheduled_time = models.DateTimeField(verbose_name=_("Scheduled Time"))
+    match_round = models.IntegerField(default=1, verbose_name=_("Round"))
+    match_number = models.IntegerField(null=True, blank=True, verbose_name=_("Match Number"))
+    bracket_slot = models.IntegerField(null=True, blank=True, verbose_name=_("Bracket Slot"))
+    bracket_label = models.CharField(max_length=120, null=True, blank=True, verbose_name=_("Bracket Label"))
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name=_("Status"))
+    walkover = models.BooleanField(default=False, verbose_name=_("Walk-over"))
+    scheduled_time = models.DateTimeField(verbose_name=_("Scheduled Time"), null=True, blank=True)
+    court = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Court"))
 
     def __str__(self):
-        return f"{self.team1} vs {self.team2} ({self.division.name})"
+        t1 = self.team1 or self.bracket_label or 'TBD'
+        t2 = self.team2 or ('Bye' if not self.bracket_label else 'TBD')
+        return f"R{self.match_round}: {t1} vs {t2} ({self.division.name})"

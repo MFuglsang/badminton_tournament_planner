@@ -1,3 +1,674 @@
-from django.test import TestCase
+import datetime
+from django.test import TestCase, Client
+from django.urls import reverse
+from players.models import Player, Team
+from .models import Tournament, Division, Match
+from .scheduler import generate_round_robin, generate_bracket, generate_schedule, advance_bracket, get_bracket_data
+from .standings import compute_standings, _parse_score, STANDINGS_CONFIG
 
-# Create your tests here.
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def make_player(name="Alice", ranking=1, division="A"):
+    return Player.objects.create(name=name, age=20, ranking=ranking, division=division)
+
+
+def make_team(name=None, r1=1, r2=2):
+    p1 = make_player(f"P{r1}", ranking=r1)
+    p2 = make_player(f"P{r2}", ranking=r2)
+    team = Team.objects.create(player1=p1, player2=p2)
+    if name:
+        team.name = name
+        team.save()
+    return team
+
+
+def make_tournament():
+    return Tournament.objects.create(
+        name="Test Tournament",
+        date=datetime.date.today(),
+        division_model="mixed",
+        scoring_model="best_of_3_21",
+    )
+
+
+def make_division(tournament=None, name="A Række", discipline='double', tournament_type='group'):
+    t = tournament or make_tournament()
+    return Division.objects.create(tournament=t, name=name, discipline=discipline, tournament_type=tournament_type)
+
+
+# ---------------------------------------------------------------------------
+# Model tests
+# ---------------------------------------------------------------------------
+
+class TournamentModelTest(TestCase):
+    def test_str_includes_name(self):
+        t = make_tournament()
+        self.assertIn("Test Tournament", str(t))
+
+    def test_tournament_types(self):
+        for ttype in ["tree", "group", "playoff"]:
+            d = make_division(name=f"D-{ttype}", tournament_type=ttype)
+            self.assertEqual(d.tournament_type, ttype)
+
+
+class DivisionModelTest(TestCase):
+    def test_str_includes_division_and_tournament_name(self):
+        d = make_division()
+        self.assertIn("A Række", str(d))
+        self.assertIn("Test Tournament", str(d))
+
+    def test_teams_can_be_added(self):
+        d = make_division()
+        t1 = make_team(r1=1, r2=2)
+        t2 = make_team(r1=3, r2=4)
+        d.teams.add(t1, t2)
+        self.assertEqual(d.teams.count(), 2)
+
+
+class MatchModelTest(TestCase):
+    def setUp(self):
+        self.division = make_division()
+        self.t1 = make_team(r1=1, r2=2)
+        self.t2 = make_team(r1=3, r2=4)
+
+    def test_str_includes_round_and_teams(self):
+        m = Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2, match_round=2
+        )
+        self.assertIn("R2", str(m))
+        self.assertIn(self.t1.name, str(m))
+
+    def test_default_status_is_pending(self):
+        m = Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2
+        )
+        self.assertEqual(m.status, "pending")
+
+
+# ---------------------------------------------------------------------------
+# Scheduler tests
+# ---------------------------------------------------------------------------
+
+class RoundRobinSchedulerTest(TestCase):
+    def setUp(self):
+        self.division = make_division()
+        self.teams = [make_team(r1=i*2+1, r2=i*2+2) for i in range(4)]
+        self.division.teams.set(self.teams)
+
+    def test_generates_correct_number_of_matches(self):
+        # With n teams, round-robin produces n*(n-1)/2 matches
+        n = len(self.teams)
+        matches = generate_round_robin(self.division)
+        self.assertEqual(len(matches), n * (n - 1) // 2)
+
+    def test_all_matches_are_pending(self):
+        matches = generate_round_robin(self.division)
+        for m in matches:
+            self.assertEqual(m.status, "pending")
+
+    def test_regenerate_removes_old_pending_matches(self):
+        generate_round_robin(self.division)
+        generate_round_robin(self.division)
+        n = len(self.teams)
+        self.assertEqual(
+            Match.objects.filter(division=self.division).count(),
+            n * (n - 1) // 2,
+        )
+
+    def test_no_matches_with_fewer_than_two_teams(self):
+        division = make_division(name="Empty")
+        matches = generate_round_robin(division)
+        self.assertEqual(matches, [])
+
+
+class BracketSchedulerTest(TestCase):
+    def setUp(self):
+        self.division = make_division(tournament_type='tree')
+        self.teams = [make_team(r1=i*2+1, r2=i*2+2) for i in range(4)]
+        self.division.teams.set(self.teams)
+
+    def test_generates_all_rounds(self):
+        # 4 teams → round 1: 2 matches, round 2: 1 placeholder = 3 total
+        matches = generate_bracket(self.division)
+        self.assertEqual(len(matches), 3)
+
+    def test_round1_matches_count(self):
+        matches = generate_bracket(self.division)
+        round1 = [m for m in matches if m.match_round == 1]
+        self.assertEqual(len(round1), 2)
+
+    def test_placeholder_created_for_final(self):
+        matches = generate_bracket(self.division)
+        placeholders = [m for m in matches if m.team1 is None]
+        self.assertEqual(len(placeholders), 1)
+        self.assertEqual(placeholders[0].match_round, 2)
+        self.assertIsNotNone(placeholders[0].bracket_label)
+
+    def test_no_matches_with_fewer_than_two_teams(self):
+        division = make_division(name="Empty2", tournament_type='tree')
+        matches = generate_bracket(division)
+        self.assertEqual(matches, [])
+
+    def test_bye_given_when_odd_team_count(self):
+        # 3 teams → bracket_size=4, 1 bye + 1 real in round 1, 1 placeholder in round 2
+        division = make_division(name="Odd", tournament_type='tree')
+        teams = [make_team(r1=i*2+1, r2=i*2+2) for i in range(3)]
+        division.teams.set(teams)
+        matches = generate_bracket(division)
+        # round1: bye + real; round2: placeholder (bye already filled team1)
+        round1 = [m for m in matches if m.match_round == 1]
+        bye_matches = [m for m in round1 if m.team2 is None and m.status == 'completed']
+        real_matches = [m for m in round1 if m.team2 is not None]
+        self.assertEqual(len(bye_matches), 1)
+        self.assertEqual(len(real_matches), 1)
+        self.assertIsNotNone(bye_matches[0].winner)
+        # Placeholder in round 2 should have team1 filled (bye advanced)
+        final = next(m for m in matches if m.match_round == 2)
+        final.refresh_from_db()
+        self.assertIsNotNone(final.team1)
+
+    def test_bracket_slot_set_on_round1(self):
+        matches = generate_bracket(self.division)
+        round1 = [m for m in matches if m.match_round == 1]
+        slots = sorted(m.bracket_slot for m in round1)
+        self.assertEqual(slots, [1, 2])
+
+
+class AdvanceBracketTest(TestCase):
+    def setUp(self):
+        self.division = make_division(tournament_type='tree')
+        self.teams = [make_team(r1=i*2+1, r2=i*2+2) for i in range(4)]
+        self.division.teams.set(self.teams)
+        generate_bracket(self.division)
+
+    def test_no_advance_when_other_match_not_done(self):
+        # Complete only match in bracket_slot=1, round 1
+        m = Match.objects.get(division=self.division, match_round=1, bracket_slot=1)
+        m.winner = m.team1
+        m.status = 'completed'
+        m.save()
+        advance_bracket(m)
+        # Round 2 placeholder should still have team2=None (only team1 is filled)
+        final = Match.objects.get(division=self.division, match_round=2)
+        self.assertIsNone(final.team2)
+        self.assertIsNotNone(final.bracket_label)  # still a placeholder
+
+    def test_advance_fills_both_teams(self):
+        for match in Match.objects.filter(division=self.division, match_round=1):
+            match.winner = match.team1
+            match.status = 'completed'
+            match.save()
+            advance_bracket(match)
+        # Final should have both teams filled and bracket_label cleared
+        final = Match.objects.get(division=self.division, match_round=2)
+        final.refresh_from_db()
+        self.assertIsNotNone(final.team1)
+        self.assertIsNotNone(final.team2)
+        self.assertIsNone(final.bracket_label)
+
+
+class BracketDataTest(TestCase):
+    def test_returns_none_when_no_matches(self):
+        division = make_division(tournament_type='tree')
+        self.assertIsNone(get_bracket_data(division))
+
+    def test_returns_correct_rounds(self):
+        division = make_division(tournament_type='tree')
+        teams = [make_team(r1=i*2+1, r2=i*2+2) for i in range(4)]
+        division.teams.set(teams)
+        generate_bracket(division)
+        data = get_bracket_data(division)
+        self.assertIsNotNone(data)
+        self.assertEqual(data['total_rounds'], 2)
+        self.assertEqual(len(data['rounds']), 2)
+        self.assertEqual(data['rounds'][0]['label'], 'Semifinale')
+        self.assertEqual(data['rounds'][1]['label'], 'Finale')
+
+
+class GenerateScheduleRouterTest(TestCase):
+    def test_group_uses_round_robin(self):
+        division = make_division(tournament_type='group')
+        teams = [make_team(r1=i*2+1, r2=i*2+2) for i in range(3)]
+        division.teams.set(teams)
+        matches = generate_schedule(division)
+        self.assertEqual(len(matches), 3)  # 3*(3-1)/2 = 3
+
+    def test_tree_uses_bracket(self):
+        division = make_division(tournament_type='tree')
+        teams = [make_team(r1=i*2+1, r2=i*2+2) for i in range(4)]
+        division.teams.set(teams)
+        matches = generate_schedule(division)
+        # 4 teams: 2 round-1 matches + 1 round-2 placeholder
+        self.assertEqual(len(matches), 3)
+        round1 = [m for m in matches if m.match_round == 1 and m.team2 is not None]
+        self.assertEqual(len(round1), 2)
+
+    def test_playoff_uses_round_robin(self):
+        division = make_division(tournament_type='playoff')
+        teams = [make_team(r1=i*2+1, r2=i*2+2) for i in range(3)]
+        division.teams.set(teams)
+        matches = generate_schedule(division)
+        self.assertEqual(len(matches), 3)
+
+
+class TournamentCRUDViewTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+
+    def test_tournament_create_get_returns_200(self):
+        response = self.client.get(reverse("tournament_create"))
+        self.assertEqual(response.status_code, 200)
+
+    def test_tournament_create_post_creates_tournament(self):
+        response = self.client.post(reverse("tournament_create"), {
+            'name': 'Ny Turnering',
+            'date': '2026-06-01',
+            'division_model': 'mixed',
+            'scoring_model': 'best_of_3_21',
+            'court_count': 6,
+            'start_time': '09:00',
+            'single_match_duration': 30,
+            'double_match_duration': 40,
+            'player_break_time': 15,
+        })
+        tournament = Tournament.objects.get(name='Ny Turnering')
+        self.assertRedirects(response, reverse("tournament_detail", args=[tournament.pk]))
+        self.assertEqual(tournament.court_count, 6)
+        self.assertIsNotNone(tournament.start_time)
+
+    def test_tournament_create_invalid_stays_on_page(self):
+        response = self.client.post(reverse("tournament_create"), {'name': ''})
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Tournament.objects.filter(name='').exists())
+
+    def test_tournament_edit_get_returns_200(self):
+        t = make_tournament()
+        response = self.client.get(reverse("tournament_edit", args=[t.pk]))
+        self.assertEqual(response.status_code, 200)
+
+    def test_tournament_edit_post_updates_fields(self):
+        t = make_tournament()
+        response = self.client.post(reverse("tournament_edit", args=[t.pk]), {
+            'name': 'Opdateret',
+            'date': '2026-07-01',
+            'division_model': 'mixed',
+            'scoring_model': 'best_of_3_21',
+            'court_count': 8,
+            'start_time': '10:00',
+            'single_match_duration': 30,
+            'double_match_duration': 40,
+            'player_break_time': 15,
+        })
+        self.assertRedirects(response, reverse("tournament_detail", args=[t.pk]))
+        t.refresh_from_db()
+        self.assertEqual(t.name, 'Opdateret')
+        self.assertEqual(t.court_count, 8)
+
+    def test_tournament_edit_404_for_nonexistent(self):
+        response = self.client.get(reverse("tournament_edit", args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+
+# ---------------------------------------------------------------------------
+# View tests
+# ---------------------------------------------------------------------------
+
+class TournamentViewTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.tournament = make_tournament()
+        self.division = make_division(tournament=self.tournament)
+        self.t1 = make_team(r1=1, r2=2)
+        self.t2 = make_team(r1=3, r2=4)
+        self.division.teams.add(self.t1, self.t2)
+
+    def test_tournament_list_returns_200(self):
+        response = self.client.get(reverse("tournament_list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.tournament.name)
+
+    def test_tournament_detail_returns_200(self):
+        response = self.client.get(reverse("tournament_detail", args=[self.tournament.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.division.name)
+        self.assertIn('division_data', response.context)
+
+    def test_tournament_detail_404_for_nonexistent(self):
+        response = self.client.get(reverse("tournament_detail", args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_tournament_detail_has_division_form(self):
+        response = self.client.get(reverse("tournament_detail", args=[self.tournament.pk]))
+        self.assertIn('division_form', response.context)
+
+    def test_division_create_post_creates_division(self):
+        response = self.client.post(
+            reverse("division_create", args=[self.tournament.pk]),
+            {'name': 'Ny Division', 'discipline': 'single', 'tournament_type': 'group'},
+        )
+        self.assertRedirects(response, reverse("tournament_detail", args=[self.tournament.pk]))
+        self.assertTrue(self.tournament.divisions.filter(name='Ny Division').exists())
+
+    def test_division_create_invalid_stays_on_page(self):
+        response = self.client.post(
+            reverse("division_create", args=[self.tournament.pk]),
+            {'name': ''},
+        )
+        self.assertRedirects(response, reverse("tournament_detail", args=[self.tournament.pk]))
+        # Invalid form redirects but does not create
+        self.assertFalse(self.tournament.divisions.filter(name='').exists())
+
+    def test_division_update_teams(self):
+        # division default discipline is 'double', so POST field is 'pairs'
+        t3 = make_team(r1=5, r2=6)
+        response = self.client.post(
+            reverse("division_update_teams", args=[self.division.pk]),
+            {'pairs': [t3.pk]},
+        )
+        self.assertRedirects(response, reverse("tournament_detail", args=[self.tournament.pk]))
+        self.division.refresh_from_db()
+        self.assertIn(t3, self.division.teams.all())
+        # t1 and t2 are replaced
+        self.assertNotIn(self.t1, self.division.teams.all())
+
+    def test_division_update_teams_clear_all(self):
+        response = self.client.post(
+            reverse("division_update_teams", args=[self.division.pk]),
+            {},  # no pairs selected → clears all
+        )
+        self.assertRedirects(response, reverse("tournament_detail", args=[self.tournament.pk]))
+        self.assertEqual(self.division.teams.count(), 0)
+
+    def test_division_update_single_auto_creates_teams(self):
+        single_div = Division.objects.create(
+            tournament=self.tournament, name="Herresingle", discipline='single'
+        )
+        p1 = make_player("Solo1", ranking=10)
+        p2 = make_player("Solo2", ranking=11)
+        response = self.client.post(
+            reverse("division_update_teams", args=[single_div.pk]),
+            {'players': [p1.pk, p2.pk]},
+        )
+        self.assertRedirects(response, reverse("tournament_detail", args=[self.tournament.pk]))
+        single_div.refresh_from_db()
+        self.assertEqual(single_div.teams.count(), 2)
+        names = list(single_div.teams.values_list('name', flat=True))
+        self.assertIn(p1.name, names)
+        self.assertIn(p2.name, names)
+
+    def test_division_detail_has_participants_form(self):
+        response = self.client.get(reverse("tournament_detail", args=[self.tournament.pk]))
+        dd = response.context['division_data'][0]
+        self.assertIn('participants_form', dd)
+
+    def test_division_delete_get_shows_confirm(self):
+        response = self.client.get(reverse("division_delete", args=[self.division.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.division.name)
+
+    def test_division_delete_post_removes_division(self):
+        div_pk = self.division.pk
+        response = self.client.post(reverse("division_delete", args=[div_pk]))
+        self.assertRedirects(response, reverse("tournament_detail", args=[self.tournament.pk]))
+        self.assertFalse(Division.objects.filter(pk=div_pk).exists())
+
+    def test_division_delete_404_for_nonexistent(self):
+        response = self.client.get(reverse("division_delete", args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_generate_schedule_creates_matches(self):
+        response = self.client.post(
+            reverse("division_generate_schedule", args=[self.division.pk])
+        )
+        self.assertRedirects(response, reverse("tournament_detail", args=[self.tournament.pk]))
+        self.assertEqual(Match.objects.filter(division=self.division).count(), 1)
+
+    def test_generate_schedule_assigns_match_numbers(self):
+        self.client.post(reverse("division_generate_schedule", args=[self.division.pk]))
+        match = Match.objects.filter(division=self.division).first()
+        self.assertIsNotNone(match.match_number)
+        self.assertGreater(match.match_number, 0)
+
+    def test_generate_schedule_numbers_are_sequential_across_divisions(self):
+        # Create a second division and generate schedules for both
+        div2 = Division.objects.create(
+            tournament=self.tournament, name="Division B", discipline='double'
+        )
+        t3 = make_team(r1=5, r2=6)
+        t4 = make_team(r1=7, r2=8)
+        div2.teams.add(t3, t4)
+        self.client.post(reverse("division_generate_schedule", args=[self.division.pk]))
+        self.client.post(reverse("division_generate_schedule", args=[div2.pk]))
+        all_numbers = sorted(
+            Match.objects.filter(division__tournament=self.tournament)
+            .exclude(match_number=None)
+            .values_list('match_number', flat=True)
+        )
+        self.assertEqual(all_numbers, list(range(1, len(all_numbers) + 1)))
+
+    def test_scoresheet_view_returns_200(self):
+        self.client.post(reverse("division_generate_schedule", args=[self.division.pk]))
+        response = self.client.get(reverse("tournament_scoresheet", args=[self.tournament.pk]))
+        self.assertEqual(response.status_code, 200)
+
+    def test_scoresheet_contains_match_number(self):
+        self.client.post(reverse("division_generate_schedule", args=[self.division.pk]))
+        match = Match.objects.filter(division=self.division).first()
+        response = self.client.get(reverse("tournament_scoresheet", args=[self.tournament.pk]))
+        self.assertContains(response, f'#{match.match_number}')
+
+    def test_scoresheet_404_for_nonexistent(self):
+        response = self.client.get(reverse("tournament_scoresheet", args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_schedule_view_returns_200(self):
+        response = self.client.get(reverse("tournament_schedule", args=[self.tournament.pk]))
+        self.assertEqual(response.status_code, 200)
+
+    def test_schedule_generate_without_start_time_shows_warning(self):
+        # tournament from make_tournament has no start_time
+        response = self.client.post(
+            reverse("tournament_generate_time_schedule", args=[self.tournament.pk])
+        )
+        self.assertRedirects(response, reverse("tournament_schedule", args=[self.tournament.pk]))
+
+    def test_schedule_generate_assigns_times(self):
+        import datetime as dt
+        self.tournament.start_time = dt.time(9, 0)
+        self.tournament.court_count = 2
+        self.tournament.save()
+        # generate match programme first
+        self.client.post(reverse("division_generate_schedule", args=[self.division.pk]))
+        response = self.client.post(
+            reverse("tournament_generate_time_schedule", args=[self.tournament.pk])
+        )
+        self.assertRedirects(response, reverse("tournament_schedule", args=[self.tournament.pk]))
+        match = Match.objects.filter(division=self.division).first()
+        self.assertIsNotNone(match.scheduled_time)
+        self.assertIsNotNone(match.court)
+
+    def test_standings_appear_after_completed_match(self):
+        Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2,
+            status='completed', winner=self.t1, score='21-15'
+        )
+        response = self.client.get(reverse("tournament_detail", args=[self.tournament.pk]))
+        self.assertEqual(response.status_code, 200)
+        dd = response.context['division_data'][0]
+        standings = dd['standings']
+        self.assertEqual(standings[0]['team'], self.t1)
+        self.assertEqual(standings[0]['points'], 2)
+        self.assertEqual(standings[1]['points'], 0)
+
+
+class StandingsTest(TestCase):
+    """Unit tests for the standings / tiebreaker engine."""
+
+    def setUp(self):
+        self.division = make_division()
+        self.t1 = make_team(r1=1, r2=2)
+        self.t2 = make_team(r1=3, r2=4)
+        self.t3 = make_team(r1=5, r2=6)
+        self.division.teams.add(self.t1, self.t2, self.t3)
+
+    # ── Config ────────────────────────────────────────────────────────────
+    def test_config_win_points_is_2(self):
+        self.assertEqual(STANDINGS_CONFIG['win_points'], 2)
+
+    def test_config_loss_points_is_0(self):
+        self.assertEqual(STANDINGS_CONFIG['loss_points'], 0)
+
+    def test_config_tiebreakers_order(self):
+        self.assertEqual(STANDINGS_CONFIG['tiebreakers'], ['head_to_head', 'points_scored'])
+
+    # ── Score parsing ──────────────────────────────────────────────────────
+    def test_parse_score_single_set(self):
+        self.assertEqual(_parse_score('21-15'), (21, 15))
+
+    def test_parse_score_three_sets(self):
+        self.assertEqual(_parse_score('21-15, 18-21, 21-18'), (60, 54))
+
+    def test_parse_score_empty(self):
+        self.assertEqual(_parse_score(''), (0, 0))
+
+    def test_parse_score_none(self):
+        self.assertEqual(_parse_score(None), (0, 0))
+
+    # ── Basic standings ────────────────────────────────────────────────────
+    def test_winner_ranks_first(self):
+        Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2,
+            status='completed', winner=self.t2, score='21-15'
+        )
+        rows = compute_standings(self.division)
+        self.assertEqual(rows[0]['team'], self.t2)
+        self.assertEqual(rows[0]['points'], 2)
+
+    def test_score_for_and_against_tallied(self):
+        Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2,
+            status='completed', winner=self.t1, score='21-15, 21-10'
+        )
+        rows = compute_standings(self.division)
+        r1 = next(r for r in rows if r['team'] == self.t1)
+        r2 = next(r for r in rows if r['team'] == self.t2)
+        self.assertEqual(r1['score_for'], 42)
+        self.assertEqual(r1['score_against'], 25)
+        self.assertEqual(r2['score_for'], 25)
+        self.assertEqual(r2['score_against'], 42)
+
+    # ── Head-to-head tiebreaker ────────────────────────────────────────────
+    def test_head_to_head_breaks_points_tie(self):
+        # t1 beats t3, t2 beats t3, t1 beats t2 → t1 > t2 > t3
+        Match.objects.create(division=self.division, team1=self.t1, team2=self.t3,
+                              status='completed', winner=self.t1, score='21-10')
+        Match.objects.create(division=self.division, team1=self.t2, team2=self.t3,
+                              status='completed', winner=self.t2, score='21-10')
+        Match.objects.create(division=self.division, team1=self.t1, team2=self.t2,
+                              status='completed', winner=self.t1, score='21-10')
+        rows = compute_standings(self.division)
+        self.assertEqual(rows[0]['team'], self.t1)
+        self.assertEqual(rows[1]['team'], self.t2)
+        self.assertEqual(rows[2]['team'], self.t3)
+
+    # ── Points-scored tiebreaker ───────────────────────────────────────────
+    def test_points_scored_breaks_remaining_tie(self):
+        # t1 and t2 both beat t3; mutual match not played → pure points tie
+        # t1 beat t3 with better net score → ranks first
+        Match.objects.create(division=self.division, team1=self.t1, team2=self.t3,
+                              status='completed', winner=self.t1, score='21-5')
+        Match.objects.create(division=self.division, team1=self.t2, team2=self.t3,
+                              status='completed', winner=self.t2, score='21-19')
+        rows = compute_standings(self.division)
+        self.assertEqual(rows[0]['team'], self.t1)  # net +16 > net +2
+        self.assertEqual(rows[1]['team'], self.t2)
+
+
+class MatchResultViewTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.tournament = make_tournament()
+        self.division = make_division(tournament=self.tournament)
+        self.t1 = make_team(r1=1, r2=2)
+        self.t2 = make_team(r1=3, r2=4)
+        self.match = Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2
+        )
+
+    def test_match_result_get_returns_200(self):
+        response = self.client.get(reverse("match_record_result", args=[self.match.pk]))
+        self.assertEqual(response.status_code, 200)
+
+    def test_match_result_post_records_result(self):
+        data = {
+            "score": "21-15, 21-10",
+            "winner": self.t1.pk,
+            "status": "completed",
+        }
+        response = self.client.post(
+            reverse("match_record_result", args=[self.match.pk]), data
+        )
+        self.assertRedirects(
+            response, reverse("tournament_detail", args=[self.tournament.pk])
+        )
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.score, "21-15, 21-10")
+        self.assertEqual(self.match.status, "completed")
+        self.assertEqual(self.match.winner, self.t1)
+
+    def test_match_result_post_invalid_stays_on_page(self):
+        response = self.client.post(
+            reverse("match_record_result", args=[self.match.pk]), {}
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_match_result_404_for_nonexistent(self):
+        response = self.client.get(reverse("match_record_result", args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+
+class WalkoverViewTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.tournament = make_tournament()
+        self.division = make_division(tournament=self.tournament)
+        self.t1 = make_team(r1=1, r2=2)
+        self.t2 = make_team(r1=3, r2=4)
+        self.match = Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2
+        )
+
+    def test_walkover_get_returns_200(self):
+        response = self.client.get(reverse("match_walkover", args=[self.match.pk]))
+        self.assertEqual(response.status_code, 200)
+
+    def test_walkover_post_sets_wo_score_and_winner(self):
+        response = self.client.post(
+            reverse("match_walkover", args=[self.match.pk]),
+            {'winner': self.t1.pk},
+        )
+        self.assertRedirects(response, reverse("tournament_detail", args=[self.tournament.pk]))
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.score, '21-0, 21-0')
+        self.assertEqual(self.match.status, 'completed')
+        self.assertEqual(self.match.winner, self.t1)
+        self.assertTrue(self.match.walkover)
+
+    def test_walkover_counts_in_standings(self):
+        self.division.teams.add(self.t1, self.t2)
+        self.match.winner = self.t2
+        self.match.score = '21-0, 21-0'
+        self.match.status = 'completed'
+        self.match.walkover = True
+        self.match.save()
+        rows = compute_standings(self.division)
+        self.assertEqual(rows[0]['team'], self.t2)
+        self.assertEqual(rows[0]['points'], 2)
+
+    def test_walkover_404_for_nonexistent(self):
+        response = self.client.get(reverse("match_walkover", args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
