@@ -6,30 +6,69 @@
     <a href="{% url 'player_add' %}" class="btn btn-primary">+ Tilføj spiller</a>
 </div>
 
-<div class="filter-bar">
-    <form method="get" style="display:flex; gap:0.75rem; align-items:center;">
-        <label for="division" style="margin:0; font-weight:normal;">Filtrér:</label>
-        <select name="division" id="division" onchange="this.form.submit()">
+{# ── Filterbar ─── #}
+<div class="filter-bar" style="flex-wrap:wrap; gap:0.5rem 0.75rem;">
+    <form method="get" style="display:contents;">
+        {# Fritekstsøgning #}
+        <input type="text" name="search" value="{{ search }}" placeholder="Søg navn…" style="min-width:160px;">
+
+        {# Division #}
+        <select name="division" onchange="this.form.submit()">
             <option value="">Alle divisioner</option>
             {% for value, label in division_choices %}
             <option value="{{ value }}" {% if value == selected_division %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
         </select>
-        {% if selected_division %}<a href="{% url 'player_list' %}" class="btn btn-secondary btn-sm">Ryd filter</a>{% endif %}
+
+        {# Køn #}
+        <select name="gender" onchange="this.form.submit()">
+            <option value="">Alle køn</option>
+            {% for value, label in gender_choices %}
+            <option value="{{ value }}" {% if value == selected_gender %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+
+        {# Bevar sortering ved submit #}
+        <input type="hidden" name="sort" value="{{ sort }}">
+        <input type="hidden" name="dir" value="{{ dir }}">
+
+        <button type="submit" class="btn btn-secondary btn-sm">Søg</button>
+        {% if search or selected_division or selected_gender %}
+        <a href="{% url 'player_list' %}" class="btn btn-secondary btn-sm">✕ Ryd</a>
+        {% endif %}
     </form>
-    <span style="color:#888; font-size:0.9rem;">{{ players|length }} spiller{{ players|length|pluralize:",e" }}</span>
+    <span style="color:#888; font-size:0.9rem; margin-left:auto;">{{ players|length }} spiller{{ players|length|pluralize:",e" }}</span>
 </div>
 
+{# ── Sorteringshjælper #}
+{% with base_url="?division="|add:selected_division|add:"&gender="|add:selected_gender|add:"&search="|add:search %}
 {% if players %}
 <table>
     <thead>
         <tr>
-            <th>Navn</th>
-            <th>Køn</th>
-            <th>Alder</th>
-            <th>Ranking</th>
-            <th>Division</th>
-            <th></th>
+            {% for col, label in col_defs %}
+            <th>
+                {% if col %}
+                    {% if sort == col %}
+                        {% if dir == 'asc' %}
+                        <a href="{{ base_url }}&sort={{ col }}&dir=desc" style="text-decoration:none; color:inherit; display:flex; align-items:center; gap:0.3rem;">
+                            {{ label }} <span style="color:#005BAC;">▲</span>
+                        </a>
+                        {% else %}
+                        <a href="{{ base_url }}&sort={{ col }}&dir=asc" style="text-decoration:none; color:inherit; display:flex; align-items:center; gap:0.3rem;">
+                            {{ label }} <span style="color:#005BAC;">▼</span>
+                        </a>
+                        {% endif %}
+                    {% else %}
+                    <a href="{{ base_url }}&sort={{ col }}&dir=asc" style="text-decoration:none; color:inherit; display:flex; align-items:center; gap:0.3rem;">
+                        {{ label }} <span style="color:#cbd5e1; font-size:0.75rem;">⇅</span>
+                    </a>
+                    {% endif %}
+                {% else %}
+                    {{ label }}
+                {% endif %}
+            </th>
+            {% endfor %}
         </tr>
     </thead>
     <tbody>
@@ -55,7 +94,12 @@
 <div class="card" style="text-align:center; padding:3rem 2rem;">
     <div style="font-size:2rem; margin-bottom:0.5rem;">👤</div>
     <p style="margin:0 0 1rem; color:#64748b;">Ingen spillere fundet.</p>
+    {% if search or selected_division or selected_gender %}
+    <a href="{% url 'player_list' %}" class="btn btn-secondary">Ryd filter</a>
+    {% else %}
     <a href="{% url 'player_add' %}" class="btn btn-primary">Tilføj den første spiller</a>
+    {% endif %}
 </div>
 {% endif %}
+{% endwith %}
 {% endblock %}

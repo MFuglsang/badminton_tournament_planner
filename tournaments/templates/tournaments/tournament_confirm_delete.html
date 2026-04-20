@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}Slet turnering{% endblock %}
+{% block content %}
+<div style="max-width:500px; margin:0 auto;">
+    <div class="card">
+        <h1 style="color:#B02A37;">Bekræft sletning</h1>
+        <p>Er du sikker på, at du vil slette turneringen <strong>{{ tournament.name }}</strong>?</p>
+        <p style="color:#888; font-size:0.9rem;">
+            Dette sletter turneringen og <strong>alle</strong> tilhørende divisioner og kampe permanent.<br>
+            Denne handling kan ikke fortrydes.
+        </p>
+        <form method="post" style="margin-top:1.5rem;">
+            {% csrf_token %}
+            <div class="btn-group">
+                <button type="submit" class="btn btn-danger">Ja, slet turnering</button>
+                <a href="{% url 'tournament_detail' tournament.pk %}" class="btn btn-secondary">Annuller</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

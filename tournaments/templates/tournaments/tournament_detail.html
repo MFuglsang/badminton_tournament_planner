@@ -8,6 +8,7 @@
         <a href="{% url 'tournament_schedule' tournament.pk %}" class="btn btn-secondary">📅 Spilleplan</a>
         <a href="{% url 'tournament_program_print' tournament.pk %}" class="btn btn-secondary" target="_blank">📋 Udprint program</a>
         <a href="{% url 'tournament_scoresheet' tournament.pk %}" class="btn btn-secondary" target="_blank">🖨 Scoresedler</a>
+        <a href="{% url 'tournament_delete' tournament.pk %}" class="btn btn-danger">🗑 Slet turnering</a>
     </div>
 </div>
 <p style="color:#64748b; font-size:0.85rem; margin: -0.75rem 0 1.5rem; display:flex; flex-wrap:wrap; gap:0.4rem 1.25rem; align-items:center;">

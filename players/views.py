@@ -6,14 +6,48 @@ from .forms import PlayerForm, TeamForm
 
 def player_list(request):
     division = request.GET.get('division', '')
-    players = Player.objects.all().order_by('division', 'ranking')
+    gender = request.GET.get('gender', '')
+    search = request.GET.get('search', '').strip()
+    sort = request.GET.get('sort', 'name')
+    direction = request.GET.get('dir', 'asc')
+
+    VALID_SORT_FIELDS = {
+        'name': 'name',
+        'gender': 'gender',
+        'age': 'age',
+        'ranking': 'ranking',
+        'division': 'division',
+    }
+    sort_field = VALID_SORT_FIELDS.get(sort, 'name')
+    if direction == 'desc':
+        sort_field = f'-{sort_field}'
+
+    players = Player.objects.all()
     if division:
         players = players.filter(division=division)
-    division_choices = Player.DIVISION_CHOICES
+    if gender:
+        players = players.filter(gender=gender)
+    if search:
+        players = players.filter(name__icontains=search)
+    players = players.order_by(sort_field)
+
     return render(request, 'players/player_list.html', {
         'players': players,
-        'division_choices': division_choices,
+        'division_choices': Player.DIVISION_CHOICES,
+        'gender_choices': Player.GENDER_CHOICES,
         'selected_division': division,
+        'selected_gender': gender,
+        'search': search,
+        'sort': sort,
+        'dir': direction,
+        'col_defs': [
+            ('name',     'Navn'),
+            ('gender',   'Køn'),
+            ('age',      'Alder'),
+            ('ranking',  'Ranking'),
+            ('division', 'Division'),
+            ('',         ''),
+        ],
     })
 
 def player_add(request):

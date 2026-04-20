@@ -39,6 +39,16 @@ def tournament_edit(request, pk):
     return render(request, 'tournaments/tournament_form.html', {'form': form, 'tournament': tournament})
 
 
+def tournament_delete(request, pk):
+    tournament = get_object_or_404(Tournament, pk=pk)
+    if request.method == 'POST':
+        name = tournament.name
+        tournament.delete()
+        messages.success(request, f'Turnering "{name}" er slettet.')
+        return redirect('tournament_list')
+    return render(request, 'tournaments/tournament_confirm_delete.html', {'tournament': tournament})
+
+
 def tournament_detail(request, pk):
     tournament = get_object_or_404(Tournament, pk=pk)
     divisions = tournament.divisions.prefetch_related('teams', 'matches__team1', 'matches__team2', 'matches__winner')
