@@ -46,6 +46,11 @@ class Tournament(models.Model):
         verbose_name=_("Starttidspunkt"),
         help_text=_("Klokkeslæt for første kamp"),
     )
+    schedule_locked = models.BooleanField(
+        default=False,
+        verbose_name=_("Program låst"),
+        help_text=_("Når programmet er låst, kan kampprogram og spilleplan ikke ændres."),
+    )
 
     def __str__(self):
         return f"{self.name} ({self.scoring_model})"

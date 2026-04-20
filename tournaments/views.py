@@ -111,6 +111,9 @@ def division_delete(request, pk):
 def division_generate_schedule(request, pk):
     division = get_object_or_404(Division, pk=pk)
     if request.method == 'POST':
+        if division.tournament.schedule_locked:
+            messages.error(request, 'Spilleplanen er låst og kan ikke ændres.')
+            return redirect('tournament_detail', pk=division.tournament.pk)
         matches = generate_schedule(division)
         if matches:
             # Assign sequential match numbers across the whole tournament
@@ -264,7 +267,9 @@ def tournament_schedule(request, pk):
 def tournament_generate_time_schedule(request, pk):
     tournament = get_object_or_404(Tournament, pk=pk)
     if request.method == 'POST':
-        if not tournament.start_time:
+        if tournament.schedule_locked:
+            messages.error(request, 'Spilleplanen er låst og kan ikke ændres.')
+        elif not tournament.start_time:
             messages.error(request, 'Sæt et starttidspunkt på turneringen før du genererer spilleplanen.')
         else:
             count = generate_time_schedule(tournament)
@@ -272,5 +277,17 @@ def tournament_generate_time_schedule(request, pk):
                 messages.success(request, f'Spilleplan genereret for {count} kampe.')
             else:
                 messages.warning(request, 'Ingen kampe at planlægge. Generer kampprogram for divisionerne først.')
+    return redirect('tournament_schedule', pk=pk)
+
+
+def tournament_toggle_lock(request, pk):
+    tournament = get_object_or_404(Tournament, pk=pk)
+    if request.method == 'POST':
+        tournament.schedule_locked = not tournament.schedule_locked
+        tournament.save(update_fields=['schedule_locked'])
+        if tournament.schedule_locked:
+            messages.success(request, 'Spilleplanen er nu låst.')
+        else:
+            messages.success(request, 'Spilleplanen er nu låst op.')
     return redirect('tournament_schedule', pk=pk)
 

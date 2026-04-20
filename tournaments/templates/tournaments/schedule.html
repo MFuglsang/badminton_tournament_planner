@@ -4,11 +4,25 @@
 
 <div class="page-actions">
     <h1>Spilleplan – {{ tournament.name }}</h1>
-    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-        <form method="post" action="{% url 'tournament_generate_time_schedule' tournament.pk %}">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-primary">⚡ {% if matches %}Generer ny{% else %}Generer{% endif %} spilleplan</button>
-        </form>
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+        {% if tournament.schedule_locked %}
+            <span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fbbf24; padding:0.35rem 0.75rem; font-size:0.85rem;">🔒 Låst</span>
+            <form method="post" action="{% url 'tournament_toggle_lock' tournament.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-secondary">🔓 Lås op</button>
+            </form>
+        {% else %}
+            <form method="post" action="{% url 'tournament_generate_time_schedule' tournament.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-primary">⚡ {% if matches %}Generer ny{% else %}Generer{% endif %} spilleplan</button>
+            </form>
+            {% if matches %}
+            <form method="post" action="{% url 'tournament_toggle_lock' tournament.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-secondary">🔒 Lås program</button>
+            </form>
+            {% endif %}
+        {% endif %}
         <a href="{% url 'tournament_detail' tournament.pk %}" class="btn btn-secondary">← Turnering</a>
     </div>
 </div>

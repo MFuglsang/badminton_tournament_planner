@@ -17,4 +17,5 @@ urlpatterns = [
     path('division/<int:pk>/scoresheet/', views.division_scoresheet, name='division_scoresheet'),
     path('<int:pk>/schedule/', views.tournament_schedule, name='tournament_schedule'),
     path('<int:pk>/schedule/generate/', views.tournament_generate_time_schedule, name='tournament_generate_time_schedule'),
+    path('<int:pk>/schedule/lock/', views.tournament_toggle_lock, name='tournament_toggle_lock'),
 ]

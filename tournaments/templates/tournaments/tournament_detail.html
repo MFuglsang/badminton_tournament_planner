@@ -9,11 +9,14 @@
         <a href="{% url 'tournament_scoresheet' tournament.pk %}" class="btn btn-secondary" target="_blank">🖨 Scoresedler</a>
     </div>
 </div>
-<p style="color:#64748b; font-size:0.85rem; margin: -0.75rem 0 1.5rem; display:flex; flex-wrap:wrap; gap:0.4rem 1.25rem;">
+<p style="color:#64748b; font-size:0.85rem; margin: -0.75rem 0 1.5rem; display:flex; flex-wrap:wrap; gap:0.4rem 1.25rem; align-items:center;">
     <span><strong>Dato:</strong> {{ tournament.date }}</span>
     <span><strong>Scoring:</strong> {{ tournament.get_scoring_model_display }}</span>
     <span><strong>Baner:</strong> {{ tournament.court_count }}</span>
     <span><strong>Start:</strong> {{ tournament.start_time|default:"–" }}</span>
+    {% if tournament.schedule_locked %}
+    <span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fbbf24; padding:0.25rem 0.65rem;">🔒 Program låst</span>
+    {% endif %}
 </p>
 
 {# ── Opret ny division ─────────────────────────────────────────────────── #}
@@ -162,10 +165,12 @@
 {% endif %}
 
 <div class="btn-group" style="margin-bottom:1rem;">
+    {% if not tournament.schedule_locked %}
     <form method="post" action="{% url 'division_generate_schedule' division.pk %}">
         {% csrf_token %}
         <button type="submit" class="btn btn-primary btn-sm">⚡ Generer kampprogram</button>
     </form>
+    {% endif %}
     {% if division.matches.all %}
     <a href="{% url 'division_scoresheet' division.pk %}" class="btn btn-secondary btn-sm" target="_blank">🖨 Scoresedler (PDF)</a>
     {% endif %}

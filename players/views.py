@@ -1,5 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
+from django.db.models import Q
 from .models import Player, Team
 from .forms import PlayerForm, TeamForm
 
@@ -82,3 +83,24 @@ def team_delete(request, pk):
         messages.success(request, f'Hold "{name}" er slettet.')
         return redirect('team_list')
     return render(request, 'players/player_confirm_delete.html', {'object': team, 'type': 'hold'})
+
+
+def player_schedule_print(request, pk):
+    """Print-venlig spilleplan for en enkelt spiller på tværs af turneringer."""
+    from tournaments.models import Match
+    player = get_object_or_404(Player, pk=pk)
+    # Find alle teams som spilleren er en del af
+    teams = Team.objects.filter(Q(player1=player) | Q(player2=player))
+    # Find alle kampe (med tidspunkt) for disse teams, sorteret efter tidspunkt
+    matches = (
+        Match.objects
+        .filter(Q(team1__in=teams) | Q(team2__in=teams))
+        .filter(scheduled_time__isnull=False)
+        .exclude(match_number=None)
+        .select_related('team1', 'team2', 'division', 'division__tournament', 'winner')
+        .order_by('scheduled_time')
+    )
+    return render(request, 'players/player_schedule_print.html', {
+        'player': player,
+        'matches': matches,
+    })

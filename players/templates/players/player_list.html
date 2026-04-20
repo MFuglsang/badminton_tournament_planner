@@ -42,6 +42,7 @@
             <td><span class="badge badge-pending">{{ player.get_division_display }}</span></td>
             <td>
                 <div class="btn-group">
+                    <a href="{% url 'player_schedule_print' player.id %}" class="btn btn-secondary btn-sm" target="_blank">📋 Program</a>
                     <a href="{% url 'player_edit' player.id %}" class="btn btn-secondary btn-sm">Rediger</a>
                     <a href="{% url 'player_delete' player.id %}" class="btn btn-danger btn-sm">Slet</a>
                 </div>

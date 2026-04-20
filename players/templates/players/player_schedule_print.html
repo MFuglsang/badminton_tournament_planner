@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<title>Program – {{ player.name }}</title>
+<style>
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f4f7fb;
+    margin: 0;
+    padding: 1.5rem;
+    color: #111;
+  }
+
+  .screen-header {
+    max-width: 680px;
+    margin: 0 auto 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .screen-header h1 { margin: 0; font-size: 1.4rem; flex: 1; }
+  .btn {
+    display: inline-block;
+    padding: 0.5rem 1.2rem;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    cursor: pointer;
+    border: none;
+  }
+  .btn-primary   { background: #005BAC; color: #fff; }
+  .btn-secondary { background: #e9ecef; color: #333; }
+
+  /* ── Player card ─── */
+  .player-card {
+    max-width: 680px;
+    margin: 0 auto 1.5rem;
+    background: #fff;
+    border: 2px solid #005BAC;
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+  }
+  .player-avatar {
+    width: 56px;
+    height: 56px;
+    background: #005BAC;
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .player-info h2 { margin: 0 0 0.2rem; font-size: 1.3rem; }
+  .player-info p  { margin: 0; color: #555; font-size: 0.88rem; }
+
+  /* ── Match table ─── */
+  .match-table-wrap {
+    max-width: 680px;
+    margin: 0 auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+  }
+  thead th {
+    background: #005BAC;
+    color: #fff;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: left;
+  }
+  tbody tr:nth-child(even) { background: #f8fafc; }
+  tbody tr { border-bottom: 1px solid #e2e8f0; }
+  tbody td {
+    padding: 0.65rem 0.8rem;
+    font-size: 0.92rem;
+    vertical-align: middle;
+  }
+  .kamp-nr {
+    font-weight: 700;
+    color: #005BAC;
+    white-space: nowrap;
+  }
+  .tid {
+    white-space: nowrap;
+    font-weight: 600;
+  }
+  .bane {
+    white-space: nowrap;
+    color: #555;
+  }
+  .modstander {
+    font-weight: 600;
+  }
+  .division-label {
+    font-size: 0.78rem;
+    color: #888;
+  }
+  .status-done    { color: #16a34a; font-size: 0.8rem; }
+  .status-active  { color: #d97706; font-size: 0.8rem; font-weight: 600; }
+  .status-pending { color: #64748b; font-size: 0.8rem; }
+
+  .no-matches {
+    max-width: 680px;
+    margin: 2rem auto;
+    text-align: center;
+    color: #888;
+    background: #fff;
+    border-radius: 8px;
+    padding: 3rem;
+  }
+
+  /* ── Print overrides ─── */
+  @media print {
+    @page {
+      size: A4 portrait;
+      margin: 15mm 12mm;
+    }
+    body {
+      background: none;
+      padding: 0;
+    }
+    .screen-header { display: none; }
+    .player-card {
+      border-color: #000;
+      box-shadow: none;
+      margin-bottom: 8mm;
+    }
+    .player-avatar { background: #000; }
+    thead th { background: #000; }
+    table { box-shadow: none; border: 1px solid #aaa; }
+  }
+</style>
+</head>
+<body>
+
+<div class="screen-header">
+  <h1>Program – {{ player.name }}</h1>
+  <button class="btn btn-primary" onclick="window.print()">🖨 Udskriv / Gem PDF</button>
+  <a href="{% url 'player_list' %}" class="btn btn-secondary">← Spillere</a>
+</div>
+
+<div class="player-card">
+  <div class="player-avatar">{{ player.name|first|upper }}</div>
+  <div class="player-info">
+    <h2>{{ player.name }}</h2>
+    <p>{{ player.get_gender_display }} &nbsp;·&nbsp; {{ player.get_division_display }} &nbsp;·&nbsp; Ranking {{ player.ranking }}</p>
+  </div>
+</div>
+
+{% if matches %}
+<div class="match-table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Tidspunkt</th>
+        <th>Bane</th>
+        <th>Modstander</th>
+        <th>Division / Runde</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for match in matches %}
+      <tr>
+        <td class="kamp-nr">{{ match.match_number }}</td>
+        <td class="tid">{{ match.scheduled_time|time:"H:i" }}</td>
+        <td class="bane">{{ match.court|default:"–" }}</td>
+        <td class="modstander">
+          {% if match.team1 and match.team2 %}
+            {% if match.team1.player1.id == player.id or match.team1.player2.id == player.id %}
+              {{ match.team2.name }}
+            {% else %}
+              {{ match.team1.name }}
+            {% endif %}
+          {% else %}
+            –
+          {% endif %}
+        </td>
+        <td>
+          <span>{{ match.division.name }}</span><br>
+          <span class="division-label">{{ match.division.get_discipline_display }} · Runde {{ match.match_round }}</span>
+        </td>
+        <td>
+          {% if match.status == 'completed' %}
+            <span class="status-done">✓ Afsluttet</span>
+            {% if match.score %}<br><span style="font-size:0.78rem; color:#555;">{{ match.score }}</span>{% endif %}
+          {% elif match.status == 'in_progress' %}
+            <span class="status-active">▶ I gang</span>
+          {% else %}
+            <span class="status-pending">Kommende</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="no-matches">
+  <div style="font-size:2rem; margin-bottom:0.5rem;">📅</div>
+  <p>Ingen kampe med tidspunkt fundet for {{ player.name }}.<br>
+  Sørg for at turneringen har en spilleplan genereret.</p>
+</div>
+{% endif %}
+
+</body>
+</html>
