@@ -1,17 +1,35 @@
 """
-Time-slot scheduling for tournaments.
+Time-slot scheduling for tournaments using Google OR-Tools CP-SAT.
 
-Assigns scheduled_time and court to each match using a greedy algorithm:
-  - Matches are processed in match_number order.
-  - Each match is placed on the earliest available court.
-  - A player's next match cannot start until their previous match has finished
-    plus the tournament's player_break_time.
-  - Bracket placeholder matches (where participants are still unknown) are
-    scheduled based on when their feeder matches are estimated to finish.
+Assigns scheduled_time and court to each match by solving a constraint
+satisfaction / optimisation problem:
+
+  Objective: minimise total tournament duration (makespan).
+
+  Hard constraints:
+    * At most court_count matches run simultaneously.
+    * A player's matches cannot overlap; consecutive matches must be
+      separated by at least player_break_time minutes.
+    * Playoff-phase matches cannot start before all group-phase matches
+      in the same division have finished (+ one break period).
+    * Bracket placeholder matches cannot start before both their feeder
+      matches have finished (+ one break period).
+
+  Falls back to a greedy algorithm if OR-Tools is unavailable or the
+  solver does not find a feasible solution within the time limit.
 """
 
 from datetime import datetime, timedelta
 from django.utils import timezone
+
+# Granularity of the time grid in minutes.
+# All durations are rounded up to the nearest multiple of this value.
+_SLOT_MINUTES = 5
+
+
+def _to_slots(minutes):
+    """Convert a duration in minutes to discrete time slots (ceiling division)."""
+    return (int(minutes) + _SLOT_MINUTES - 1) // _SLOT_MINUTES
 
 
 def generate_time_schedule(tournament):
@@ -26,48 +44,200 @@ def generate_time_schedule(tournament):
 
     from .models import Match
 
-    # Include placeholder matches (team1=None) but exclude byes (team2=None, team1!=None)
     matches = list(
         Match.objects
         .filter(division__tournament=tournament)
         .exclude(match_number=None)
         .exclude(team1__isnull=False, team2__isnull=True)  # exclude byes
-        .order_by('match_number')
+        .order_by('match_round', 'division', 'match_number')
         .select_related('division', 'team1__player1', 'team1__player2',
                         'team2__player1', 'team2__player2')
     )
     if not matches:
         return 0
 
-    # Pre-compute the latest estimated end of all GROUP-phase matches per division,
-    # so that playoff-phase matches in same division are never scheduled before that.
-    # We calculate this after the greedy pass by doing a pre-scan estimating durations.
-    # We track it live during the greedy loop instead (see playoff_group_end below).
+    try:
+        from ortools.sat.python import cp_model  # noqa: F401 – verify import works
+        return _schedule_ortools(tournament, matches)
+    except Exception:
+        # Fall back to greedy if OR-Tools is unavailable or the solve fails.
+        return _schedule_greedy(tournament, matches)
 
-    # Base start: combine tournament date + start time → timezone-aware datetime
+
+# ---------------------------------------------------------------------------
+# OR-Tools CP-SAT solver
+# ---------------------------------------------------------------------------
+
+def _schedule_ortools(tournament, matches):
+    from ortools.sat.python import cp_model
+
+    SLOT = _SLOT_MINUTES
+    break_slots = _to_slots(tournament.player_break_time)
+    n_courts = tournament.court_count
+
+    # Generous upper bound: 16 hours in slots
+    horizon = _to_slots(16 * 60)
+
+    model = cp_model.CpModel()
+
+    # ── Per-match variables ────────────────────────────────────────────────
+    start_vars = {}   # match.id → IntVar (slot index)
+    end_vars = {}     # match.id → IntVar (slot index)
+    dur_slots = {}    # match.id → int (constant duration in slots)
+    court_lits = {}   # match.id → list[BoolVar] (one per court, exactly-one)
+
+    # Optional intervals grouped by court, for AddNoOverlap per court
+    court_intervals = {c: [] for c in range(n_courts)}
+
+    for m in matches:
+        duration_min = (
+            tournament.single_match_duration
+            if m.division.discipline == 'single'
+            else tournament.double_match_duration
+        )
+        d = _to_slots(duration_min)
+        dur_slots[m.id] = d
+
+        s = model.new_int_var(0, horizon - d, f's_{m.id}')
+        e = model.new_int_var(d, horizon, f'e_{m.id}')
+        model.add(e == s + d)
+        start_vars[m.id] = s
+        end_vars[m.id] = e
+
+        # Boolean variable per court (exactly one will be true)
+        lits = [model.new_bool_var(f'c_{m.id}_{c}') for c in range(n_courts)]
+        model.add_exactly_one(lits)
+        court_lits[m.id] = lits
+
+        # Optional interval for each court
+        for c, lit in enumerate(lits):
+            opt_iv = model.new_optional_interval_var(s, d, e, lit, f'iv_{m.id}_{c}')
+            court_intervals[c].append(opt_iv)
+
+    # ── Court capacity: no two matches on the same court may overlap ───────
+    for c in range(n_courts):
+        model.add_no_overlap(court_intervals[c])
+
+    # ── Player constraints ─────────────────────────────────────────────────
+    # Build player → matches map
+    player_to_matches = {}
+    for m in matches:
+        pks = [
+            pk for pk in [
+                m.team1.player1_id if m.team1 else None,
+                m.team1.player2_id if m.team1 else None,
+                m.team2.player1_id if m.team2 else None,
+                m.team2.player2_id if m.team2 else None,
+            ]
+            if pk
+        ]
+        for pk in pks:
+            player_to_matches.setdefault(pk, []).append(m)
+
+    # For each player, create padded intervals (duration + break) and enforce
+    # no-overlap so that consecutive matches are separated by at least break_slots.
+    for pk, pmatches in player_to_matches.items():
+        if len(pmatches) < 2:
+            continue
+        padded_ivs = []
+        for m in pmatches:
+            d = dur_slots[m.id]
+            padded_d = d + break_slots
+            s = start_vars[m.id]
+            e_pad = model.new_int_var(padded_d, horizon + break_slots, f'ep_{m.id}_{pk}')
+            model.add(e_pad == s + padded_d)
+            iv = model.new_interval_var(s, padded_d, e_pad, f'piv_{m.id}_{pk}')
+            padded_ivs.append(iv)
+        model.add_no_overlap(padded_ivs)
+
+    # ── Playoff barrier ────────────────────────────────────────────────────
+    # Collect group-phase end variables per division
+    div_group_ends = {}
+    for m in matches:
+        if getattr(m, 'phase', 'group') == 'group':
+            div_group_ends.setdefault(m.division_id, []).append(end_vars[m.id])
+
+    # Each playoff match must start after ALL group matches in its division + break
+    for m in matches:
+        if getattr(m, 'phase', 'group') == 'playoff' and m.division_id in div_group_ends:
+            group_end_max = model.new_int_var(0, horizon, f'ge_{m.id}')
+            model.add_max_equality(group_end_max, div_group_ends[m.division_id])
+            model.add(start_vars[m.id] >= group_end_max + break_slots)
+
+    # ── Bracket placeholder ordering ───────────────────────────────────────
+    # Placeholder matches (team1=None) must start after both feeder matches end
+    slot_to_match = {}
+    for m in matches:
+        if m.bracket_slot is not None:
+            slot_to_match[(m.division_id, m.match_round, m.bracket_slot)] = m
+
+    for m in matches:
+        if m.team1 is None and m.bracket_slot is not None:
+            r, s = m.match_round, m.bracket_slot
+            for feeder in [
+                slot_to_match.get((m.division_id, r - 1, 2 * s - 1)),
+                slot_to_match.get((m.division_id, r - 1, 2 * s)),
+            ]:
+                if feeder and feeder.id in end_vars:
+                    model.add(start_vars[m.id] >= end_vars[feeder.id] + break_slots)
+
+    # ── Objective: minimise makespan ───────────────────────────────────────
+    makespan = model.new_int_var(0, horizon, 'makespan')
+    model.add_max_equality(makespan, list(end_vars.values()))
+    model.minimize(makespan)
+
+    # ── Solve ──────────────────────────────────────────────────────────────
+    solver = cp_model.CpSolver()
+    solver.parameters.max_time_in_seconds = 30.0
+    solver.parameters.num_workers = 4
+    status = solver.solve(model)
+
+    if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+        raise RuntimeError(f'OR-Tools returned status {solver.status_name(status)}')
+
+    # ── Extract solution and save ──────────────────────────────────────────
     naive_start = datetime.combine(tournament.date, tournament.start_time)
     start_dt = timezone.make_aware(naive_start) if timezone.is_naive(naive_start) else naive_start
 
-    # court_free[i] = earliest datetime court (i+1) is available
+    updated = []
+    for m in matches:
+        start_slot = solver.value(start_vars[m.id])
+        m.scheduled_time = start_dt + timedelta(minutes=start_slot * SLOT)
+
+        for c, lit in enumerate(court_lits[m.id]):
+            if solver.value(lit):
+                m.court = str(c + 1)
+                break
+
+        updated.append(m)
+
+    for m in updated:
+        m.save(update_fields=['scheduled_time', 'court'])
+
+    return len(updated)
+
+
+# ---------------------------------------------------------------------------
+# Greedy fallback
+# ---------------------------------------------------------------------------
+
+def _schedule_greedy(tournament, matches):
+    """
+    Original greedy scheduler — used as fallback when OR-Tools is unavailable
+    or fails to find a feasible solution within the time limit.
+    """
+    naive_start = datetime.combine(tournament.date, tournament.start_time)
+    start_dt = timezone.make_aware(naive_start) if timezone.is_naive(naive_start) else naive_start
+
     court_free = [start_dt] * tournament.court_count
-
-    # player_free[player_pk] = datetime when that player finishes their last match
     player_free = {}
-
-    # bracket_slot_end[(division_pk, match_round, bracket_slot)] = estimated end time
-    # Used so placeholder matches know their earliest possible start
     bracket_slot_end = {}
-
-    # playoff_group_end[division_pk] = latest estimated end of any group-phase match
-    # Playoff bracket matches must not start before this point.
     playoff_group_end = {}
-
     break_td = timedelta(minutes=tournament.player_break_time)
 
     updated = []
     for match in matches:
         is_placeholder = (match.team1 is None)
-
         duration = (
             tournament.single_match_duration
             if match.division.discipline == 'single'
@@ -75,7 +245,6 @@ def generate_time_schedule(tournament):
         )
 
         if is_placeholder:
-            # Determine earliest possible start from feeder matches
             r = match.match_round
             s = match.bracket_slot
             div_id = match.division_id
@@ -83,7 +252,6 @@ def generate_time_schedule(tournament):
             feeder_end_2 = bracket_slot_end.get((div_id, r - 1, 2 * s), start_dt)
             player_earliest = max(feeder_end_1, feeder_end_2) + break_td
         else:
-            # Collect player PKs for both teams
             player_pks = [
                 pk for pk in [
                     match.team1.player1_id,
@@ -93,26 +261,29 @@ def generate_time_schedule(tournament):
                 ]
                 if pk
             ]
-
             if player_pks:
                 player_earliest = max(
-                    (player_free.get(pk, start_dt) + break_td for pk in player_pks)
+                    (player_free.get(pk, start_dt - break_td) + break_td for pk in player_pks)
                 )
             else:
                 player_earliest = start_dt
 
-        # For playoff-phase matches: must not start before all group matches in division are done
         if getattr(match, 'phase', 'group') == 'playoff':
             group_done = playoff_group_end.get(match.division_id, start_dt)
             player_earliest = max(player_earliest, group_done + break_td)
 
-        # Find court with the earliest slot that also satisfies player/feeder availability
         best_time = None
+        best_court_free = None
         best_court_idx = 0
         for idx, court_time in enumerate(court_free):
             slot = max(court_time, player_earliest)
-            if best_time is None or slot < best_time:
+            if (
+                best_time is None
+                or slot < best_time
+                or (slot == best_time and court_time > best_court_free)
+            ):
                 best_time = slot
+                best_court_free = court_time
                 best_court_idx = idx
 
         match.scheduled_time = best_time
@@ -126,13 +297,11 @@ def generate_time_schedule(tournament):
             for pk in player_pks:
                 player_free[pk] = end_time
 
-        # Track latest group-phase end per division (for playoff barrier)
         if getattr(match, 'phase', 'group') == 'group':
             prev = playoff_group_end.get(match.division_id, start_dt)
             if end_time > prev:
                 playoff_group_end[match.division_id] = end_time
 
-        # Record this slot's end time for downstream bracket matches
         if match.bracket_slot is not None:
             bracket_slot_end[(match.division_id, match.match_round, match.bracket_slot)] = end_time
 

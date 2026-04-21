@@ -25,8 +25,36 @@ def _sort_teams_by_seed(division, teams):
 # Round-robin
 # ---------------------------------------------------------------------------
 
+def _round_robin_rounds(teams):
+    """
+    Circle-method round-robin: returns a list of rounds, each round being a
+    list of (team_a, team_b) pairs.  teams is assumed to already be sorted.
+    If len(teams) is odd a dummy None is appended; pairs involving None are
+    bye-matches and are excluded from each round's output.
+    """
+    if len(teams) % 2 == 1:
+        teams = teams + [None]  # bye placeholder
+    n = len(teams)
+    rounds = []
+    for _ in range(n - 1):
+        pairs = []
+        for i in range(n // 2):
+            t1 = teams[i]
+            t2 = teams[n - 1 - i]
+            if t1 is not None and t2 is not None:
+                pairs.append((t1, t2))
+        rounds.append(pairs)
+        # Rotate: keep teams[0] fixed, rotate the rest
+        teams = [teams[0]] + [teams[-1]] + teams[1:-1]
+    return rounds
+
+
 def generate_round_robin(division):
-    """Generate a full round-robin schedule. Every team plays every other once."""
+    """
+    Generate a full round-robin schedule using the circle method.
+    Each round contains floor(n/2) simultaneous matches so that the
+    time-slot scheduler can run them on parallel courts.
+    """
     from .models import Match
 
     teams = list(division.teams.all())
@@ -35,17 +63,19 @@ def generate_round_robin(division):
 
     Match.objects.filter(division=division, status='pending').delete()
 
-    pairs = list(itertools.combinations(sorted(teams, key=lambda t: t.player1.name), 2))
+    teams = sorted(teams, key=lambda t: t.player1.name)
+    rounds = _round_robin_rounds(teams)
     created = []
-    for round_num, (team1, team2) in enumerate(pairs, start=1):
-        match = Match.objects.create(
-            division=division,
-            team1=team1,
-            team2=team2,
-            match_round=round_num,
-            status='pending',
-        )
-        created.append(match)
+    for round_num, pairs in enumerate(rounds, start=1):
+        for team1, team2 in pairs:
+            match = Match.objects.create(
+                division=division,
+                team1=team1,
+                team2=team2,
+                match_round=round_num,
+                status='pending',
+            )
+            created.append(match)
     return created
 
 
@@ -294,21 +324,22 @@ def generate_playoff(division):
 
     created = []
 
-    # ── Group stage: round-robin per group ────────────────────────────
+    # ── Group stage: round-robin per group (circle method) ───────────
     for g_idx, group_teams in enumerate(groups):
         group_num = g_idx + 1
-        pairs = list(itertools.combinations(group_teams, 2))
-        for round_num, (team1, team2) in enumerate(pairs, start=1):
-            match = Match.objects.create(
-                division=division,
-                team1=team1,
-                team2=team2,
-                match_round=round_num,
-                group_number=group_num,
-                phase='group',
-                status='pending',
-            )
-            created.append(match)
+        rounds = _round_robin_rounds(list(group_teams))
+        for round_num, pairs in enumerate(rounds, start=1):
+            for team1, team2 in pairs:
+                match = Match.objects.create(
+                    division=division,
+                    team1=team1,
+                    team2=team2,
+                    match_round=round_num,
+                    group_number=group_num,
+                    phase='group',
+                    status='pending',
+                )
+                created.append(match)
 
     # ── Playoff bracket ───────────────────────────────────────────────
     total_advancing = group_count * advance_count

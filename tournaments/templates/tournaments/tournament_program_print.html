@@ -259,7 +259,7 @@
           <tr>
             <th>#</th>
             <th>Runde</th>
-            {% if dd.matches.0.scheduled_time %}<th>Tidspunkt</th><th>Bane</th>{% endif %}
+            {% if dd.matches.0.scheduled_time %}<th>Tidspunkt</th>{% endif %}
             <th>Kamp</th>
           </tr>
         </thead>
@@ -270,10 +270,8 @@
             <td class="round-col">R{{ match.match_round }}</td>
             {% if match.scheduled_time %}
             <td class="tid-col">{{ match.scheduled_time|time:"H:i" }}</td>
-            <td class="court-col">{{ match.court|default:"–" }}</td>
             {% elif dd.matches.0.scheduled_time %}
             <td class="tid-col">–</td>
-            <td class="court-col">–</td>
             {% endif %}
             <td class="teams-col">
               {{ match.team1.name }}{{ match.t1_seed }}<span class="vs">vs</span>{{ match.team2.name }}{{ match.t2_seed }}

@@ -185,7 +185,6 @@
       <tr>
         <th>#</th>
         <th>Tidspunkt</th>
-        <th>Bane</th>
         <th>Modstander</th>
         <th>Division / Runde</th>
         <th>Status</th>
@@ -196,7 +195,6 @@
       <tr>
         <td class="kamp-nr">{{ match.match_number }}</td>
         <td class="tid">{{ match.scheduled_time|time:"H:i" }}</td>
-        <td class="bane">{{ match.court|default:"–" }}</td>
         <td class="modstander">
           {% if match.team1 and match.team2 %}
             {% if match.team1.player1.id == player.id or match.team1.player2.id == player.id %}
