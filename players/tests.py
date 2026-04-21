@@ -197,3 +197,109 @@ class TeamViewTest(TestCase):
         response = self.client.post(reverse("team_delete", args=[9999]))
         self.assertEqual(response.status_code, 404)
 
+
+# ---------------------------------------------------------------------------
+# Player list – sorting + filtering
+# ---------------------------------------------------------------------------
+
+class PlayerListFilterSortTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.alice = make_player("Alice", age=20, division="A", gender="K")
+        self.bob = make_player("Bob", age=18, division="B", gender="M")
+        self.charlie = make_player("Charlie", age=22, division="A", gender="M")
+
+    def test_filter_by_gender(self):
+        response = self.client.get(reverse("player_list") + "?gender=M")
+        self.assertContains(response, "Bob")
+        self.assertNotContains(response, "Alice")
+
+    def test_filter_by_search(self):
+        response = self.client.get(reverse("player_list") + "?search=ali")
+        self.assertContains(response, "Alice")
+        self.assertNotContains(response, "Bob")
+
+    def test_sort_by_name_desc(self):
+        response = self.client.get(reverse("player_list") + "?sort=name&dir=desc")
+        self.assertEqual(response.status_code, 200)
+        names = [p.name for p in response.context['players']]
+        self.assertEqual(names, sorted(names, reverse=True))
+
+    def test_sort_by_age(self):
+        response = self.client.get(reverse("player_list") + "?sort=age")
+        self.assertEqual(response.status_code, 200)
+        ages = [p.age for p in response.context['players']]
+        self.assertEqual(ages, sorted(ages))
+
+    def test_sort_invalid_field_falls_back_to_name(self):
+        response = self.client.get(reverse("player_list") + "?sort=invalid_field")
+        self.assertEqual(response.status_code, 200)
+
+    def test_filter_by_division_and_gender_combined(self):
+        response = self.client.get(reverse("player_list") + "?division=A&gender=M")
+        self.assertContains(response, "Charlie")
+        self.assertNotContains(response, "Alice")
+        self.assertNotContains(response, "Bob")
+
+
+# ---------------------------------------------------------------------------
+# Player schedule print
+# ---------------------------------------------------------------------------
+
+class PlayerSchedulePrintTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.player = make_player("PrintPlayer")
+
+    def test_schedule_print_returns_200_no_matches(self):
+        response = self.client.get(reverse("player_schedule_print", args=[self.player.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "PrintPlayer")
+
+    def test_schedule_print_404_for_nonexistent(self):
+        response = self.client.get(reverse("player_schedule_print", args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_schedule_print_shows_matches(self):
+        import datetime as dt
+        from django.utils import timezone
+        from tournaments.models import Tournament, Division, Match
+        tournament = Tournament.objects.create(
+            name="Print T", date=dt.date(2026, 6, 1),
+            division_model='mixed', scoring_model='best_of_3_21',
+        )
+        division = Division.objects.create(
+            tournament=tournament, name="D", discipline='single',
+        )
+        team = Team.objects.create(player1=self.player, player2=None, name=self.player.name)
+        other = make_player("Opponent")
+        team2 = Team.objects.create(player1=other, player2=None, name=other.name)
+        Match.objects.create(
+            division=division, team1=team, team2=team2,
+            match_number=1,
+            scheduled_time=timezone.make_aware(dt.datetime(2026, 6, 1, 10, 0)),
+            court='1', status='pending',
+        )
+        response = self.client.get(reverse("player_schedule_print", args=[self.player.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Opponent")
+
+
+# ---------------------------------------------------------------------------
+# Team model – save edge cases
+# ---------------------------------------------------------------------------
+
+class TeamModelSaveTest(TestCase):
+    def test_single_player_team_uses_player_name(self):
+        p = make_player("Solo")
+        team = Team.objects.create(player1=p, player2=None)
+        self.assertEqual(team.name, "Solo")
+
+    def test_auto_name_two_players_alphabetical(self):
+        p1 = make_player("Zara")
+        p2 = make_player("Anna")
+        team = Team.objects.create(player1=p1, player2=p2)
+        # Name should include both
+        self.assertIn("Zara", team.name)
+        self.assertIn("Anna", team.name)
+

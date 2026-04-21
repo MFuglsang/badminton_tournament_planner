@@ -2,9 +2,9 @@ import datetime
 from django.test import TestCase, Client
 from django.urls import reverse
 from players.models import Player, Team
-from .models import Tournament, Division, Match
+from .models import Tournament, Division, Match, DivisionSeed
 from .scheduler import generate_round_robin, generate_bracket, generate_schedule, advance_bracket, get_bracket_data
-from .standings import compute_standings, _parse_score, STANDINGS_CONFIG
+from .standings import compute_standings, compute_group_standings, _parse_score, STANDINGS_CONFIG
 
 
 # ---------------------------------------------------------------------------
@@ -676,4 +676,447 @@ class WalkoverViewTest(TestCase):
     def test_walkover_404_for_nonexistent(self):
         response = self.client.get(reverse("match_walkover", args=[9999]))
         self.assertEqual(response.status_code, 404)
+
+
+# ---------------------------------------------------------------------------
+# Group standings (playoff)
+# ---------------------------------------------------------------------------
+
+class GroupStandingsTest(TestCase):
+    def setUp(self):
+        self.tournament = make_tournament()
+        self.division = Division.objects.create(
+            tournament=self.tournament, name="Playoff", discipline='double',
+            tournament_type='playoff', group_count=2, advance_count=1,
+        )
+        self.t1 = make_team(r1=1, r2=2)
+        self.t2 = make_team(r1=3, r2=4)
+        self.t3 = make_team(r1=5, r2=6)
+        self.t4 = make_team(r1=7, r2=8)
+        self.division.teams.add(self.t1, self.t2, self.t3, self.t4)
+
+    def test_returns_groups_in_order(self):
+        Match.objects.create(division=self.division, team1=self.t1, team2=self.t2,
+                             group_number=1, phase='group', status='completed',
+                             winner=self.t1, score='21-15')
+        Match.objects.create(division=self.division, team1=self.t3, team2=self.t4,
+                             group_number=2, phase='group', status='completed',
+                             winner=self.t3, score='21-10')
+        result = compute_group_standings(self.division)
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0][0], 1)
+        self.assertEqual(result[1][0], 2)
+
+    def test_winner_leads_group(self):
+        Match.objects.create(division=self.division, team1=self.t1, team2=self.t2,
+                             group_number=1, phase='group', status='completed',
+                             winner=self.t1, score='21-15')
+        result = compute_group_standings(self.division)
+        g1_rows = result[0][1]
+        self.assertEqual(g1_rows[0]['team'], self.t1)
+        self.assertEqual(g1_rows[0]['points'], 2)
+
+    def test_empty_division_returns_no_groups(self):
+        empty_div = Division.objects.create(
+            tournament=self.tournament, name="Empty playoff", discipline='double',
+            tournament_type='playoff',
+        )
+        self.assertEqual(compute_group_standings(empty_div), [])
+
+
+# ---------------------------------------------------------------------------
+# DivisionSeed model
+# ---------------------------------------------------------------------------
+
+class DivisionSeedModelTest(TestCase):
+    def test_str_includes_seed_number_and_names(self):
+        t = make_tournament()
+        d = make_division(tournament=t, tournament_type='tree')
+        team = make_team(r1=1, r2=2)
+        d.teams.add(team)
+        seed = DivisionSeed.objects.create(division=d, team=team, seed_number=1)
+        s = str(seed)
+        self.assertIn('1', s)
+        self.assertIn(team.name, s)
+
+
+# ---------------------------------------------------------------------------
+# Seeds views
+# ---------------------------------------------------------------------------
+
+class DivisionSeedViewTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.tournament = make_tournament()
+        self.division = make_division(tournament=self.tournament, tournament_type='tree')
+        self.t1 = make_team(r1=1, r2=2)
+        self.t2 = make_team(r1=3, r2=4)
+        self.division.teams.add(self.t1, self.t2)
+
+    def test_update_seeds_creates_entries(self):
+        response = self.client.post(
+            reverse('division_update_seeds', args=[self.division.pk]),
+            {f'seed_{self.t1.pk}': '1', f'seed_{self.t2.pk}': '2'},
+        )
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+        self.assertEqual(DivisionSeed.objects.filter(division=self.division).count(), 2)
+        self.assertEqual(DivisionSeed.objects.get(division=self.division, team=self.t1).seed_number, 1)
+
+    def test_update_seeds_clears_old_entries(self):
+        DivisionSeed.objects.create(division=self.division, team=self.t1, seed_number=1)
+        # Re-post with only t2 seeded
+        self.client.post(
+            reverse('division_update_seeds', args=[self.division.pk]),
+            {f'seed_{self.t2.pk}': '1'},
+        )
+        self.assertFalse(DivisionSeed.objects.filter(division=self.division, team=self.t1).exists())
+        self.assertTrue(DivisionSeed.objects.filter(division=self.division, team=self.t2).exists())
+
+    def test_duplicate_seed_numbers_ignored(self):
+        # Both teams given seed 1 → only first accepted
+        self.client.post(
+            reverse('division_update_seeds', args=[self.division.pk]),
+            {f'seed_{self.t1.pk}': '1', f'seed_{self.t2.pk}': '1'},
+        )
+        self.assertEqual(DivisionSeed.objects.filter(division=self.division).count(), 1)
+
+    def test_invalid_seed_value_ignored(self):
+        self.client.post(
+            reverse('division_update_seeds', args=[self.division.pk]),
+            {f'seed_{self.t1.pk}': 'abc'},
+        )
+        self.assertEqual(DivisionSeed.objects.filter(division=self.division).count(), 0)
+
+    def test_seed_list_in_detail_context(self):
+        DivisionSeed.objects.create(division=self.division, team=self.t1, seed_number=1)
+        response = self.client.get(reverse('tournament_detail', args=[self.tournament.pk]))
+        dd = response.context['division_data'][0]
+        seed_list = dd['seed_list']
+        team_pks = [t.pk for t, _ in seed_list]
+        self.assertIn(self.t1.pk, team_pks)
+
+    def test_seeds_dict_in_detail_context(self):
+        DivisionSeed.objects.create(division=self.division, team=self.t1, seed_number=1)
+        response = self.client.get(reverse('tournament_detail', args=[self.tournament.pk]))
+        dd = response.context['division_data'][0]
+        self.assertIn(self.t1.pk, dd['seeds_dict'])
+        self.assertIn('(1)', dd['seeds_dict'][self.t1.pk])
+
+
+# ---------------------------------------------------------------------------
+# Bigscreen view
+# ---------------------------------------------------------------------------
+
+class BigscreenViewTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.tournament = make_tournament()
+        self.division = make_division(tournament=self.tournament)
+        self.t1 = make_team(r1=1, r2=2)
+        self.t2 = make_team(r1=3, r2=4)
+
+    def test_bigscreen_returns_200(self):
+        response = self.client.get(reverse('tournament_bigscreen', args=[self.tournament.pk]))
+        self.assertEqual(response.status_code, 200)
+
+    def test_bigscreen_shows_pending_matches_with_time(self):
+        import datetime as dt
+        from django.utils import timezone
+        Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2,
+            status='pending', match_number=1,
+            scheduled_time=timezone.make_aware(dt.datetime(2026, 1, 1, 10, 0)),
+            court='1',
+        )
+        response = self.client.get(reverse('tournament_bigscreen', args=[self.tournament.pk]))
+        # Team name containing '&' is HTML-escaped; check player name instead
+        self.assertContains(response, self.t1.player1.name)
+
+    def test_bigscreen_excludes_completed(self):
+        import datetime as dt
+        from django.utils import timezone
+        Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2,
+            status='completed', match_number=1,
+            scheduled_time=timezone.make_aware(dt.datetime(2026, 1, 1, 10, 0)),
+        )
+        response = self.client.get(reverse('tournament_bigscreen', args=[self.tournament.pk]))
+        self.assertEqual(len(response.context['matches']), 0)
+
+    def test_bigscreen_404_for_nonexistent(self):
+        response = self.client.get(reverse('tournament_bigscreen', args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+
+# ---------------------------------------------------------------------------
+# Tournament program print + division scoresheet
+# ---------------------------------------------------------------------------
+
+class ProgramPrintViewTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.tournament = make_tournament()
+        self.division = make_division(tournament=self.tournament)
+        self.t1 = make_team(r1=1, r2=2)
+        self.t2 = make_team(r1=3, r2=4)
+        self.division.teams.add(self.t1, self.t2)
+
+    def test_program_print_returns_200(self):
+        response = self.client.get(reverse('tournament_program_print', args=[self.tournament.pk]))
+        self.assertEqual(response.status_code, 200)
+
+    def test_program_print_contains_division_name(self):
+        response = self.client.get(reverse('tournament_program_print', args=[self.tournament.pk]))
+        self.assertContains(response, self.division.name)
+
+    def test_program_print_contains_team_names(self):
+        response = self.client.get(reverse('tournament_program_print', args=[self.tournament.pk]))
+        # Team names containing '&' are HTML-escaped in the response
+        self.assertContains(response, self.t1.player1.name)
+
+    def test_program_print_404_for_nonexistent(self):
+        response = self.client.get(reverse('tournament_program_print', args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+
+class DivisionScoresheetViewTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.tournament = make_tournament()
+        self.division = make_division(tournament=self.tournament)
+        self.t1 = make_team(r1=1, r2=2)
+        self.t2 = make_team(r1=3, r2=4)
+        self.division.teams.add(self.t1, self.t2)
+
+    def test_division_scoresheet_returns_200(self):
+        self.client.post(reverse('division_generate_schedule', args=[self.division.pk]))
+        response = self.client.get(reverse('division_scoresheet', args=[self.division.pk]))
+        self.assertEqual(response.status_code, 200)
+
+    def test_division_scoresheet_404_for_nonexistent(self):
+        response = self.client.get(reverse('division_scoresheet', args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+
+# ---------------------------------------------------------------------------
+# Toggle lock view
+# ---------------------------------------------------------------------------
+
+class ToggleLockViewTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.tournament = make_tournament()
+
+    def test_lock_toggles_on(self):
+        self.assertFalse(self.tournament.schedule_locked)
+        self.client.post(reverse('tournament_toggle_lock', args=[self.tournament.pk]))
+        self.tournament.refresh_from_db()
+        self.assertTrue(self.tournament.schedule_locked)
+
+    def test_lock_toggles_off(self):
+        self.tournament.schedule_locked = True
+        self.tournament.save()
+        self.client.post(reverse('tournament_toggle_lock', args=[self.tournament.pk]))
+        self.tournament.refresh_from_db()
+        self.assertFalse(self.tournament.schedule_locked)
+
+    def test_lock_redirects_to_schedule(self):
+        response = self.client.post(reverse('tournament_toggle_lock', args=[self.tournament.pk]))
+        self.assertRedirects(response, reverse('tournament_schedule', args=[self.tournament.pk]))
+
+
+# ---------------------------------------------------------------------------
+# Generate time schedule – locked / no start_time paths
+# ---------------------------------------------------------------------------
+
+class TimeScheduleEdgeCaseTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.tournament = make_tournament()
+        self.division = make_division(tournament=self.tournament)
+        self.t1 = make_team(r1=1, r2=2)
+        self.t2 = make_team(r1=3, r2=4)
+        self.division.teams.add(self.t1, self.t2)
+
+    def test_generate_when_locked_shows_error(self):
+        self.tournament.schedule_locked = True
+        self.tournament.save()
+        response = self.client.post(
+            reverse('tournament_generate_time_schedule', args=[self.tournament.pk])
+        )
+        self.assertRedirects(response, reverse('tournament_schedule', args=[self.tournament.pk]))
+        messages_list = list(response.wsgi_request._messages)
+        self.assertTrue(any('låst' in str(m) for m in messages_list))
+
+    def test_generate_with_no_matches_shows_warning(self):
+        self.tournament.start_time = datetime.time(9, 0)
+        self.tournament.save()
+        # No matches generated → count=0 → warning
+        response = self.client.post(
+            reverse('tournament_generate_time_schedule', args=[self.tournament.pk])
+        )
+        self.assertRedirects(response, reverse('tournament_schedule', args=[self.tournament.pk]))
+
+
+# ---------------------------------------------------------------------------
+# Generate schedule – tree bracket_label path + locked guard
+# ---------------------------------------------------------------------------
+
+class GenerateScheduleTreeTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.tournament = make_tournament()
+        self.division = make_division(tournament=self.tournament, tournament_type='tree')
+        for i in range(4):
+            t = make_team(r1=i * 2 + 1, r2=i * 2 + 2)
+            self.division.teams.add(t)
+
+    def test_tree_generation_updates_bracket_labels(self):
+        self.client.post(reverse('division_generate_schedule', args=[self.division.pk]))
+        placeholder = Match.objects.filter(division=self.division, team1__isnull=True).first()
+        # Bracket label should reference match numbers, not slot codes
+        self.assertIsNotNone(placeholder)
+        self.assertNotIn('R1S', placeholder.bracket_label or '')
+
+    def test_locked_tournament_blocks_generate(self):
+        self.tournament.schedule_locked = True
+        self.tournament.save()
+        response = self.client.post(reverse('division_generate_schedule', args=[self.division.pk]))
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+        self.assertEqual(Match.objects.filter(division=self.division).count(), 0)
+
+
+# ---------------------------------------------------------------------------
+# Generate schedule – playoff message path
+# ---------------------------------------------------------------------------
+
+class GenerateSchedulePlayoffTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.tournament = make_tournament()
+        self.division = Division.objects.create(
+            tournament=self.tournament, name="Playoff D", discipline='double',
+            tournament_type='playoff', group_count=2, advance_count=1,
+        )
+        for i in range(4):
+            t = make_team(r1=i * 2 + 1, r2=i * 2 + 2)
+            self.division.teams.add(t)
+
+    def test_playoff_generate_shows_group_and_playoff_count(self):
+        response = self.client.post(reverse('division_generate_schedule', args=[self.division.pk]))
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+        messages_list = list(response.wsgi_request._messages)
+        self.assertTrue(any('gruppe' in str(m).lower() for m in messages_list))
+
+
+# ---------------------------------------------------------------------------
+# Scheduler edge cases – seeding + advance_bracket for non-tree
+# ---------------------------------------------------------------------------
+
+class SchedulerSeedingTest(TestCase):
+    def test_seeded_teams_placed_first_in_bracket(self):
+        from .scheduler import _sort_teams_by_seed
+        division = make_division(tournament_type='tree')
+        t1 = make_team(r1=1, r2=2)
+        t2 = make_team(r1=3, r2=4)
+        division.teams.add(t1, t2)
+        # Seed t2 as #1 → it should come first
+        DivisionSeed.objects.create(division=division, team=t2, seed_number=1)
+        sorted_teams = _sort_teams_by_seed(division, [t1, t2])
+        self.assertEqual(sorted_teams[0], t2)
+        self.assertEqual(sorted_teams[1], t1)
+
+    def test_advance_bracket_non_tree_does_nothing(self):
+        division = make_division(tournament_type='group')
+        t1 = make_team(r1=1, r2=2)
+        t2 = make_team(r1=3, r2=4)
+        match = Match.objects.create(
+            division=division, team1=t1, team2=t2,
+            status='completed', winner=t1, bracket_slot=1, match_round=1,
+        )
+        # Should not raise, and no next-round placeholder is created
+        advance_bracket(match)
+        self.assertEqual(Match.objects.filter(division=division).count(), 1)
+
+    def test_generate_bracket_too_few_teams_returns_empty(self):
+        division = make_division(tournament_type='tree')
+        t1 = make_team(r1=1, r2=2)
+        division.teams.add(t1)
+        result = generate_bracket(division)
+        self.assertEqual(result, [])
+
+    def test_generate_round_robin_too_few_returns_empty(self):
+        division = make_division(tournament_type='group')
+        t1 = make_team(r1=1, r2=2)
+        division.teams.add(t1)
+        result = generate_round_robin(division)
+        self.assertEqual(result, [])
+
+    def test_generate_playoff_too_few_returns_empty(self):
+        from .scheduler import generate_playoff
+        division = Division.objects.create(
+            tournament=make_tournament(), name="P", discipline='double',
+            tournament_type='playoff', group_count=2, advance_count=1,
+        )
+        t1 = make_team(r1=1, r2=2)
+        division.teams.add(t1)
+        result = generate_playoff(division)
+        self.assertEqual(result, [])
+
+
+# ---------------------------------------------------------------------------
+# schedule_planner – placeholder + playoff barrier paths
+# ---------------------------------------------------------------------------
+
+class SchedulePlannerPlayoffTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.tournament = Tournament.objects.create(
+            name="TP", date=datetime.date(2026, 6, 1),
+            division_model='mixed', scoring_model='best_of_3_21',
+            start_time=datetime.time(9, 0), court_count=2,
+            player_break_time=15, single_match_duration=30,
+        )
+        self.division = Division.objects.create(
+            tournament=self.tournament, name="P", discipline='double',
+            tournament_type='playoff', group_count=2, advance_count=1,
+        )
+        for i in range(4):
+            t = make_team(r1=i * 2 + 1, r2=i * 2 + 2)
+            self.division.teams.add(t)
+
+    def test_playoff_bracket_matches_scheduled_after_group_matches(self):
+        from .schedule_planner import generate_time_schedule
+        self.client.post(reverse('division_generate_schedule', args=[self.division.pk]))
+        count = generate_time_schedule(self.tournament)
+        self.assertGreater(count, 0)
+        group_times = list(
+            Match.objects.filter(division=self.division, phase='group')
+            .exclude(scheduled_time=None)
+            .values_list('scheduled_time', flat=True)
+        )
+        playoff_times = list(
+            Match.objects.filter(division=self.division, phase='playoff')
+            .exclude(scheduled_time=None)
+            .values_list('scheduled_time', flat=True)
+        )
+        if group_times and playoff_times:
+            self.assertGreaterEqual(min(playoff_times), max(group_times))
+
+
+# ---------------------------------------------------------------------------
+# templatetag dict_get – non-dict fallback
+# ---------------------------------------------------------------------------
+
+class DictGetFilterTest(TestCase):
+    def test_non_dict_returns_empty_string(self):
+        from tournaments.templatetags.tournament_extras import dict_get
+        self.assertEqual(dict_get('not-a-dict', 'key'), '')
+        self.assertEqual(dict_get(None, 'key'), '')
+        self.assertEqual(dict_get(42, 'key'), '')
+
+    def test_dict_returns_value(self):
+        from tournaments.templatetags.tournament_extras import dict_get
+        self.assertEqual(dict_get({'a': 'x'}, 'a'), 'x')
+        self.assertEqual(dict_get({'a': 'x'}, 'b'), '')
 
