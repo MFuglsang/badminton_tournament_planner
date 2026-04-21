@@ -87,6 +87,15 @@ def player_delete(request, pk):
         return redirect('player_list')
     return render(request, 'players/player_confirm_delete.html', {'object': player, 'type': 'spiller'})
 
+def player_clear_rest(request, pk):
+    """POST-only: clear rest_until for a player so they can be scheduled immediately."""
+    if request.method == 'POST':
+        player = get_object_or_404(Player, pk=pk)
+        player.rest_until = None
+        player.save(update_fields=['rest_until'])
+        messages.success(request, f'Hvileperiode for {player.name} er fjernet.')
+    return redirect('player_list')
+
 def team_list(request):
     teams = Team.objects.filter(player2__isnull=False).select_related('player1', 'player2').order_by('name')
     return render(request, 'players/team_list.html', {'teams': teams})

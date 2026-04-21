@@ -80,6 +80,7 @@
                 <span title="Spiller i gang" style="margin-left:0.3rem;">🏸</span>
                 {% elif player.play_status == 'resting' %}
                 <span class="status-badge-rest" title="Hvileperiode" style="margin-left:0.3rem; font-size:0.75rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ player.rest_until_ts }}"></span></span>
+                <form method="post" action="{% url 'player_clear_rest' player.pk %}" style="display:inline; margin-left:0.3rem;">{% csrf_token %}<button type="submit" class="btn btn-sm" style="padding:0.1rem 0.4rem; font-size:0.7rem; background:#fef3c7; color:#92400e; border:1px solid #fbbf24; border-radius:4px; cursor:pointer;" title="Fjern hvileperiode">✕ Hvile</button></form>
                 {% endif %}
             </td>
             <td>{{ player.get_gender_display }}</td>
