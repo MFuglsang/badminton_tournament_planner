@@ -3,6 +3,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from players.models import Player, Team
 from .models import Tournament, Division, Match, DivisionSeed
+from .forms import MatchResultForm, _parse_score as _form_parse_score, _validate_set
 from .scheduler import generate_round_robin, generate_bracket, generate_schedule, advance_bracket, get_bracket_data
 from .standings import compute_standings, compute_group_standings, _parse_score, STANDINGS_CONFIG
 
@@ -633,6 +634,134 @@ class MatchResultViewTest(TestCase):
     def test_match_result_404_for_nonexistent(self):
         response = self.client.get(reverse("match_record_result", args=[9999]))
         self.assertEqual(response.status_code, 404)
+
+
+# ---------------------------------------------------------------------------
+# Score validation (MatchResultForm)
+# ---------------------------------------------------------------------------
+
+class MatchResultFormValidationTest(TestCase):
+    """Tests for the BWF score validation added to MatchResultForm."""
+
+    def setUp(self):
+        self.tournament = make_tournament()
+        self.division = make_division(tournament=self.tournament)
+        self.t1 = make_team(r1=1, r2=2)
+        self.t2 = make_team(r1=3, r2=4)
+        self.match = Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2
+        )
+
+    def _post(self, score, winner=None, status='completed'):
+        return MatchResultForm(
+            data={'score': score, 'winner': (winner or self.t1).pk, 'status': status},
+            instance=self.match,
+        )
+
+    # ── _parse_score helper ────────────────────────────────────────────────
+    def test_parse_score_single_set(self):
+        self.assertEqual(_form_parse_score('21-15'), [(21, 15)])
+
+    def test_parse_score_three_sets(self):
+        self.assertEqual(_form_parse_score('21-15, 18-21, 21-18'), [(21, 15), (18, 21), (21, 18)])
+
+    def test_parse_score_bad_format_raises(self):
+        with self.assertRaises(ValueError):
+            _form_parse_score('abc')
+
+    def test_parse_score_missing_dash_raises(self):
+        with self.assertRaises(ValueError):
+            _form_parse_score('21 15')
+
+    # ── _validate_set helper ───────────────────────────────────────────────
+    def test_validate_set_normal_win(self):
+        self.assertEqual(_validate_set(21, 15), '')
+
+    def test_validate_set_deuce_win(self):
+        self.assertEqual(_validate_set(22, 20), '')
+        self.assertEqual(_validate_set(30, 28), '')
+
+    def test_validate_set_max_deuce(self):
+        self.assertEqual(_validate_set(30, 29), '')
+
+    def test_validate_set_draw_invalid(self):
+        self.assertNotEqual(_validate_set(21, 21), '')
+
+    def test_validate_set_too_low_winner(self):
+        self.assertNotEqual(_validate_set(19, 10), '')
+
+    def test_validate_set_21_20_invalid(self):
+        # At 20-20 you must play to 2-point lead
+        self.assertNotEqual(_validate_set(21, 20), '')
+
+    def test_validate_set_over_30_invalid(self):
+        self.assertNotEqual(_validate_set(31, 29), '')
+
+    def test_validate_set_deuce_not_2_apart_invalid(self):
+        # 23-20 is not valid (not 2-point lead from deuce)
+        self.assertNotEqual(_validate_set(23, 20), '')
+
+    # ── Form-level validation ──────────────────────────────────────────────
+    def test_valid_score_2_sets(self):
+        form = self._post('21-15, 21-10')
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_valid_score_3_sets(self):
+        form = self._post('21-15, 18-21, 21-18')
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_valid_score_deuce(self):
+        form = self._post('22-20, 21-15')
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_invalid_score_bad_format(self):
+        form = self._post('21:15, 21-10')
+        self.assertFalse(form.is_valid())
+        self.assertIn('score', form.errors)
+
+    def test_invalid_score_21_20(self):
+        form = self._post('21-20, 21-10')
+        self.assertFalse(form.is_valid())
+
+    def test_invalid_only_1_set(self):
+        form = self._post('21-15')
+        self.assertFalse(form.is_valid())
+
+    def test_invalid_too_many_sets(self):
+        form = self._post('21-15, 21-10, 21-5, 21-3')
+        self.assertFalse(form.is_valid())
+
+    def test_invalid_unnecessary_third_set(self):
+        # t1 wins first two → third set unnecessary
+        form = self._post('21-15, 21-10, 21-5')
+        self.assertFalse(form.is_valid())
+
+    def test_invalid_winner_does_not_match_score(self):
+        # t1 wins both sets but winner is set to t2
+        form = self._post('21-15, 21-10', winner=self.t2)
+        self.assertFalse(form.is_valid())
+        self.assertTrue(any('sæt' in e for e in form.non_field_errors()))
+
+    def test_correct_winner_is_valid(self):
+        # t2 wins both sets, winner is t2
+        form = self._post('15-21, 10-21', winner=self.t2)
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_no_validation_when_status_not_completed(self):
+        # Status in_progress → score not validated
+        form = MatchResultForm(
+            data={'score': 'nonsense', 'winner': self.t1.pk, 'status': 'in_progress'},
+            instance=self.match,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_empty_score_not_validated_when_completed(self):
+        # Blank score with status=completed is still allowed (no score yet)
+        form = MatchResultForm(
+            data={'score': '', 'winner': self.t1.pk, 'status': 'completed'},
+            instance=self.match,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
 
 
 class WalkoverViewTest(TestCase):

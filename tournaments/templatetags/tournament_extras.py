@@ -9,3 +9,14 @@ def dict_get(d, key):
     if isinstance(d, dict):
         return d.get(key, '')
     return ''
+
+
+@register.filter
+def unix_ts(dt):
+    """Convert a datetime to a Unix timestamp integer for JS timers."""
+    if dt is None:
+        return ''
+    try:
+        return int(dt.timestamp())
+    except Exception:
+        return ''

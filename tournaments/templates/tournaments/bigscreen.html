@@ -1,3 +1,4 @@
+{% load tournament_extras %}
 <!DOCTYPE html>
 <html lang="da">
 <head>
@@ -229,12 +230,12 @@
 
     <div class="match-teams">
       <div class="team">
-        {% if match.team1 %}{{ match.team1.name }}{% if match.t1_seed %}<span class="team-seed">{{ match.t1_seed }}</span>{% endif %}
+        {% if match.team1 %}{{ match.team1.name }}{% if match.t1_seed %}<span class="team-seed">{{ match.t1_seed }}</span>{% endif %}{% if match.t1_status == 'playing' %} <span title="Spiller i gang" style="margin-left:0.25rem;">🏸</span>{% elif match.t1_status == 'resting' %} <span style="font-size:0.85rem; color:#F5C400; white-space:nowrap; margin-left:0.25rem;">⏱ <span class="rest-timer" data-until="{{ match.t1_rest_until|unix_ts }}"></span></span>{% endif %}
         {% else %}<span style="color:var(--muted); font-style:italic;">{{ match.bracket_label }}</span>{% endif %}
       </div>
       <div class="vs">vs</div>
       <div class="team">
-        {% if match.team2 %}{{ match.team2.name }}{% if match.t2_seed %}<span class="team-seed">{{ match.t2_seed }}</span>{% endif %}
+        {% if match.team2 %}{{ match.team2.name }}{% if match.t2_seed %}<span class="team-seed">{{ match.t2_seed }}</span>{% endif %}{% if match.t2_status == 'playing' %} <span title="Spiller i gang" style="margin-left:0.25rem;">🏸</span>{% elif match.t2_status == 'resting' %} <span style="font-size:0.85rem; color:#F5C400; white-space:nowrap; margin-left:0.25rem;">⏱ <span class="rest-timer" data-until="{{ match.t2_rest_until|unix_ts }}"></span></span>{% endif %}
         {% else %}<span style="color:var(--muted); font-style:italic;">Afventer</span>{% endif %}
       </div>
     </div>
@@ -257,6 +258,19 @@
 </div>
 
 <script>
+  // ── Rest countdown timers ─────────────────────────────────────────────
+  function _updateRestTimers() {
+    var now = Math.floor(Date.now() / 1000);
+    document.querySelectorAll('.rest-timer[data-until]').forEach(function(el) {
+      var until = parseInt(el.getAttribute('data-until'), 10);
+      var rem   = until - now;
+      if (rem <= 0) { el.closest('.rest-timer, span') && (el.textContent = ''); el.textContent = ''; }
+      else { var m = Math.floor(rem / 60); var s = rem % 60; el.textContent = m + ':' + String(s).padStart(2, '0'); }
+    });
+  }
+  _updateRestTimers();
+  setInterval(_updateRestTimers, 1000);
+
   // ── Clock ──────────────────────────────────────────────────────────────
   function updateClock() {
     const now  = new Date();

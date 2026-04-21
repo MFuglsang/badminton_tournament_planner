@@ -3,6 +3,7 @@ from django.contrib import messages
 from django.db.models import Q
 from .models import Player, Team
 from .forms import PlayerForm, TeamForm
+from tournaments.player_status import get_busy_info, player_status as _player_status
 
 def player_list(request):
     division = request.GET.get('division', '')
@@ -21,14 +22,20 @@ def player_list(request):
     if direction == 'desc':
         sort_field = f'-{sort_field}'
 
-    players = Player.objects.all()
+    players = list(Player.objects.all().order_by(sort_field))
     if division:
-        players = players.filter(division=division)
+        players = [p for p in players if p.division == division]
     if gender:
-        players = players.filter(gender=gender)
+        players = [p for p in players if p.gender == gender]
     if search:
-        players = players.filter(name__icontains=search)
-    players = players.order_by(sort_field)
+        players = [p for p in players if search.lower() in p.name.lower()]
+
+    # Annotate each player with their status
+    playing_pks, resting = get_busy_info()
+    for p in players:
+        status, rest_until = _player_status(p.pk, playing_pks, resting)
+        p.play_status = status
+        p.rest_until_ts = int(rest_until.timestamp()) if rest_until else None
 
     return render(request, 'players/player_list.html', {
         'players': players,

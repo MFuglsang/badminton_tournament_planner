@@ -1,7 +1,6 @@
 {% extends 'base.html' %}
 {% load tournament_extras %}
-{% block title %}Spilleplan – {{ tournament.name }}{% endblock %}
-{% block content %}
+{% block title %}Spilleplan – {{ tournament.name }}{% endblock %}{% block content %}
 
 <div class="page-actions">
     <h1>Spilleplan – {{ tournament.name }}</h1>
@@ -71,7 +70,7 @@
                     <span class="sched-dot dot-done"></span>
                     <span class="sched-card-no">#{{ match.match_number }}</span>
                     <span class="sched-card-court">Bane {{ match.court }}</span>
-                    <span class="sched-card-teams">{{ match.team1.name }}{{ match.t1_seed }} <span class="vs">vs</span> {{ match.team2.name }}{{ match.t2_seed }}</span>
+                    <span class="sched-card-teams">{{ match.team1.name }}{{ match.t1_seed }}{% if match.t1_status == 'playing' %} <span title="Spiller i gang">🏸</span>{% elif match.t1_status == 'resting' %} <span class="status-badge-rest" style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ match.t1_rest_until|unix_ts }}"></span></span>{% endif %} <span class="vs">vs</span> {{ match.team2.name }}{{ match.t2_seed }}{% if match.t2_status == 'playing' %} <span title="Spiller i gang">🏸</span>{% elif match.t2_status == 'resting' %} <span class="status-badge-rest" style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ match.t2_rest_until|unix_ts }}"></span></span>{% endif %}</span>
                     <span class="sched-card-result">{{ match.score|default:"" }}</span>
                     {% if match.walkover %}<span class="badge badge-walkover" style="margin-left:0.5rem;">WO</span>{% endif %}
                     <span class="sched-card-winner">🏆 {{ match.winner.name|default:"" }}</span>
@@ -89,7 +88,7 @@
                 <span class="sched-dot dot-active"></span>
                 <span class="sched-card-no">#{{ match.match_number }}</span>
                 <span class="sched-card-court">Bane {{ match.court }}</span>
-                <span class="sched-card-teams">{{ match.team1.name }}{{ match.t1_seed }} <span class="vs">vs</span> {{ match.team2.name }}{{ match.t2_seed }}</span>
+                <span class="sched-card-teams">{{ match.team1.name }}{{ match.t1_seed }} <span title="Spiller i gang">🏸</span> <span class="vs">vs</span> {{ match.team2.name }}{{ match.t2_seed }} <span title="Spiller i gang">🏸</span></span>
                 <span class="sched-badge-active">I gang</span>
                 <span style="margin-left:auto; font-size:0.8rem; color:#888;">{{ match.division.name }}</span>
             </div>
@@ -98,7 +97,7 @@
                 <span class="sched-dot dot-upcoming"></span>
                 <span class="sched-card-no">#{{ match.match_number }}</span>
                 <span class="sched-card-court">Bane {{ match.court }}</span>
-                <span class="sched-card-teams">{{ match.team1.name }}{{ match.t1_seed }} <span class="vs">vs</span> {{ match.team2.name }}{{ match.t2_seed }}</span>
+                <span class="sched-card-teams">{{ match.team1.name }}{{ match.t1_seed }}{% if match.t1_status == 'playing' %} <span title="Spiller i gang">🏸</span>{% elif match.t1_status == 'resting' %} <span class="status-badge-rest" style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ match.t1_rest_until|unix_ts }}"></span></span>{% endif %} <span class="vs">vs</span> {{ match.team2.name }}{{ match.t2_seed }}{% if match.t2_status == 'playing' %} <span title="Spiller i gang">🏸</span>{% elif match.t2_status == 'resting' %} <span class="status-badge-rest" style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ match.t2_rest_until|unix_ts }}"></span></span>{% endif %}</span>
                 <span style="margin-left:auto; font-size:0.8rem; color:#888;">{{ match.division.name }}</span>
             </div>
         {% endif %}

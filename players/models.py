@@ -23,6 +23,11 @@ class Player(models.Model):
         ('K', _('Kvinde')),
     ]
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES, default='M', verbose_name=_("Køn"))
+    rest_until = models.DateTimeField(
+        null=True, blank=True,
+        verbose_name=_("Hviler indtil"),
+        help_text=_("Spilleren er i hvileperiode og kan ikke starte nye kampe før dette tidspunkt."),
+    )
 
     def __str__(self):
         return f"{self.name} ({self.get_gender_display()}, {self.division})"

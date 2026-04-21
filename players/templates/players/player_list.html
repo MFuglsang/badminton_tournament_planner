@@ -74,7 +74,14 @@
     <tbody>
         {% for player in players %}
         <tr>
-            <td><strong>{{ player.name }}</strong></td>
+            <td>
+                <strong>{{ player.name }}</strong>
+                {% if player.play_status == 'playing' %}
+                <span title="Spiller i gang" style="margin-left:0.3rem;">🏸</span>
+                {% elif player.play_status == 'resting' %}
+                <span class="status-badge-rest" title="Hvileperiode" style="margin-left:0.3rem; font-size:0.75rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ player.rest_until_ts }}"></span></span>
+                {% endif %}
+            </td>
             <td>{{ player.get_gender_display }}</td>
             <td>{{ player.age }}</td>
             <td><span class="badge badge-pending">{{ player.get_division_display }}</span></td>

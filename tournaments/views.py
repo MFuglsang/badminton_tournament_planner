@@ -7,6 +7,10 @@ from .standings import compute_standings, compute_group_standings
 from players.models import Team
 from .scheduler import generate_schedule, advance_bracket, get_bracket_data
 from .schedule_planner import generate_time_schedule
+from .player_status import (
+    get_busy_info, apply_status_to_matches, set_player_rest,
+    check_match_startable, player_status as _player_status, team_status as _team_status,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -107,6 +111,21 @@ def tournament_detail(request, pk):
     # Annotate prefetched match objects with seed display strings
     for dd in division_data:
         _apply_seed_labels(dd['division'].matches.all(), seed_lookup)
+
+    # Annotate match objects with player status
+    playing_pks, resting = get_busy_info()
+    for dd in division_data:
+        apply_status_to_matches(dd['division'].matches.all(), playing_pks, resting)
+        # Also annotate standings rows with team status
+        for row in dd['standings']:
+            s, ru = _team_status(row['team'], playing_pks, resting)
+            row['status'] = s
+            row['rest_until'] = ru
+        for _gnum, g_rows in dd['group_standings']:
+            for row in g_rows:
+                s, ru = _team_status(row['team'], playing_pks, resting)
+                row['status'] = s
+                row['rest_until'] = ru
 
     division_form = DivisionForm()
     return render(request, 'tournaments/tournament_detail.html', {
@@ -248,6 +267,9 @@ def match_record_result(request, pk):
         form = MatchResultForm(request.POST, instance=match)
         if form.is_valid():
             form.save()
+            match.refresh_from_db()
+            if match.status == 'completed':
+                set_player_rest(match)
             advance_bracket(match)
             messages.success(request, 'Resultat er gemt.')
             return redirect('tournament_detail', pk=match.division.tournament.pk)
@@ -262,9 +284,13 @@ WALKOVER_SCORE = '21-0, 21-0'
 def match_start(request, pk):
     match = get_object_or_404(Match, pk=pk)
     if request.method == 'POST' and match.status == 'pending':
-        match.status = 'in_progress'
-        match.save(update_fields=['status'])
-        messages.success(request, f'Kamp #{match.match_number or match.pk} er nu i gang.')
+        errors = check_match_startable(match)
+        if errors:
+            messages.error(request, 'Kan ikke starte kamp: ' + ' · '.join(errors))
+        else:
+            match.status = 'in_progress'
+            match.save(update_fields=['status'])
+            messages.success(request, f'Kamp #{match.match_number or match.pk} er nu i gang.')
     return redirect('tournament_detail', pk=match.division.tournament.pk)
 
 
@@ -278,6 +304,7 @@ def match_walkover(request, pk):
             match.status = 'completed'
             match.walkover = True
             match.save()
+            set_player_rest(match)
             advance_bracket(match)
             messages.success(request, f'Walk-over registreret – {match.winner} vinder.')
             return redirect('tournament_detail', pk=match.division.tournament.pk)
@@ -366,6 +393,8 @@ def tournament_bigscreen(request, pk):
     )[:5]
     seed_lookup = _build_seed_lookup(tournament)
     _apply_seed_labels(matches, seed_lookup)
+    playing_pks, resting = get_busy_info()
+    apply_status_to_matches(matches, playing_pks, resting)
     return render(request, 'tournaments/bigscreen.html', {
         'tournament': tournament,
         'matches': matches,
@@ -383,6 +412,8 @@ def tournament_schedule(request, pk):
     )
     seed_lookup = _build_seed_lookup(tournament)
     _apply_seed_labels(matches, seed_lookup)
+    playing_pks, resting = get_busy_info()
+    apply_status_to_matches(matches, playing_pks, resting)
     has_unscheduled = (
         Match.objects
         .filter(division__tournament=tournament, scheduled_time__isnull=True)

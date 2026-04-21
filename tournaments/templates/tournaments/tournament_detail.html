@@ -1,6 +1,11 @@
 {% extends 'base.html' %}
 {% load tournament_extras %}
 {% block title %}{{ tournament.name }}{% endblock %}
+{% block extra_js %}
+<script>
+/* Bigscreen-style countdown also available on detail page */
+</script>
+{% endblock %}
 {% block content %}
 <div class="page-actions">
     <h1>{{ tournament.name }}</h1>
@@ -186,7 +191,7 @@
                 {% elif forloop.counter == 3 %}<span class="rank-3">🥉</span>
                 {% else %}{{ forloop.counter }}{% endif %}
             </td>
-            <td><strong>{{ row.team.name }}</strong>{{ seeds_dict|dict_get:row.team.pk }}</td>
+            <td><strong>{{ row.team.name }}</strong>{{ seeds_dict|dict_get:row.team.pk }}{% if row.status == 'playing' %} <span title="Spiller i gang">🏸</span>{% elif row.status == 'resting' %} <span class="status-badge-rest" style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ row.rest_until|unix_ts }}"></span></span>{% endif %}</td>
             <td>{{ row.played }}</td>
             <td>{{ row.won }}</td>
             <td>{{ row.lost }}</td>
@@ -217,7 +222,7 @@
                     {% else %}{{ forloop.counter }}{% endif %}
                     {% if forloop.counter <= division.advance_count %}<span style="font-size:0.7rem; color:#16a34a; margin-left:0.3rem;">↑ videre</span>{% endif %}
                 </td>
-                <td><strong>{{ row.team.name }}</strong>{{ seeds_dict|dict_get:row.team.pk }}</td>
+                <td><strong>{{ row.team.name }}</strong>{{ seeds_dict|dict_get:row.team.pk }}{% if row.status == 'playing' %} <span title="Spiller i gang">🏸</span>{% elif row.status == 'resting' %} <span class="status-badge-rest" style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ row.rest_until|unix_ts }}"></span></span>{% endif %}</td>
                 <td>{{ row.played }}</td>
                 <td>{{ row.won }}</td>
                 <td>{{ row.lost }}</td>
@@ -309,8 +314,8 @@
             {% if match.bracket_label %}
             <td colspan="2" style="color:#888; font-style:italic;">{{ match.bracket_label }}</td>
             {% else %}
-            <td>{{ match.team1.name }}{{ match.t1_seed }}</td>
-            <td>{{ match.team2.name }}{{ match.t2_seed }}</td>
+            <td>{{ match.team1.name }}{{ match.t1_seed }}{% if match.t1_status == 'playing' %} 🏸{% elif match.t1_status == 'resting' %} <span class="status-badge-rest" style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ match.t1_rest_until|unix_ts }}"></span></span>{% endif %}</td>
+            <td>{{ match.team2.name }}{{ match.t2_seed }}{% if match.t2_status == 'playing' %} 🏸{% elif match.t2_status == 'resting' %} <span class="status-badge-rest" style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ match.t2_rest_until|unix_ts }}"></span></span>{% endif %}</td>
             {% endif %}
             <td>{{ match.score|default:"–" }}</td>
             <td>{{ match.winner.name|default:"–" }}</td>
@@ -327,10 +332,14 @@
             <td>
                 {% if not match.bracket_label %}
                 {% if match.status == 'pending' %}
+                {% if match.t1_status or match.t2_status %}
+                <span style="font-size:0.8rem; color:#d97706;" title="En spiller er optaget eller i hvile">⚠ Optaget</span>
+                {% else %}
                 <form method="post" action="{% url 'match_start' match.pk %}" style="display:inline;">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-secondary btn-sm">▶ Start</button>
                 </form>
+                {% endif %}
                 {% endif %}
                 {% if match.status == 'in_progress' or match.status == 'pending' %}
                 <a href="{% url 'match_record_result' match.pk %}" class="btn btn-primary btn-sm" style="margin-left:0.25rem;">Registrer resultat</a>
@@ -390,10 +399,14 @@
             <td>
                 {% if match.team1 and match.team2 %}
                 {% if match.status == 'pending' %}
+                {% if match.t1_status or match.t2_status %}
+                <span style="font-size:0.8rem; color:#d97706;" title="En spiller er optaget eller i hvile">⚠ Optaget</span>
+                {% else %}
                 <form method="post" action="{% url 'match_start' match.pk %}" style="display:inline;">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-secondary btn-sm">▶ Start</button>
                 </form>
+                {% endif %}
                 {% endif %}
                 {% if match.status == 'in_progress' or match.status == 'pending' %}
                 <a href="{% url 'match_record_result' match.pk %}" class="btn btn-primary btn-sm" style="margin-left:0.25rem;">Registrer resultat</a>
