@@ -1,14 +1,20 @@
 from django.test import TestCase, Client
 from django.urls import reverse
+from django.contrib.auth import get_user_model
 from .models import Player, Team
 
+User = get_user_model()
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def make_player(name="Alice", age=20, division="A", gender="K"):
-    return Player.objects.create(name=name, age=age, division=division, gender=gender)
+def make_user(username='testclub', password='testpass123'):
+    return User.objects.create_user(username=username, password=password)
+
+
+def make_player(name="Alice", age=20, division="A", gender="K", owner=None):
+    return Player.objects.create(name=name, age=age, division=division, gender=gender, owner=owner)
 
 
 def make_team(p1=None, p2=None):
@@ -65,7 +71,9 @@ class TeamModelTest(TestCase):
 class PlayerViewTest(TestCase):
     def setUp(self):
         self.client = Client()
-        self.player = make_player()
+        self.user = make_user()
+        self.client.force_login(self.user)
+        self.player = make_player(owner=self.user)
 
     def test_player_list_returns_200(self):
         response = self.client.get(reverse("player_list"))
@@ -98,8 +106,8 @@ class PlayerViewTest(TestCase):
         self.assertEqual(self.player.name, "Alice Updated")
 
     def test_player_list_filters_by_division(self):
-        make_player("A-spiller", division="A")
-        make_player("B-spiller", division="B")
+        make_player("A-spiller", division="A", owner=self.user)
+        make_player("B-spiller", division="B", owner=self.user)
         response = self.client.get(reverse("player_list") + "?division=A")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "A-spiller")
@@ -126,7 +134,11 @@ class PlayerViewTest(TestCase):
 class TeamViewTest(TestCase):
     def setUp(self):
         self.client = Client()
-        self.team = make_team()
+        self.user = make_user(username='teamclub')
+        self.client.force_login(self.user)
+        p1 = make_player("Alice", owner=self.user)
+        p2 = make_player("Bob", owner=self.user)
+        self.team = Team.objects.create(player1=p1, player2=p2)
 
     def test_team_list_returns_200(self):
         response = self.client.get(reverse("team_list"))
@@ -138,40 +150,40 @@ class TeamViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_team_add_post_creates_team(self):
-        p1 = make_player("Dave", gender='M')
-        p2 = make_player("Eve", gender='M')  # same gender → double
+        p1 = make_player("Dave", gender='M', owner=self.user)
+        p2 = make_player("Eve", gender='M', owner=self.user)  # same gender → double
         data = {"player1": p1.pk, "player2": p2.pk, "pair_type": "double"}
         response = self.client.post(reverse("team_add"), data)
         self.assertRedirects(response, reverse("team_list"))
         self.assertTrue(Team.objects.filter(player1=p1, player2=p2).exists())
 
     def test_team_add_double_wrong_gender_fails(self):
-        p1 = make_player("Man1", gender='M')
-        p2 = make_player("Woman1", gender='K')
+        p1 = make_player("Man1", gender='M', owner=self.user)
+        p2 = make_player("Woman1", gender='K', owner=self.user)
         data = {"player1": p1.pk, "player2": p2.pk, "pair_type": "double"}
         response = self.client.post(reverse("team_add"), data)
         self.assertEqual(response.status_code, 200)  # form error, no redirect
         self.assertFalse(Team.objects.filter(player1=p1, player2=p2).exists())
 
     def test_team_add_mixed_wrong_gender_fails(self):
-        p1 = make_player("Man2", gender='M')
-        p2 = make_player("Man3", gender='M')
+        p1 = make_player("Man2", gender='M', owner=self.user)
+        p2 = make_player("Man3", gender='M', owner=self.user)
         data = {"player1": p1.pk, "player2": p2.pk, "pair_type": "mixed"}
         response = self.client.post(reverse("team_add"), data)
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Team.objects.filter(player1=p1, player2=p2).exists())
 
     def test_team_add_mixed_correct_genders_succeeds(self):
-        p1 = make_player("Man4", gender='M')
-        p2 = make_player("Woman2", gender='K')
+        p1 = make_player("Man4", gender='M', owner=self.user)
+        p2 = make_player("Woman2", gender='K', owner=self.user)
         data = {"player1": p1.pk, "player2": p2.pk, "pair_type": "mixed"}
         response = self.client.post(reverse("team_add"), data)
         self.assertRedirects(response, reverse("team_list"))
         self.assertTrue(Team.objects.filter(player1=p1, player2=p2, pair_type='mixed').exists())
 
     def test_team_add_no_pair_type_with_two_players_fails(self):
-        p1 = make_player("Man5", gender='M')
-        p2 = make_player("Man6", gender='M')
+        p1 = make_player("Man5", gender='M', owner=self.user)
+        p2 = make_player("Man6", gender='M', owner=self.user)
         data = {"player1": p1.pk, "player2": p2.pk}
         response = self.client.post(reverse("team_add"), data)
         self.assertEqual(response.status_code, 200)
@@ -205,9 +217,11 @@ class TeamViewTest(TestCase):
 class PlayerListFilterSortTest(TestCase):
     def setUp(self):
         self.client = Client()
-        self.alice = make_player("Alice", age=20, division="A", gender="K")
-        self.bob = make_player("Bob", age=18, division="B", gender="M")
-        self.charlie = make_player("Charlie", age=22, division="A", gender="M")
+        self.user = make_user(username='filterclub')
+        self.client.force_login(self.user)
+        self.alice = make_player("Alice", age=20, division="A", gender="K", owner=self.user)
+        self.bob = make_player("Bob", age=18, division="B", gender="M", owner=self.user)
+        self.charlie = make_player("Charlie", age=22, division="A", gender="M", owner=self.user)
 
     def test_filter_by_gender(self):
         response = self.client.get(reverse("player_list") + "?gender=M")
@@ -249,7 +263,9 @@ class PlayerListFilterSortTest(TestCase):
 class PlayerSchedulePrintTest(TestCase):
     def setUp(self):
         self.client = Client()
-        self.player = make_player("PrintPlayer")
+        self.user = make_user(username='printclub')
+        self.client.force_login(self.user)
+        self.player = make_player("PrintPlayer", owner=self.user)
 
     def test_schedule_print_returns_200_no_matches(self):
         response = self.client.get(reverse("player_schedule_print", args=[self.player.pk]))

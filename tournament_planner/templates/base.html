@@ -333,7 +333,11 @@
             <a href="/tournaments/">Turneringer</a>
             <a href="/players/">Spillere</a>
             <a href="/players/teams/">Hold</a>
-            <a href="/admin/">Admin</a>
+            {% if user.is_staff %}<a href="/admin/">Admin</a>{% endif %}
+            {% if user.is_authenticated %}
+            <span style="color:rgba(255,255,255,0.5); font-size:0.82rem; padding:0.4rem 0.5rem; border-left:1px solid rgba(255,255,255,0.2); margin-left:0.3rem;">{{ user.username }}</span>
+            <form method="post" action="{% url 'logout' %}" style="display:inline; margin:0; padding:0;">{% csrf_token %}<button type="submit" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.25); color:rgba(255,255,255,0.78); font-size:0.82rem; font-weight:500; padding:0.35rem 0.75rem; border-radius:6px; cursor:pointer; font-family:inherit;">Log ud</button></form>
+            {% endif %}
         </nav>
     </header>
     <div class="container">

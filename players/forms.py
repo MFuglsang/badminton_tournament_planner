@@ -11,6 +11,13 @@ class TeamForm(forms.ModelForm):
         model = Team
         fields = ['player1', 'player2', 'pair_type']
 
+    def __init__(self, *args, owner=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if owner is not None:
+            qs = Player.objects.filter(owner=owner).order_by('name')
+            self.fields['player1'].queryset = qs
+            self.fields['player2'].queryset = qs
+
     def clean(self):
         cleaned = super().clean()
         p1 = cleaned.get('player1')

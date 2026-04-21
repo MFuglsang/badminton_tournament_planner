@@ -1,0 +1,58 @@
+{% load static %}<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Badminton Tournament Planner{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            background: #eef1f6;
+            color: #1e293b;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            font-size: 15px;
+        }
+        header {
+            background: #003e7e;
+            color: white;
+            padding: 0 2rem;
+            height: 58px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header-brand { display: flex; align-items: center; gap: 0.6rem; font-size: 1.05rem; font-weight: 700; }
+        .header-brand a { color: white; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; }
+        .logo-icon { background: rgba(255,255,255,0.15); border-radius: 8px; width: 34px; height: 34px; display:flex; align-items:center; justify-content:center; font-size: 1.1rem; }
+        .container { max-width: 1220px; margin: 0 auto; padding: 2rem 1.5rem; }
+        h1 { font-size: 1.65rem; font-weight: 700; color: #003e7e; margin: 0 0 0.2rem; }
+        .card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+        .btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.45rem 1.1rem; border-radius: 7px; font-size: 0.875rem; font-weight: 600; border: none; cursor: pointer; text-decoration: none; }
+        .btn-primary { background: #005BAC; color: white; }
+        .btn-primary:hover { background: #004890; color: white; }
+        label { display: block; font-weight: 600; font-size: 0.875rem; margin-bottom: 0.3rem; }
+        input[type=text], input[type=password] {
+            width: 100%; padding: 0.55rem 0.75rem;
+            border: 1.5px solid #cbd5e1; border-radius: 6px;
+            font-size: 0.95rem; margin-bottom: 1rem; box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-brand">
+            <div class="logo-icon">🏸</div>
+            <a href="/">Badminton Tournament Planner</a>
+        </div>
+    </header>
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

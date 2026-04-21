@@ -1,19 +1,25 @@
 import datetime
 from django.test import TestCase, Client
 from django.urls import reverse
+from django.contrib.auth import get_user_model
 from players.models import Player, Team
 from .models import Tournament, Division, Match, DivisionSeed
 from .forms import MatchResultForm, _parse_score as _form_parse_score, _validate_set
 from .scheduler import generate_round_robin, generate_bracket, generate_schedule, advance_bracket, get_bracket_data
 from .standings import compute_standings, compute_group_standings, _parse_score, STANDINGS_CONFIG
 
+User = get_user_model()
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def make_player(name="Alice", division="A"):
-    return Player.objects.create(name=name, age=20, division=division)
+def make_user(username='testclub', password='testpass123'):
+    return User.objects.create_user(username=username, password=password)
+
+
+def make_player(name="Alice", division="A", owner=None):
+    return Player.objects.create(name=name, age=20, division=division, owner=owner)
 
 
 def make_team(name=None, r1=1, r2=2):
@@ -26,12 +32,13 @@ def make_team(name=None, r1=1, r2=2):
     return team
 
 
-def make_tournament():
+def make_tournament(owner=None):
     return Tournament.objects.create(
         name="Test Tournament",
         date=datetime.date.today(),
         division_model="mixed",
         scoring_model="best_of_3_21",
+        owner=owner,
     )
 
 
@@ -263,6 +270,8 @@ class GenerateScheduleRouterTest(TestCase):
 class TournamentCRUDViewTest(TestCase):
     def setUp(self):
         self.client = Client()
+        self.user = make_user()
+        self.client.force_login(self.user)
 
     def test_tournament_create_get_returns_200(self):
         response = self.client.get(reverse("tournament_create"))
@@ -291,12 +300,12 @@ class TournamentCRUDViewTest(TestCase):
         self.assertFalse(Tournament.objects.filter(name='').exists())
 
     def test_tournament_edit_get_returns_200(self):
-        t = make_tournament()
+        t = make_tournament(owner=self.user)
         response = self.client.get(reverse("tournament_edit", args=[t.pk]))
         self.assertEqual(response.status_code, 200)
 
     def test_tournament_edit_post_updates_fields(self):
-        t = make_tournament()
+        t = make_tournament(owner=self.user)
         response = self.client.post(reverse("tournament_edit", args=[t.pk]), {
             'name': 'Opdateret',
             'date': '2026-07-01',
@@ -325,7 +334,9 @@ class TournamentCRUDViewTest(TestCase):
 class TournamentViewTest(TestCase):
     def setUp(self):
         self.client = Client()
-        self.tournament = make_tournament()
+        self.user = make_user(username='viewclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
         self.division = make_division(tournament=self.tournament)
         self.t1 = make_team(r1=1, r2=2)
         self.t2 = make_team(r1=3, r2=4)
@@ -369,7 +380,9 @@ class TournamentViewTest(TestCase):
 
     def test_division_update_teams(self):
         # division default discipline is 'double', so POST field is 'pairs'
-        t3 = make_team(r1=5, r2=6)
+        p5 = make_player("P5", owner=self.user)
+        p6 = make_player("P6", owner=self.user)
+        t3 = Team.objects.create(player1=p5, player2=p6)
         response = self.client.post(
             reverse("division_update_teams", args=[self.division.pk]),
             {'pairs': [t3.pk]},
@@ -392,8 +405,8 @@ class TournamentViewTest(TestCase):
         single_div = Division.objects.create(
             tournament=self.tournament, name="Herresingle", discipline='single'
         )
-        p1 = make_player("Solo1")
-        p2 = make_player("Solo2")
+        p1 = make_player("Solo1", owner=self.user)
+        p2 = make_player("Solo2", owner=self.user)
         response = self.client.post(
             reverse("division_update_teams", args=[single_div.pk]),
             {'players': [p1.pk, p2.pk]},
@@ -596,7 +609,9 @@ class StandingsTest(TestCase):
 class MatchResultViewTest(TestCase):
     def setUp(self):
         self.client = Client()
-        self.tournament = make_tournament()
+        self.user = make_user(username='resultclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
         self.division = make_division(tournament=self.tournament)
         self.t1 = make_team(r1=1, r2=2)
         self.t2 = make_team(r1=3, r2=4)
@@ -644,7 +659,7 @@ class MatchResultFormValidationTest(TestCase):
     """Tests for the BWF score validation added to MatchResultForm."""
 
     def setUp(self):
-        self.tournament = make_tournament()
+        self.tournament = make_tournament(owner=None)
         self.division = make_division(tournament=self.tournament)
         self.t1 = make_team(r1=1, r2=2)
         self.t2 = make_team(r1=3, r2=4)
@@ -767,7 +782,9 @@ class MatchResultFormValidationTest(TestCase):
 class WalkoverViewTest(TestCase):
     def setUp(self):
         self.client = Client()
-        self.tournament = make_tournament()
+        self.user = make_user(username='woclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
         self.division = make_division(tournament=self.tournament)
         self.t1 = make_team(r1=1, r2=2)
         self.t2 = make_team(r1=3, r2=4)
@@ -813,7 +830,7 @@ class WalkoverViewTest(TestCase):
 
 class GroupStandingsTest(TestCase):
     def setUp(self):
-        self.tournament = make_tournament()
+        self.tournament = make_tournament(owner=None)
         self.division = Division.objects.create(
             tournament=self.tournament, name="Playoff", discipline='double',
             tournament_type='playoff', group_count=2, advance_count=1,
@@ -876,7 +893,9 @@ class DivisionSeedModelTest(TestCase):
 class DivisionSeedViewTest(TestCase):
     def setUp(self):
         self.client = Client()
-        self.tournament = make_tournament()
+        self.user = make_user(username='seedclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
         self.division = make_division(tournament=self.tournament, tournament_type='tree')
         self.t1 = make_team(r1=1, r2=2)
         self.t2 = make_team(r1=3, r2=4)
@@ -939,7 +958,9 @@ class DivisionSeedViewTest(TestCase):
 class BigscreenViewTest(TestCase):
     def setUp(self):
         self.client = Client()
-        self.tournament = make_tournament()
+        self.user = make_user(username='bigscreenclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
         self.division = make_division(tournament=self.tournament)
         self.t1 = make_team(r1=1, r2=2)
         self.t2 = make_team(r1=3, r2=4)
@@ -984,7 +1005,9 @@ class BigscreenViewTest(TestCase):
 class ProgramPrintViewTest(TestCase):
     def setUp(self):
         self.client = Client()
-        self.tournament = make_tournament()
+        self.user = make_user(username='printclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
         self.division = make_division(tournament=self.tournament)
         self.t1 = make_team(r1=1, r2=2)
         self.t2 = make_team(r1=3, r2=4)
@@ -1011,7 +1034,9 @@ class ProgramPrintViewTest(TestCase):
 class DivisionScoresheetViewTest(TestCase):
     def setUp(self):
         self.client = Client()
-        self.tournament = make_tournament()
+        self.user = make_user(username='scoresheetclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
         self.division = make_division(tournament=self.tournament)
         self.t1 = make_team(r1=1, r2=2)
         self.t2 = make_team(r1=3, r2=4)
@@ -1034,7 +1059,9 @@ class DivisionScoresheetViewTest(TestCase):
 class ToggleLockViewTest(TestCase):
     def setUp(self):
         self.client = Client()
-        self.tournament = make_tournament()
+        self.user = make_user(username='lockclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
 
     def test_lock_toggles_on(self):
         self.assertFalse(self.tournament.schedule_locked)
@@ -1061,7 +1088,9 @@ class ToggleLockViewTest(TestCase):
 class TimeScheduleEdgeCaseTest(TestCase):
     def setUp(self):
         self.client = Client()
-        self.tournament = make_tournament()
+        self.user = make_user(username='timeedgeclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
         self.division = make_division(tournament=self.tournament)
         self.t1 = make_team(r1=1, r2=2)
         self.t2 = make_team(r1=3, r2=4)
@@ -1094,7 +1123,9 @@ class TimeScheduleEdgeCaseTest(TestCase):
 class GenerateScheduleTreeTest(TestCase):
     def setUp(self):
         self.client = Client()
-        self.tournament = make_tournament()
+        self.user = make_user(username='treeclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
         self.division = make_division(tournament=self.tournament, tournament_type='tree')
         for i in range(4):
             t = make_team(r1=i * 2 + 1, r2=i * 2 + 2)
@@ -1122,7 +1153,9 @@ class GenerateScheduleTreeTest(TestCase):
 class GenerateSchedulePlayoffTest(TestCase):
     def setUp(self):
         self.client = Client()
-        self.tournament = make_tournament()
+        self.user = make_user(username='playoffclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
         self.division = Division.objects.create(
             tournament=self.tournament, name="Playoff D", discipline='double',
             tournament_type='playoff', group_count=2, advance_count=1,
@@ -1200,11 +1233,14 @@ class SchedulerSeedingTest(TestCase):
 class SchedulePlannerPlayoffTest(TestCase):
     def setUp(self):
         self.client = Client()
+        self.user = make_user(username='schedulerclub')
+        self.client.force_login(self.user)
         self.tournament = Tournament.objects.create(
             name="TP", date=datetime.date(2026, 6, 1),
             division_model='mixed', scoring_model='best_of_3_21',
             start_time=datetime.time(9, 0), court_count=2,
             player_break_time=15, single_match_duration=30,
+            owner=self.user,
         )
         self.division = Division.objects.create(
             tournament=self.tournament, name="P", discipline='double',

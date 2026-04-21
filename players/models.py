@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -27,6 +28,13 @@ class Player(models.Model):
         null=True, blank=True,
         verbose_name=_("Hviler indtil"),
         help_text=_("Spilleren er i hvileperiode og kan ikke starte nye kampe før dette tidspunkt."),
+    )
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='players',
+        verbose_name=_("Klubbruger"),
     )
 
     def __str__(self):

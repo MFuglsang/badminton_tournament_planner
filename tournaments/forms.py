@@ -97,9 +97,12 @@ class DivisionPlayersForm(forms.Form):
         label='Spillere',
     )
 
-    def __init__(self, *args, division=None, **kwargs):
+    def __init__(self, *args, division=None, owner=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['players'].queryset = Player.objects.order_by('name')
+        qs = Player.objects.order_by('name')
+        if owner is not None:
+            qs = qs.filter(owner=owner)
+        self.fields['players'].queryset = qs
         if division:
             current = division.teams.filter(player2__isnull=True).values_list('player1_id', flat=True)
             self.fields['players'].initial = list(current)
@@ -114,7 +117,7 @@ class DivisionPairsForm(forms.Form):
         label='Par',
     )
 
-    def __init__(self, *args, division=None, **kwargs):
+    def __init__(self, *args, division=None, owner=None, **kwargs):
         super().__init__(*args, **kwargs)
         if division and division.discipline == 'mixed':
             # Mixed: one player of each gender
@@ -129,16 +132,18 @@ class DivisionPairsForm(forms.Form):
                 player2__isnull=False,
                 player1__gender=F('player2__gender')
             ).select_related('player1', 'player2').order_by('name')
+        if owner is not None:
+            qs = qs.filter(player1__owner=owner)
         self.fields['pairs'].queryset = qs
         if division:
             self.fields['pairs'].initial = division.teams.values_list('pk', flat=True)
 
 
-def get_participants_form(division, data=None):
+def get_participants_form(division, data=None, owner=None):
     """Factory: returns the right form type for the division's discipline."""
     if division.discipline == 'single':
-        return DivisionPlayersForm(data, division=division)
-    return DivisionPairsForm(data, division=division)
+        return DivisionPlayersForm(data, division=division, owner=owner)
+    return DivisionPairsForm(data, division=division, owner=owner)
 
 
 class MatchResultForm(forms.ModelForm):

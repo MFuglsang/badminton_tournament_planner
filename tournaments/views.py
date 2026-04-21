@@ -1,6 +1,7 @@
 from django.db.models import Max
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from .models import Tournament, Division, Match, DivisionSeed
 from .forms import MatchResultForm, DivisionForm, TournamentForm, get_participants_form, WalkoverForm
 from .standings import compute_standings, compute_group_standings
@@ -43,16 +44,20 @@ def _seeds_dict_for_division(division, seed_lookup):
     }
 
 
+@login_required
 def tournament_list(request):
-    tournaments = Tournament.objects.prefetch_related('divisions').order_by('-date')
+    tournaments = Tournament.objects.filter(owner=request.user).prefetch_related('divisions').order_by('-date')
     return render(request, 'tournaments/tournament_list.html', {'tournaments': tournaments})
 
 
+@login_required
 def tournament_create(request):
     if request.method == 'POST':
         form = TournamentForm(request.POST, request.FILES)
         if form.is_valid():
-            tournament = form.save()
+            tournament = form.save(commit=False)
+            tournament.owner = request.user
+            tournament.save()
             messages.success(request, f'Turnering "{tournament.name}" er oprettet.')
             return redirect('tournament_detail', pk=tournament.pk)
     else:
@@ -60,8 +65,9 @@ def tournament_create(request):
     return render(request, 'tournaments/tournament_form.html', {'form': form})
 
 
+@login_required
 def tournament_edit(request, pk):
-    tournament = get_object_or_404(Tournament, pk=pk)
+    tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
     if request.method == 'POST':
         form = TournamentForm(request.POST, request.FILES, instance=tournament)
         if form.is_valid():
@@ -73,8 +79,9 @@ def tournament_edit(request, pk):
     return render(request, 'tournaments/tournament_form.html', {'form': form, 'tournament': tournament})
 
 
+@login_required
 def tournament_delete(request, pk):
-    tournament = get_object_or_404(Tournament, pk=pk)
+    tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
     if request.method == 'POST':
         name = tournament.name
         tournament.delete()
@@ -83,8 +90,9 @@ def tournament_delete(request, pk):
     return render(request, 'tournaments/tournament_confirm_delete.html', {'tournament': tournament})
 
 
+@login_required
 def tournament_detail(request, pk):
-    tournament = get_object_or_404(Tournament, pk=pk)
+    tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
     divisions = tournament.divisions.prefetch_related('teams', 'matches__team1', 'matches__team2', 'matches__winner', 'seeds')
 
     seed_lookup = _build_seed_lookup(tournament)
@@ -98,7 +106,7 @@ def tournament_detail(request, pk):
             'division': d,
             'standings': compute_standings(d) if d.tournament_type == 'group' else [],
             'group_standings': compute_group_standings(d) if d.tournament_type == 'playoff' else [],
-            'participants_form': get_participants_form(d),
+            'participants_form': get_participants_form(d, owner=request.user),
             'match_count': d.matches.count(),
             'pending_count': d.matches.filter(status='pending').count(),
             'bracket_data': get_bracket_data(d) if d.tournament_type in ('tree', 'playoff') else None,
@@ -135,8 +143,9 @@ def tournament_detail(request, pk):
     })
 
 
+@login_required
 def division_create(request, tournament_pk):
-    tournament = get_object_or_404(Tournament, pk=tournament_pk)
+    tournament = get_object_or_404(Tournament, pk=tournament_pk, owner=request.user)
     if request.method == 'POST':
         form = DivisionForm(request.POST)
         if form.is_valid():
@@ -147,10 +156,11 @@ def division_create(request, tournament_pk):
     return redirect('tournament_detail', pk=tournament_pk)
 
 
+@login_required
 def division_update_teams(request, pk):
-    division = get_object_or_404(Division, pk=pk)
+    division = get_object_or_404(Division, pk=pk, tournament__owner=request.user)
     if request.method == 'POST':
-        form = get_participants_form(division, request.POST)
+        form = get_participants_form(division, request.POST, owner=request.user)
         if form.is_valid():
             if division.discipline == 'single':
                 teams = []
@@ -168,9 +178,9 @@ def division_update_teams(request, pk):
     return redirect('tournament_detail', pk=division.tournament.pk)
 
 
+@login_required
 def division_update_seeds(request, pk):
-    """Save seed numbers for teams in a division."""
-    division = get_object_or_404(Division, pk=pk)
+    division = get_object_or_404(Division, pk=pk, tournament__owner=request.user)
     if request.method == 'POST':
         DivisionSeed.objects.filter(division=division).delete()
         seen = set()
@@ -188,8 +198,9 @@ def division_update_seeds(request, pk):
     return redirect('tournament_detail', pk=division.tournament.pk)
 
 
+@login_required
 def division_delete(request, pk):
-    division = get_object_or_404(Division, pk=pk)
+    division = get_object_or_404(Division, pk=pk, tournament__owner=request.user)
     tournament_pk = division.tournament.pk
     if request.method == 'POST':
         name = division.name
@@ -202,8 +213,9 @@ def division_delete(request, pk):
     })
 
 
+@login_required
 def division_generate_schedule(request, pk):
-    division = get_object_or_404(Division, pk=pk)
+    division = get_object_or_404(Division, pk=pk, tournament__owner=request.user)
     if request.method == 'POST':
         if division.tournament.schedule_locked:
             messages.error(request, 'Spilleplanen er låst og kan ikke ændres.')
@@ -261,8 +273,9 @@ def division_generate_schedule(request, pk):
     return redirect('tournament_detail', pk=division.tournament.pk)
 
 
+@login_required
 def match_record_result(request, pk):
-    match = get_object_or_404(Match, pk=pk)
+    match = get_object_or_404(Match, pk=pk, division__tournament__owner=request.user)
     if request.method == 'POST':
         form = MatchResultForm(request.POST, instance=match)
         if form.is_valid():
@@ -281,8 +294,9 @@ def match_record_result(request, pk):
 WALKOVER_SCORE = '21-0, 21-0'
 
 
+@login_required
 def match_start(request, pk):
-    match = get_object_or_404(Match, pk=pk)
+    match = get_object_or_404(Match, pk=pk, division__tournament__owner=request.user)
     if request.method == 'POST' and match.status == 'pending':
         errors = check_match_startable(match)
         if errors:
@@ -294,8 +308,9 @@ def match_start(request, pk):
     return redirect('tournament_detail', pk=match.division.tournament.pk)
 
 
+@login_required
 def match_walkover(request, pk):
-    match = get_object_or_404(Match, pk=pk)
+    match = get_object_or_404(Match, pk=pk, division__tournament__owner=request.user)
     if request.method == 'POST':
         form = WalkoverForm(request.POST, match=match)
         if form.is_valid():
@@ -313,8 +328,9 @@ def match_walkover(request, pk):
     return render(request, 'tournaments/match_walkover_form.html', {'form': form, 'match': match})
 
 
+@login_required
 def tournament_scoresheet(request, pk):
-    tournament = get_object_or_404(Tournament, pk=pk)
+    tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
     matches = (
         Match.objects
         .filter(division__tournament=tournament)
@@ -330,9 +346,10 @@ def tournament_scoresheet(request, pk):
     })
 
 
+@login_required
 def tournament_program_print(request, pk):
     """Print-venligt samlet kampprogram for hele turneringen, division for division."""
-    tournament = get_object_or_404(Tournament, pk=pk)
+    tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
     divisions = tournament.divisions.prefetch_related(
         'teams', 'teams__player1', 'teams__player2',
         'matches__team1', 'matches__team2',
@@ -364,8 +381,9 @@ def tournament_program_print(request, pk):
     })
 
 
+@login_required
 def division_scoresheet(request, pk):
-    division = get_object_or_404(Division, pk=pk)
+    division = get_object_or_404(Division, pk=pk, tournament__owner=request.user)
     matches = (
         Match.objects
         .filter(division=division)
@@ -381,9 +399,10 @@ def division_scoresheet(request, pk):
     })
 
 
+@login_required
 def tournament_bigscreen(request, pk):
     """Storskærmsvisning – viser de 5 næste ikke-startede kampe."""
-    tournament = get_object_or_404(Tournament, pk=pk)
+    tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
     matches = list(
         Match.objects
         .filter(division__tournament=tournament, scheduled_time__isnull=False, status='pending')
@@ -401,9 +420,10 @@ def tournament_bigscreen(request, pk):
     })
 
 
+@login_required
 def tournament_schedule(request, pk):
     from django.utils import timezone
-    tournament = get_object_or_404(Tournament, pk=pk)
+    tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
     matches = list(
         Match.objects
         .filter(division__tournament=tournament, scheduled_time__isnull=False)
@@ -429,8 +449,9 @@ def tournament_schedule(request, pk):
     })
 
 
+@login_required
 def tournament_generate_time_schedule(request, pk):
-    tournament = get_object_or_404(Tournament, pk=pk)
+    tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
     if request.method == 'POST':
         if tournament.schedule_locked:
             messages.error(request, 'Spilleplanen er låst og kan ikke ændres.')
@@ -445,8 +466,9 @@ def tournament_generate_time_schedule(request, pk):
     return redirect('tournament_schedule', pk=pk)
 
 
+@login_required
 def tournament_toggle_lock(request, pk):
-    tournament = get_object_or_404(Tournament, pk=pk)
+    tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
     if request.method == 'POST':
         tournament.schedule_locked = not tournament.schedule_locked
         tournament.save(update_fields=['schedule_locked'])

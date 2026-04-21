@@ -19,16 +19,21 @@ from django.urls import path, include
 from django.shortcuts import render
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib.auth import views as auth_views
+from django.contrib.auth.decorators import login_required
 from tournaments.models import Tournament
 import datetime
 
+@login_required
 def home(request):
-    upcoming = Tournament.objects.filter(date__gte=datetime.date.today()).order_by('date')[:3]
-    recent = Tournament.objects.filter(date__lt=datetime.date.today()).order_by('-date')[:3]
+    upcoming = Tournament.objects.filter(owner=request.user, date__gte=datetime.date.today()).order_by('date')[:3]
+    recent = Tournament.objects.filter(owner=request.user, date__lt=datetime.date.today()).order_by('-date')[:3]
     return render(request, 'home.html', {'upcoming': upcoming, 'recent': recent})
 
 urlpatterns = [
     path('', home, name='home'),
+    path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
+    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('admin/', admin.site.urls),
     path('players/', include('players.urls')),
     path('tournaments/', include('tournaments.urls')),

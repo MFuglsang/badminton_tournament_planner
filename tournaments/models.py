@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -56,6 +57,13 @@ class Tournament(models.Model):
         null=True, blank=True,
         verbose_name=_("Logo"),
         help_text=_("Logo vises på udprintede programmer og spilleplaner."),
+    )
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='tournaments',
+        verbose_name=_("Klubbruger"),
     )
 
     def __str__(self):
