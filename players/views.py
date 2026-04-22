@@ -52,7 +52,7 @@ def player_list(request):
             ('name',     'Navn'),
             ('gender',   'Køn'),
             ('age',      'Alder'),
-            ('division', 'Division'),
+            ('division', 'Række'),
             ('',         ''),
         ],
     })
@@ -106,8 +106,56 @@ def player_clear_rest(request, pk):
 
 @login_required
 def team_list(request):
-    teams = Team.objects.filter(player2__isnull=False, player1__owner=request.user).select_related('player1', 'player2').order_by('name')
-    return render(request, 'players/team_list.html', {'teams': teams})
+    search = request.GET.get('search', '').strip()
+    filter_division = request.GET.get('division', '')
+    filter_type = request.GET.get('pair_type', '')
+    sort = request.GET.get('sort', 'name')
+    direction = request.GET.get('dir', 'asc')
+
+    VALID_SORT_FIELDS = {
+        'name': 'name',
+        'division': 'division',
+        'pair_type': 'pair_type',
+    }
+    sort_field = VALID_SORT_FIELDS.get(sort, 'name')
+    if direction == 'desc':
+        sort_field = f'-{sort_field}'
+
+    teams = list(
+        Team.objects.filter(player2__isnull=False, player1__owner=request.user)
+        .select_related('player1', 'player2')
+        .order_by(sort_field)
+    )
+    if search:
+        q = search.lower()
+        teams = [t for t in teams if q in (t.name or '').lower()
+                 or q in t.player1.name.lower()
+                 or (t.player2 and q in t.player2.name.lower())]
+    if filter_division:
+        teams = [t for t in teams if t.division == filter_division]
+    if filter_type:
+        teams = [t for t in teams if t.pair_type == filter_type]
+
+    col_defs = [
+        ('name',      'Par'),
+        ('pair_type', 'Type'),
+        ('division',  'Række'),
+        ('',          'Spiller 1'),
+        ('',          'Spiller 2'),
+        ('',          ''),
+    ]
+
+    return render(request, 'players/team_list.html', {
+        'teams': teams,
+        'search': search,
+        'sort': sort,
+        'dir': direction,
+        'selected_division': filter_division,
+        'selected_type': filter_type,
+        'division_choices': Team.DIVISION_CHOICES,
+        'pair_type_choices': Team.PAIR_TYPE_CHOICES,
+        'col_defs': col_defs,
+    })
 
 @login_required
 def team_add(request):
@@ -115,7 +163,7 @@ def team_add(request):
         form = TeamForm(request.POST, owner=request.user)
         if form.is_valid():
             team = form.save()
-            messages.success(request, f'Hold "{team.name}" er oprettet.')
+            messages.success(request, f'Par "{team.name}" er oprettet.')
             return redirect('team_list')
     else:
         form = TeamForm(owner=request.user)
@@ -128,7 +176,7 @@ def team_edit(request, pk):
         form = TeamForm(request.POST, instance=team, owner=request.user)
         if form.is_valid():
             form.save()
-            messages.success(request, f'Hold "{team.name}" er opdateret.')
+            messages.success(request, f'Par "{team.name}" er opdateret.')
             return redirect('team_list')
     else:
         form = TeamForm(instance=team, owner=request.user)
@@ -140,9 +188,9 @@ def team_delete(request, pk):
     if request.method == 'POST':
         name = team.name
         team.delete()
-        messages.success(request, f'Hold "{name}" er slettet.')
+        messages.success(request, f'Par "{name}" er slettet.')
         return redirect('team_list')
-    return render(request, 'players/player_confirm_delete.html', {'object': team, 'type': 'hold'})
+    return render(request, 'players/player_confirm_delete.html', {'object': team, 'type': 'par'})
 
 
 @login_required

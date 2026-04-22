@@ -29,7 +29,7 @@
 
 {# ── Opret division: skjul gruppe-indstillinger medmindre playoff ─── #}
 <div class="card" style="max-width:560px;">
-    <h2 style="margin-top:0; font-size:1.1rem;">Opret division</h2>
+    <h2 style="margin-top:0; font-size:1.1rem;">Opret række</h2>
     <form method="post" action="{% url 'division_create' tournament.pk %}">
         {% csrf_token %}
         <div style="display:flex; gap:0.75rem; align-items:flex-start; flex-wrap:wrap; margin-bottom:0.5rem;">
@@ -56,7 +56,7 @@
                 {{ division_form.advance_count }}
             </div>
         </div>
-        <button type="submit" class="btn btn-primary">+ Opret division</button>
+        <button type="submit" class="btn btn-primary">+ Opret række</button>
     </form>
     <script>
     (function() {
@@ -478,7 +478,7 @@
 
 {% if not division_data %}
 <div class="card" style="text-align:center; color:#888; margin-top:1rem;">
-    <p>Ingen divisioner oprettet endnu. Brug formularen ovenfor til at oprette den første.</p>
+    <p>Ingen rækker oprettet endnu. Brug formularen ovenfor til at oprette den første.</p>
 </div>
 {% endif %}
 

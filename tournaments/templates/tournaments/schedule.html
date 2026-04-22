@@ -1,31 +1,31 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% load tournament_extras %}
-{% block title %}Spilleplan â€“ {{ tournament.name }}{% endblock %}
+{% block title %}Spilleplan – {{ tournament.name }}{% endblock %}
 {% block content %}
 
 <div class="page-actions">
-    <h1>Spilleplan â€“ {{ tournament.name }}</h1>
+    <h1>Spilleplan – {{ tournament.name }}</h1>
     <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
         {% if tournament.schedule_locked %}
-            <span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fbbf24; padding:0.35rem 0.75rem; font-size:0.85rem;">ðŸ”’ LÃ¥st</span>
+            <span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fbbf24; padding:0.35rem 0.75rem; font-size:0.85rem;">🔒 Låst</span>
             <form method="post" action="{% url 'tournament_toggle_lock' tournament.pk %}">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-secondary">ðŸ”“ LÃ¥s op</button>
+                <button type="submit" class="btn btn-secondary">🔓 Lås op</button>
             </form>
         {% else %}
             <form method="post" action="{% url 'tournament_generate_time_schedule' tournament.pk %}" id="generate-schedule-form">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-primary" id="generate-schedule-btn">âš¡ {% if matches %}Generer ny{% else %}Generer{% endif %} spilleplan</button>
+                <button type="submit" class="btn btn-primary" id="generate-schedule-btn">⚡ {% if matches %}Generer ny{% else %}Generer{% endif %} spilleplan</button>
             </form>
             {% if matches %}
             <form method="post" action="{% url 'tournament_toggle_lock' tournament.pk %}">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-secondary">ðŸ”’ LÃ¥s program</button>
+                <button type="submit" class="btn btn-secondary">🔒 Lås program</button>
             </form>
             {% endif %}
         {% endif %}
-        <a href="{% url 'tournament_detail' tournament.pk %}" class="btn btn-secondary">â† Turnering</a>
-        <a href="{% url 'tournament_bigscreen' tournament.pk %}" class="btn btn-secondary" target="_blank">ðŸ“º StorskÃ¦rm</a>
+        <a href="{% url 'tournament_detail' tournament.pk %}" class="btn btn-secondary">← Turnering</a>
+        <a href="{% url 'tournament_bigscreen' tournament.pk %}" class="btn btn-secondary" target="_blank">📺 Storskærm</a>
     </div>
 </div>
 
@@ -37,16 +37,16 @@
 
 {% if has_unscheduled %}
 <div class="flash flash-warning">
-    Nogle kampe mangler endnu et tidspunkt. Tryk "Generer ny spilleplan" for at planlÃ¦gge alle kampe.
+    Nogle kampe mangler endnu et tidspunkt. Tryk "Generer ny spilleplan" for at planlægge alle kampe.
 </div>
 {% endif %}
 
 {% include 'tournaments/_schedule_matches.html' %}
 
-{# â”€â”€ Schedule generation spinner â”€â”€ #}
+{# ── Schedule generation spinner ── #}
 <div id="schedule-spinner-overlay" role="status" aria-live="polite">
     <div class="spinner-ring"></div>
-    <div class="spinner-label">Optimerer spilleplanâ€¦</div>
+    <div class="spinner-label">Optimerer spilleplan…</div>
 </div>
 
 <style>

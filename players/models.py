@@ -45,12 +45,27 @@ class Team(models.Model):
         ('double', _('Double')),
         ('mixed', _('Mixeddouble')),
     ]
+    DIVISION_CHOICES = [
+        ('U9', _('Under 9')),
+        ('U11', _('Under 11')),
+        ('U13', _('Under 13')),
+        ('U15', _('Under 15')),
+        ('U17', _('Under 17')),
+        ('U19', _('Under 19')),
+        ('A', _('A Række')),
+        ('B', _('B Række')),
+        ('C', _('C Række')),
+    ]
     player1 = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='team_player1')
     player2 = models.ForeignKey(Player, on_delete=models.SET_NULL, related_name='team_player2', null=True, blank=True)
     pair_type = models.CharField(
         max_length=10, choices=PAIR_TYPE_CHOICES, null=True, blank=True,
         verbose_name=_('Par-type'),
         help_text=_('Double: samme køn · Mixeddouble: et af hvert'),
+    )
+    division = models.CharField(
+        max_length=10, choices=DIVISION_CHOICES, blank=True, null=True,
+        verbose_name=_('Række'),
     )
     name = models.CharField(max_length=100, blank=True, null=True)
 

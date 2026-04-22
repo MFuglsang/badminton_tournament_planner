@@ -37,7 +37,7 @@
 {# ── Stilling: normale grupper ─── #}
 {% if standings %}
 <h3>Stilling</h3>
-<table style="max-width:600px;">
+<div class="pub-table-wrap"><table style="max-width:600px;">
     <thead>
         <tr><th>#</th><th>{% if division.discipline == 'single' %}Spiller{% else %}Par{% endif %}</th><th>Kampe</th><th>Vundet</th><th>Tabt</th><th>Point</th></tr>
     </thead>
@@ -63,14 +63,14 @@
         </tr>
         {% endfor %}
     </tbody>
-</table>
+</table></div>
 {% endif %}
 
 {# ── Stilling: playoff – per gruppe ─── #}
 {% if dd.group_standings %}
 <h3>Gruppestillinger</h3>
 {% for g_num, g_rows in dd.group_standings %}
-<div style="margin-bottom:1rem;">
+<div style="margin-bottom:1rem; overflow-x:auto; -webkit-overflow-scrolling:touch;">
     <div style="font-weight:700; font-size:0.9rem; color:#005BAC; margin-bottom:0.35rem;">Gruppe {{ g_num }}</div>
     <table style="max-width:600px;">
         <thead>
@@ -147,6 +147,7 @@
 {# ── Kampprogram ─── #}
 {% if dd.matches %}
 <h3>Kampprogram</h3>
+<div class="pub-table-wrap">
 <table>
     <thead>
         <tr>
@@ -189,6 +190,7 @@
         {% endfor %}
     </tbody>
 </table>
+</div>
 {% endif %}
 
     </div>{# division-body #}

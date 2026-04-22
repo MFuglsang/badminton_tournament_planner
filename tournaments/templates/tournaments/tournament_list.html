@@ -17,7 +17,7 @@
             <div style="font-size:1.05rem; font-weight:700; color:#003e7e; margin-bottom:0.15rem;">{{ tournament.name }}</div>
             <div style="font-size:0.8rem; color:#64748b;">{{ tournament.date }}</div>
         </div>
-        <span class="badge badge-pending" style="font-size:0.68rem;">{{ tournament.divisions.count }} division{{ tournament.divisions.count|pluralize:"er" }}</span>
+        <span class="badge badge-pending" style="font-size:0.68rem;">{{ tournament.divisions.count }} række{{ tournament.divisions.count|pluralize:"r" }}</span>
     </div>
     <div style="display:flex; gap:1.25rem; font-size:0.8rem; color:#64748b; border-top:1px solid #f1f5f9; padding-top:0.6rem; margin-top:0.25rem;">
         <span>🏓 {{ tournament.court_count }} baner</span>

@@ -1,4 +1,38 @@
 {% extends 'base.html' %}
+{% block extra_head %}
+<meta name="theme-color" content="#003e7e">
+<style>
+/* ── Public viewer – mobile optimizations ─────────────────── */
+@media (max-width: 640px) {
+    .container { padding: 0.85rem 0.75rem; }
+    h1 { font-size: 1.25rem !important; }
+    .card { padding: 1rem 1.1rem; }
+    .page-actions { margin-bottom: 1rem; gap: 0.5rem; }
+    .division-summary { padding: 0.75rem 1rem; flex-wrap: wrap; }
+    .division-body { padding: 0.85rem 1rem; }
+    /* Overflow-scroll wrapper for wide tables */
+    .pub-table-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        border-radius: 12px;
+        margin-bottom: 1.25rem;
+    }
+    .pub-table-wrap table { margin-bottom: 0; min-width: 360px; max-width: none !important; }
+    /* Touch-friendly interactive elements */
+    .btn { min-height: 42px; }
+    .btn-sm { min-height: 36px; }
+    /* Landing page card full width */
+    .pub-landing-card { max-width: 100% !important; margin-top: 1rem !important; }
+    .pub-landing-card select { font-size: 1rem !important; min-height: 44px; }
+    .pub-landing-card .btn { flex: 1; min-height: 44px; font-size: 0.9rem; justify-content: center; }
+}
+@media (max-width: 420px) {
+    h1 { font-size: 1.1rem !important; }
+    .division-summary-title { font-size: 0.88rem; }
+    .badge { font-size: 0.6rem; padding: 0.12rem 0.42rem; }
+}
+</style>
+{% endblock extra_head %}
 {% block nav %}
 <nav>
     <a href="{% url 'public_landing' %}">← Vælg turnering</a>

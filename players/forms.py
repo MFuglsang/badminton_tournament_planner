@@ -9,7 +9,7 @@ class PlayerForm(forms.ModelForm):
 class TeamForm(forms.ModelForm):
     class Meta:
         model = Team
-        fields = ['player1', 'player2', 'pair_type']
+        fields = ['player1', 'player2', 'pair_type', 'division']
 
     def __init__(self, *args, owner=None, **kwargs):
         super().__init__(*args, **kwargs)

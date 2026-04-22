@@ -1,8 +1,8 @@
 {% extends 'base.html' %}
-{% block title %}{% if form.instance.pk %}Rediger hold{% else %}Tilføj hold{% endif %}{% endblock %}
+{% block title %}{% if form.instance.pk %}Rediger par{% else %}Tilføj par{% endif %}{% endblock %}
 {% block content %}
 <div style="max-width:560px;">
-    <h1>{% if form.instance.pk %}Rediger {{ team.name }}{% else %}Tilføj hold{% endif %}</h1>
+    <h1>{% if form.instance.pk %}Rediger {{ team.name }}{% else %}Tilføj par{% endif %}</h1>
     <div class="card">
         <form method="post">
             {% csrf_token %}

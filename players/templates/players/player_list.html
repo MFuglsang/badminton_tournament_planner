@@ -14,7 +14,7 @@
 
         {# Division #}
         <select name="division" onchange="this.form.submit()">
-            <option value="">Alle divisioner</option>
+            <option value="">Alle rækker</option>
             {% for value, label in division_choices %}
             <option value="{{ value }}" {% if value == selected_division %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
