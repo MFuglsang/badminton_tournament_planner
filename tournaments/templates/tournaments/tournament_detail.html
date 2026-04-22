@@ -288,6 +288,45 @@
     {% endif %}
 </div>
 
+{% if division.tournament_type == 'playoff' and dd.match_count and not dd.completed_count and not tournament.schedule_locked and dd.group_teams %}
+<details style="margin-bottom:1rem;">
+    <summary style="cursor:pointer; font-weight:600; color:#005BAC; padding:0.4rem 0;">
+        🔀 Juster gruppefordeling manuelt
+    </summary>
+    <div class="card group-reassign-card" id="group-reassign-{{ division.pk }}" style="margin-top:0.5rem;">
+        <p style="color:#666; font-size:0.85rem; margin:0 0 0.75rem;">
+            Træk spillere/par mellem grupperne for at justere styrkeforholdet.
+            Klik "Gem fordeling" for at regenerere kampprogram med den nye fordeling.
+        </p>
+        <div class="group-columns" id="group-cols-{{ division.pk }}">
+            {% for g_num, g_teams in dd.group_teams.items %}
+            <div class="group-col" data-group="{{ g_num }}">
+                <div class="group-col-header">Gruppe {{ g_num }}</div>
+                <ul class="group-drop-zone" data-group="{{ g_num }}" id="gdrop-{{ division.pk }}-{{ g_num }}">
+                    {% for team in g_teams %}
+                    <li class="group-drag-item" draggable="true" data-pk="{{ team.pk }}">
+                        <span class="drag-handle">⠿</span>
+                        <span>{{ team.name }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endfor %}
+        </div>
+        <form method="post" action="{% url 'division_reassign_groups' division.pk %}" style="margin-top:0.75rem;">
+            {% csrf_token %}
+            <input type="hidden" name="groups" id="group-json-{{ division.pk }}">
+            <button type="submit" class="btn btn-primary btn-sm"
+                    data-pk="{{ division.pk }}"
+                    data-group-count="{{ dd.group_teams|length }}"
+                    onclick="groupReassignSerialize(this); return true;">
+                ✅ Gem fordeling og regenerer kampprogram
+            </button>
+        </form>
+    </div>
+</details>
+{% endif %}
+
 {% if division.matches.all %}
 {% if division.tournament_type == 'tree' %}
 <h3>Kampe</h3>
@@ -442,4 +481,127 @@
     <p>Ingen divisioner oprettet endnu. Brug formularen ovenfor til at oprette den første.</p>
 </div>
 {% endif %}
+
+<style>
+.drag-handle {
+    font-size: 1.15rem;
+    color: #94a3b8;
+    cursor: grab;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+/* ── Group drag-and-drop ── */
+.group-reassign-card {
+    max-width: none;
+}
+.group-columns {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.25rem;
+}
+.group-col {
+    flex: 1;
+    min-width: 160px;
+}
+.group-col-header {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #005BAC;
+    padding: 0.3rem 0.5rem;
+    background: #eff6ff;
+    border-radius: 5px 5px 0 0;
+    border: 1.5px solid #bfdbfe;
+    border-bottom: none;
+}
+.group-drop-zone {
+    list-style: none;
+    padding: 0.3rem;
+    margin: 0;
+    min-height: 60px;
+    background: #f8fafc;
+    border: 1.5px solid #bfdbfe;
+    border-radius: 0 0 5px 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+.group-drop-zone.drag-over-zone {
+    background: #dbeafe;
+    border-color: #3b82f6;
+}
+.group-drag-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.6rem;
+    background: white;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    cursor: grab;
+    user-select: none;
+    transition: background 0.1s, border-color 0.1s;
+}
+.group-drag-item:hover { background: #f1f5f9; }
+.group-drag-item.dragging { opacity: 0.3; cursor: grabbing; }
+</style>
+<script>
+(function () {
+    /* ── Group reassignment DnD ── */
+    document.querySelectorAll('.group-drop-zone').forEach(function (zone) {
+        var dragging = null;
+
+        function getZone(el) { return el.closest('.group-drop-zone'); }
+        function getItem(el) { return el.closest('.group-drag-item'); }
+
+        document.addEventListener('dragstart', function (e) {
+            var item = getItem(e.target);
+            if (!item) return;
+            dragging = item;
+            item.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        });
+        document.addEventListener('dragend', function () {
+            if (dragging) dragging.classList.remove('dragging');
+            document.querySelectorAll('.group-drop-zone.drag-over-zone').forEach(function (z) {
+                z.classList.remove('drag-over-zone');
+            });
+            dragging = null;
+        });
+        zone.addEventListener('dragover', function (e) {
+            e.preventDefault();
+            if (!dragging) return;
+            var targetZone = getZone(e.target);
+            if (!targetZone) return;
+            targetZone.classList.add('drag-over-zone');
+            // Insert before the hovered item
+            var targetItem = getItem(e.target);
+            if (targetItem && targetItem !== dragging) {
+                var rect = targetItem.getBoundingClientRect();
+                var after = e.clientY > rect.top + rect.height / 2;
+                targetZone.insertBefore(dragging, after ? targetItem.nextSibling : targetItem);
+            } else if (!targetItem) {
+                targetZone.appendChild(dragging);
+            }
+        });
+        zone.addEventListener('dragleave', function (e) {
+            var related = e.relatedTarget;
+            if (!zone.contains(related)) zone.classList.remove('drag-over-zone');
+        });
+    });
+
+    window.groupReassignSerialize = function (btn) {
+        var divPk = btn.dataset.pk;
+        var groupCount = parseInt(btn.dataset.groupCount);
+        var result = {};
+        for (var g = 1; g <= groupCount; g++) {
+            var items = document.querySelectorAll('#gdrop-' + divPk + '-' + g + ' .group-drag-item');
+            result[g] = Array.from(items).map(function (item) { return parseInt(item.dataset.pk); });
+        }
+        document.getElementById('group-json-' + divPk).value = JSON.stringify(result);
+    };
+})();
+</script>
 {% endblock %}

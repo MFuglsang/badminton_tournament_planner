@@ -12,6 +12,7 @@ urlpatterns = [
     path('division/<int:pk>/seeds/', views.division_update_seeds, name='division_update_seeds'),
     path('division/<int:pk>/delete/', views.division_delete, name='division_delete'),
     path('division/<int:pk>/generate/', views.division_generate_schedule, name='division_generate_schedule'),
+    path('division/<int:pk>/reassign-groups/', views.division_reassign_groups, name='division_reassign_groups'),
     path('match/<int:pk>/result/', views.match_record_result, name='match_record_result'),
     path('match/<int:pk>/start/', views.match_start, name='match_start'),
     path('match/<int:pk>/walkover/', views.match_walkover, name='match_walkover'),

@@ -6,7 +6,7 @@ from .models import Tournament, Division, Match, DivisionSeed
 from .forms import MatchResultForm, DivisionForm, TournamentForm, get_participants_form, WalkoverForm
 from .standings import compute_standings, compute_group_standings
 from players.models import Team
-from .scheduler import generate_schedule, advance_bracket, get_bracket_data
+from .scheduler import generate_schedule, advance_bracket, get_bracket_data, regenerate_playoff_with_groups
 from .schedule_planner import generate_time_schedule
 from .player_status import (
     get_busy_info, apply_status_to_matches, set_player_rest,
@@ -101,6 +101,25 @@ def tournament_detail(request, pk):
         seeds_lkp = {team_pk: num for (div_pk, team_pk), num in seed_lookup.items() if div_pk == d.pk}
         return [(team, seeds_lkp.get(team.pk, '')) for team in d.teams.all().order_by('name')]
 
+    def _group_teams(d):
+        """Return {group_number: [team, ...]} from existing group-stage matches."""
+        if d.tournament_type != 'playoff':
+            return {}
+        result = {}
+        seen = {}  # group_num -> set of team pks already added
+        for m in d.matches.filter(phase='group').select_related('team1', 'team2').order_by('group_number', 'match_round'):
+            for team in (m.team1, m.team2):
+                if team is None:
+                    continue
+                g = m.group_number or 1
+                if g not in result:
+                    result[g] = []
+                    seen[g] = set()
+                if team.pk not in seen[g]:
+                    result[g].append(team)
+                    seen[g].add(team.pk)
+        return result
+
     division_data = [
         {
             'division': d,
@@ -109,9 +128,11 @@ def tournament_detail(request, pk):
             'participants_form': get_participants_form(d, owner=request.user),
             'match_count': d.matches.count(),
             'pending_count': d.matches.filter(status='pending').count(),
+            'completed_count': d.matches.filter(status='completed').count(),
             'bracket_data': get_bracket_data(d) if d.tournament_type in ('tree', 'playoff') else None,
             'seed_list': _seed_list(d),
             'seeds_dict': _seeds_dict_for_division(d, seed_lookup),
+            'group_teams': _group_teams(d),
         }
         for d in divisions
     ]
@@ -195,6 +216,70 @@ def division_update_seeds(request, pk):
                 except ValueError:
                     pass
         messages.success(request, f'Seedning for "{division.name}" er gemt.')
+    return redirect('tournament_detail', pk=division.tournament.pk)
+
+
+@login_required
+def division_reassign_groups(request, pk):
+    """
+    Accept a JSON payload with the new group membership and regenerate
+    all group-stage (and playoff bracket) matches.
+    Only allowed before any result has been recorded.
+    """
+    import json
+    division = get_object_or_404(Division, pk=pk, tournament__owner=request.user)
+
+    if request.method != 'POST':
+        return redirect('tournament_detail', pk=division.tournament.pk)
+
+    if division.tournament_type != 'playoff':
+        messages.error(request, 'Gruppeomfordeling er kun mulig for divisioner med gruppespil og slutspil.')
+        return redirect('tournament_detail', pk=division.tournament.pk)
+
+    if division.tournament.schedule_locked:
+        messages.error(request, 'Spilleplanen er låst og kan ikke ændres.')
+        return redirect('tournament_detail', pk=division.tournament.pk)
+
+    if division.matches.filter(status='completed').exists():
+        messages.error(request, 'Kan ikke omfordele grupper – der er allerede registrerede resultater.')
+        return redirect('tournament_detail', pk=division.tournament.pk)
+
+    try:
+        raw = json.loads(request.POST.get('groups', '{}'))
+        # raw = {"1": [pk, pk, ...], "2": [pk, pk, ...], ...}
+        groups_by_num = {int(k): [int(x) for x in v] for k, v in raw.items()}
+    except (ValueError, TypeError, AttributeError):
+        messages.error(request, 'Ugyldig data.')
+        return redirect('tournament_detail', pk=division.tournament.pk)
+
+    # Validate: every division team appears in exactly one group
+    division_team_pks = set(division.teams.values_list('pk', flat=True))
+    submitted_pks = {pk for pks in groups_by_num.values() for pk in pks}
+    if submitted_pks != division_team_pks:
+        messages.error(request, 'Grupper indeholder ikke præcis de rigtige hold.')
+        return redirect('tournament_detail', pk=division.tournament.pk)
+
+    # Build ordered list of Team objects per group
+    team_map = {t.pk: t for t in division.teams.all()}
+    groups = [
+        [team_map[pk] for pk in groups_by_num[gnum]]
+        for gnum in sorted(groups_by_num.keys())
+    ]
+
+    matches = regenerate_playoff_with_groups(division, groups)
+
+    if matches:
+        tournament_matches = Match.objects.filter(division__tournament=division.tournament)
+        current_max = tournament_matches.exclude(
+            pk__in=[m.pk for m in matches]
+        ).aggregate(Max('match_number'))['match_number__max'] or 0
+        for i, match in enumerate(matches, start=current_max + 1):
+            match.match_number = i
+            match.save(update_fields=['match_number'])
+        messages.success(request, f'Gruppefordeling i "{division.name}" er gemt og kampprogram er regenereret.')
+    else:
+        messages.warning(request, 'Ingen kampe genereret.')
+
     return redirect('tournament_detail', pk=division.tournament.pk)
 
 
