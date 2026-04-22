@@ -23,6 +23,7 @@ urlpatterns = [
     path('<int:pk>/program/print/', views.tournament_program_print, name='tournament_program_print'),
     path('division/<int:pk>/scoresheet/', views.division_scoresheet, name='division_scoresheet'),
     path('<int:pk>/schedule/', views.tournament_schedule, name='tournament_schedule'),
+    path('<int:pk>/schedule/print/', views.tournament_schedule_print, name='tournament_schedule_print'),
     path('<int:pk>/schedule/generate/', views.tournament_generate_time_schedule, name='tournament_generate_time_schedule'),
     path('<int:pk>/schedule/lock/', views.tournament_toggle_lock, name='tournament_toggle_lock'),
     path('<int:pk>/bigscreen/', views.tournament_bigscreen, name='tournament_bigscreen'),

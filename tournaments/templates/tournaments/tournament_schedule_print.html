@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+{% load tournament_extras %}
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<title>Spilleplan – {{ tournament.name }}</title>
+<style>
+  /* ── Base ─── */
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f4f7fb;
+    margin: 0;
+    padding: 1.5rem;
+    color: #111;
+    font-size: 0.92rem;
+  }
+
+  /* ── Screen header (hidden at print) ─── */
+  .screen-header {
+    max-width: 900px;
+    margin: 0 auto 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .screen-header h1 { margin: 0; font-size: 1.4rem; flex: 1; }
+  .btn {
+    display: inline-block;
+    padding: 0.5rem 1.2rem;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    cursor: pointer;
+    border: none;
+  }
+  .btn-primary   { background: #005BAC; color: #fff; }
+  .btn-secondary { background: #e9ecef; color: #333; }
+
+  /* ── Tournament header block ─── */
+  .tournament-header {
+    max-width: 900px;
+    margin: 0 auto 2rem;
+    border: 2px solid #005BAC;
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+  }
+  .tournament-header-logo {
+    flex-shrink: 0;
+    max-height: 70px;
+    max-width: 140px;
+    object-fit: contain;
+  }
+  .tournament-header h2 {
+    margin: 0 0 0.3rem;
+    font-size: 1.5rem;
+    color: #005BAC;
+  }
+  .tournament-header p {
+    margin: 0;
+    color: #555;
+    font-size: 0.85rem;
+  }
+
+  /* ── Schedule table ─── */
+  .schedule-wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  thead tr {
+    background: #005BAC;
+    color: #fff;
+  }
+  thead th {
+    padding: 0.55rem 0.75rem;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: left;
+    white-space: nowrap;
+  }
+  tbody tr { border-bottom: 1px solid #f1f5f9; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:nth-child(even) { background: #f8fafc; }
+  tbody td { padding: 0.42rem 0.75rem; vertical-align: middle; }
+
+  /* Time-group separator row */
+  .time-sep td {
+    background: #e8f0fa;
+    font-weight: 700;
+    font-size: 0.88rem;
+    color: #005BAC;
+    padding: 0.35rem 0.75rem;
+    border-top: 2px solid #c7d9f0;
+    border-bottom: none;
+  }
+
+  .col-no    { font-weight: 700; color: #005BAC; white-space: nowrap; }
+  .col-time  { font-weight: 700; white-space: nowrap; }
+  .col-court { color: #444; white-space: nowrap; text-align: center; font-weight: 600; }
+  .col-match { font-weight: 600; }
+  .col-div   { color: #64748b; font-size: 0.82rem; white-space: nowrap; }
+  .col-score { white-space: nowrap; color: #374151; }
+  .col-winner{ color: #064e3b; font-weight: 600; font-size: 0.85rem; white-space: nowrap; }
+  .vs { color: #94a3b8; font-weight: 400; font-size: 0.8rem; margin: 0 0.25rem; }
+  .wo { font-size: 0.72rem; color: #b45309; background: #fef3c7; border-radius: 3px;
+        padding: 1px 4px; margin-left: 4px; vertical-align: middle; }
+
+  /* Status dots */
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+  .dot-done    { background: #22c55e; }
+  .dot-active  { background: #f59e0b; }
+  .dot-upcoming{ background: #94a3b8; }
+
+  /* Empty state */
+  .empty-state {
+    max-width: 900px;
+    margin: 2rem auto;
+    text-align: center;
+    color: #888;
+    background: #fff;
+    border-radius: 8px;
+    padding: 3rem;
+  }
+
+  /* ── Print overrides ─── */
+  @media print {
+    @page {
+      size: A4 landscape;
+      margin: 10mm 12mm;
+    }
+    body { background: none; padding: 0; }
+    .screen-header { display: none; }
+    .tournament-header {
+      border: 1.5pt solid #000;
+      box-shadow: none;
+      margin-bottom: 6mm;
+    }
+    .tournament-header h2 { color: #000; }
+    .schedule-wrap {
+      box-shadow: none;
+      border-radius: 0;
+    }
+    thead tr { background: #000; }
+    .col-no  { color: #000; }
+    .time-sep td { background: #eee; color: #000; border-top: 1.5pt solid #aaa; }
+    tbody tr:nth-child(even) { background: #f5f5f5; }
+    /* avoid splitting a time-block across pages */
+    tr.time-sep { page-break-before: auto; break-before: auto; }
+  }
+</style>
+</head>
+<body>
+
+<div class="screen-header">
+  <h1>Spilleplan – {{ tournament.name }}</h1>
+  <button class="btn btn-primary" onclick="window.print()">🖨 Udskriv / Gem PDF</button>
+  <a href="{% url 'tournament_schedule' tournament.pk %}" class="btn btn-secondary">← Spilleplan</a>
+  <a href="{% url 'tournament_detail' tournament.pk %}" class="btn btn-secondary">← Turnering</a>
+</div>
+
+<div class="tournament-header">
+  {% if tournament.logo %}
+  <img src="{{ tournament.logo.url }}" alt="Logo" class="tournament-header-logo">
+  {% endif %}
+  <div>
+    <h2>{{ tournament.name }}</h2>
+    <p>
+      <strong>Dato:</strong> {{ tournament.date }} &nbsp;·&nbsp;
+      <strong>Scoring:</strong> {{ tournament.get_scoring_model_display }} &nbsp;·&nbsp;
+      <strong>Baner:</strong> {{ tournament.court_count }}
+      {% if tournament.start_time %} &nbsp;·&nbsp; <strong>Start:</strong> {{ tournament.start_time|time:"H:i" }}{% endif %}
+      &nbsp;·&nbsp; <strong>Kampe:</strong> {{ matches|length }}
+    </p>
+  </div>
+</div>
+
+{% if matches %}
+<div class="schedule-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Tidspunkt</th>
+      <th>Kamp</th>
+      <th>Række</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% regroup matches by scheduled_time as time_groups %}
+    {% for tg in time_groups %}
+    <tr class="time-sep">
+      <td colspan="4">{{ tg.grouper|time:"H:i" }} — {{ tg.list|length }} kamp{{ tg.list|length|pluralize:"e" }}</td>
+    </tr>
+    {% for match in tg.list %}
+    <tr>
+      <td class="col-no">{{ match.match_number }}</td>
+      <td class="col-time">{{ match.scheduled_time|time:"H:i" }}</td>
+      <td class="col-match">
+        {% if match.bracket_label %}
+          <em style="color:#888;">{{ match.bracket_label }}</em>
+        {% else %}
+          {{ match.team1.name }}{{ match.t1_seed }}<span class="vs">vs</span>{{ match.team2.name }}{{ match.t2_seed }}
+        {% endif %}
+      </td>
+      <td class="col-div">{{ match.division.name }}</td>
+    </tr>
+    {% endfor %}
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<div class="empty-state">
+  <div style="font-size:2rem; margin-bottom:0.5rem;">📅</div>
+  <p>Ingen tidssatte kampe endnu.<br>
+     Generer kampprogram og spilleplan under <a href="{% url 'tournament_schedule' tournament.pk %}">📅 Spilleplan</a>.</p>
+</div>
+{% endif %}
+
+</body>
+</html>

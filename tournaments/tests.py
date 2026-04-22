@@ -1030,6 +1030,29 @@ class ProgramPrintViewTest(TestCase):
         response = self.client.get(reverse('tournament_program_print', args=[9999]))
         self.assertEqual(response.status_code, 404)
 
+    def test_schedule_print_returns_200(self):
+        response = self.client.get(reverse('tournament_schedule_print', args=[self.tournament.pk]))
+        self.assertEqual(response.status_code, 200)
+
+    def test_schedule_print_404_for_nonexistent(self):
+        response = self.client.get(reverse('tournament_schedule_print', args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_schedule_print_contains_match_number(self):
+        from tournaments.models import Match
+        match = Match.objects.create(
+            division=self.division,
+            team1=self.t1,
+            team2=self.t2,
+            match_round=1,
+            match_number=42,
+            scheduled_time='2026-04-22 10:00:00+00:00',
+            court=2,
+        )
+        response = self.client.get(reverse('tournament_schedule_print', args=[self.tournament.pk]))
+        self.assertContains(response, '42')
+        self.assertContains(response, self.t1.player1.name)
+
 
 class DivisionScoresheetViewTest(TestCase):
     def setUp(self):

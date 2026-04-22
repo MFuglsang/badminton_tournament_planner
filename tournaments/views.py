@@ -711,6 +711,25 @@ def tournament_scoresheet(request, pk):
 
 
 @login_required
+def tournament_schedule_print(request, pk):
+    """Print-venlig tidssorteret spilleplan for hele turneringen (én A4-tabel pr. bane/tidspunkt)."""
+    tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
+    matches = list(
+        Match.objects
+        .filter(division__tournament=tournament, scheduled_time__isnull=False)
+        .exclude(match_number=None)
+        .select_related('division', 'team1', 'team2', 'winner')
+        .order_by('scheduled_time', 'court', 'match_number')
+    )
+    seed_lookup = _build_seed_lookup(tournament)
+    _apply_seed_labels(matches, seed_lookup)
+    return render(request, 'tournaments/tournament_schedule_print.html', {
+        'tournament': tournament,
+        'matches': matches,
+    })
+
+
+@login_required
 def tournament_program_print(request, pk):
     """Print-venligt samlet kampprogram for hele turneringen, division for division."""
     tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
