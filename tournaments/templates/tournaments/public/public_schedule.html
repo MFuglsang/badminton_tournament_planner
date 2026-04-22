@@ -1,0 +1,21 @@
+{% extends 'base_viewer.html' %}
+{% load tournament_extras %}
+{% block title %}Spilleplan – {{ tournament.name }}{% endblock %}
+{% block content %}
+
+<div class="page-actions">
+    <h1>Spilleplan – {{ tournament.name }}</h1>
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+        <a href="{% url 'public_tournament' tournament.pk %}" class="btn btn-secondary">← Kampoversigt</a>
+    </div>
+</div>
+
+{% if not tournament.start_time %}
+<div class="flash flash-warning">
+    Turneringen har endnu ingen spilleplan.
+</div>
+{% endif %}
+
+{% include 'tournaments/_schedule_matches.html' %}
+
+{% endblock %}

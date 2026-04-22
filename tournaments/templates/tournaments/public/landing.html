@@ -1,0 +1,96 @@
+{% extends 'base_viewer.html' %}
+{% block title %}Vælg turnering{% endblock %}
+{% block content %}
+<div class="page-actions">
+    <h1>🏸 Turneringsoversigt</h1>
+    <p style="color:#64748b; margin:0.25rem 0 0; font-size:0.9rem;">Vælg klub og turnering for at se kampoversigt og spilleplan.</p>
+</div>
+
+<div class="card" style="max-width:520px; margin-top:1.5rem;">
+    <h2 style="margin-top:0;">Vælg klub og turnering</h2>
+
+    {% if not clubs %}
+    <p style="color:#64748b;">Ingen turneringer er tilgængelige endnu.</p>
+    {% else %}
+    <div style="display:flex; flex-direction:column; gap:1rem;">
+        <div>
+            <label style="font-weight:600; font-size:0.9rem; display:block; margin-bottom:0.35rem;">Klub</label>
+            <select id="club-select" style="width:100%; padding:0.55rem 0.75rem; border:1px solid #cbd5e1; border-radius:7px; font-size:0.95rem; font-family:inherit; background:#fff;">
+                <option value="">– Vælg klub –</option>
+                {% for club in clubs %}
+                <option value="{{ club.pk }}">{{ club.username }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label style="font-weight:600; font-size:0.9rem; display:block; margin-bottom:0.35rem;">Turnering</label>
+            <select id="tournament-select" disabled style="width:100%; padding:0.55rem 0.75rem; border:1px solid #cbd5e1; border-radius:7px; font-size:0.95rem; font-family:inherit; background:#f8fafc; color:#94a3b8;">
+                <option value="">– Vælg klub først –</option>
+                {% for t in tournaments %}
+                <option value="{{ t.pk }}" data-club="{{ t.owner.pk }}" style="display:none">{{ t.name }} ({{ t.date }})</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+            <button id="btn-schedule" class="btn btn-primary" disabled onclick="goTo('schedule')">📅 Spilleplan</button>
+            <button id="btn-overview" class="btn btn-secondary" disabled onclick="goTo('overview')">📋 Kampoversigt</button>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{# Data for JS routing #}
+<script>
+(function () {
+    var clubSel = document.getElementById('club-select');
+    var tSel    = document.getElementById('tournament-select');
+    var btnSch  = document.getElementById('btn-schedule');
+    var btnOvr  = document.getElementById('btn-overview');
+    if (!clubSel) return;
+
+    var allOptions = Array.from(tSel.options).slice(1); // skip first placeholder
+
+    clubSel.addEventListener('change', function () {
+        var cid = this.value;
+        // Reset tournament dropdown
+        tSel.innerHTML = '';
+        var placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = cid ? '– Vælg turnering –' : '– Vælg klub først –';
+        tSel.appendChild(placeholder);
+
+        var filtered = allOptions.filter(function (o) { return o.dataset.club === cid; });
+        filtered.forEach(function (o) {
+            var clone = o.cloneNode(true);
+            clone.style.display = '';
+            tSel.appendChild(clone);
+        });
+
+        tSel.disabled = filtered.length === 0;
+        tSel.style.background = filtered.length ? '#fff' : '#f8fafc';
+        tSel.style.color = filtered.length ? '#1e293b' : '#94a3b8';
+        updateButtons();
+    });
+
+    tSel.addEventListener('change', updateButtons);
+
+    function updateButtons() {
+        var ok = tSel.value !== '';
+        btnSch.disabled = !ok;
+        btnOvr.disabled = !ok;
+    }
+
+    window.goTo = function (type) {
+        var pk = tSel.value;
+        if (!pk) return;
+        if (type === 'schedule') {
+            window.location.href = '/public/tournament/' + pk + '/spilleplan/';
+        } else {
+            window.location.href = '/public/tournament/' + pk + '/';
+        }
+    };
+})();
+</script>
+{% endblock %}

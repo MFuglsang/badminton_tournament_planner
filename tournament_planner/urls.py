@@ -22,6 +22,7 @@ from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from tournaments.models import Tournament
+from tournaments.public_views import public_landing, public_tournament, public_schedule
 import datetime
 
 @login_required
@@ -31,10 +32,15 @@ def home(request):
     return render(request, 'home.html', {'upcoming': upcoming, 'recent': recent})
 
 urlpatterns = [
-    path('', home, name='home'),
+    path('', public_landing, name='home'),
+    path('dashboard/', home, name='admin_home'),
     path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('admin/', admin.site.urls),
     path('players/', include('players.urls')),
     path('tournaments/', include('tournaments.urls')),
+    # ── Public / anonymous viewer ──────────────────────────────────────────
+    path('public/', public_landing, name='public_landing'),
+    path('public/tournament/<int:pk>/', public_tournament, name='public_tournament'),
+    path('public/tournament/<int:pk>/spilleplan/', public_schedule, name='public_schedule'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
