@@ -65,11 +65,12 @@ class TournamentForm(forms.ModelForm):
 class DivisionForm(forms.ModelForm):
     class Meta:
         model = Division
-        fields = ['name', 'discipline', 'tournament_type', 'group_count', 'advance_count']
+        fields = ['name', 'discipline', 'tournament_type', 'group_count', 'advance_count', 'schedule_priority']
         widgets = {
             'name': forms.TextInput(attrs={'placeholder': 'f.eks. Herresingle A, Damedouble B …'}),
             'group_count': forms.NumberInput(attrs={'min': 2, 'max': 16}),
             'advance_count': forms.NumberInput(attrs={'min': 1, 'max': 8}),
+            'schedule_priority': forms.NumberInput(attrs={'min': 1, 'max': 10, 'style': 'width:4rem;'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -78,6 +79,8 @@ class DivisionForm(forms.ModelForm):
         self.fields['advance_count'].required = False
         self.fields['group_count'].initial = 2
         self.fields['advance_count'].initial = 2
+        self.fields['schedule_priority'].required = False
+        self.fields['schedule_priority'].initial = 5
 
     def clean_group_count(self):
         val = self.cleaned_data.get('group_count')
@@ -86,6 +89,12 @@ class DivisionForm(forms.ModelForm):
     def clean_advance_count(self):
         val = self.cleaned_data.get('advance_count')
         return val if val is not None else 2
+
+    def clean_schedule_priority(self):
+        val = self.cleaned_data.get('schedule_priority')
+        if val is None:
+            return 5
+        return max(1, min(10, int(val)))
 
 
 class DivisionPlayersForm(forms.Form):

@@ -56,6 +56,11 @@
                 {{ division_form.advance_count }}
             </div>
         </div>
+        <div style="display:flex; gap:0.5rem; align-items:center; margin-bottom:0.75rem;">
+            <label style="white-space:nowrap; font-size:0.85rem; font-weight:600;" title="1 = planlæg disse kampe tidligst · 10 = sidst">Spilleplansprioritet (1–10):</label>
+            {{ division_form.schedule_priority }}
+            <span style="font-size:0.75rem; color:#94a3b8;">1 = tidligst færdig</span>
+        </div>
         <button type="submit" class="btn btn-primary">+ Opret række</button>
     </form>
     <script>
@@ -84,7 +89,15 @@
             {{ division.teams.count }} deltager{{ division.teams.count|pluralize:"e" }}
             {% if dd.match_count %}&middot; {{ dd.pending_count }}/{{ dd.match_count }} kampe mangler{% endif %}
         </span>
-        <a href="{% url 'division_delete' division.pk %}" class="btn btn-danger btn-sm" onclick="event.stopPropagation();" style="margin-left:auto;">Slet</a>
+        <form method="post" action="{% url 'division_set_priority' division.pk %}" onclick="event.stopPropagation();" style="display:flex; align-items:center; gap:0.3rem; margin-left:auto;">
+            {% csrf_token %}
+            <label style="font-size:0.75rem; color:#64748b; white-space:nowrap;" title="1 = planlæg tidligst i spilleplanen · 10 = sidst">Prioritet:</label>
+            <input type="number" name="schedule_priority" value="{{ division.schedule_priority }}" min="1" max="10"
+                   style="width:3.5rem; padding:0.15rem 0.3rem; font-size:0.8rem; border:1px solid #cbd5e1; border-radius:4px;"
+                   onclick="event.stopPropagation();">
+            <button type="submit" class="btn btn-secondary btn-sm" style="padding:0.2rem 0.5rem; font-size:0.75rem;">Gem</button>
+        </form>
+        <a href="{% url 'division_delete' division.pk %}" class="btn btn-danger btn-sm" onclick="event.stopPropagation();" style="margin-left:0.5rem;">Slet</a>
     </summary>
     <div class="division-body">
 

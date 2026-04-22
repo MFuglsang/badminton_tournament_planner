@@ -290,12 +290,26 @@ def division_delete(request, pk):
     if request.method == 'POST':
         name = division.name
         division.delete()
-        messages.success(request, f'Division "{name}" er slettet.')
+        messages.success(request, f'Række "{name}" er slettet.')
         return redirect('tournament_detail', pk=tournament_pk)
     return render(request, 'players/player_confirm_delete.html', {
         'object': division.name,
-        'type': 'division',
+        'type': 'række',
     })
+
+
+@login_required
+def division_set_priority(request, pk):
+    """POST: update schedule_priority for a division."""
+    division = get_object_or_404(Division, pk=pk, tournament__owner=request.user)
+    if request.method == 'POST':
+        try:
+            priority = max(1, min(10, int(request.POST.get('schedule_priority', 5))))
+            division.schedule_priority = priority
+            division.save(update_fields=['schedule_priority'])
+        except (ValueError, TypeError):
+            pass
+    return redirect('tournament_detail', pk=division.tournament.pk)
 
 
 @login_required

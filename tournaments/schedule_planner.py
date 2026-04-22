@@ -49,7 +49,7 @@ def generate_time_schedule(tournament):
         .filter(division__tournament=tournament)
         .exclude(match_number=None)
         .exclude(team1__isnull=False, team2__isnull=True)  # exclude byes
-        .order_by('match_round', 'division', 'match_number')
+        .order_by('division__schedule_priority', 'match_round', 'division', 'match_number')
         .select_related('division', 'team1__player1', 'team1__player2',
                         'team2__player1', 'team2__player2')
     )
@@ -181,10 +181,30 @@ def _schedule_ortools(tournament, matches):
                 if feeder and feeder.id in end_vars:
                     model.add(start_vars[m.id] >= end_vars[feeder.id] + break_slots)
 
-    # ── Objective: minimise makespan ───────────────────────────────────────
+    # ── Objective: minimise makespan + weighted division completion ────────
+    # For each division, compute div_end = max(end_vars of its matches).
+    # Divisions with low schedule_priority (= finish early) get a high weight
+    # on their div_end, pushing the solver to schedule them earlier.
+    # We scale the secondary term so it doesn't compromise the main makespan
+    # objective: makespan weight = 1000, per-match weight = (11-priority).
     makespan = model.new_int_var(0, horizon, 'makespan')
     model.add_max_equality(makespan, list(end_vars.values()))
-    model.minimize(makespan)
+
+    div_end_vars = {}
+    div_priority = {}
+    for m in matches:
+        div_priority[m.division_id] = m.division.schedule_priority
+        div_end_vars.setdefault(m.division_id, []).append(end_vars[m.id])
+
+    objective_terms = [1000 * makespan]
+    for div_id, ends in div_end_vars.items():
+        priority = div_priority[div_id]
+        weight = 11 - priority  # priority=1 → weight=10 (finish early); priority=10 → weight=1
+        div_end = model.new_int_var(0, horizon, f'div_end_{div_id}')
+        model.add_max_equality(div_end, ends)
+        objective_terms.append(weight * div_end)
+
+    model.minimize(sum(objective_terms))
 
     # ── Solve ──────────────────────────────────────────────────────────────
     solver = cp_model.CpSolver()

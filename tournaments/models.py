@@ -98,6 +98,11 @@ class Division(models.Model):
         default=2, verbose_name=_("Antal der går videre"),
         help_text=_("Antal spillere/hold der går videre fra hver gruppe til slutspillet."),
     )
+    schedule_priority = models.IntegerField(
+        default=5,
+        verbose_name=_("Spilleplansprioritet"),
+        help_text=_("1 = planlæg tidligst · 10 = planlæg sidst. Brug dette til at sikre at yngre rækker spiller færdigt først."),
+    )
     teams = models.ManyToManyField('players.Team', related_name='divisions', blank=True, verbose_name=_("Deltagere"))
 
     def __str__(self):
