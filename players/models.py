@@ -6,7 +6,7 @@ from django.utils.translation import gettext_lazy as _
 
 class Player(models.Model):
     name = models.CharField(max_length=100, verbose_name=_("Name"))
-    age = models.IntegerField(verbose_name=_("Age"))
+    age = models.IntegerField(verbose_name=_("Age"), blank=True, null=True)
     DIVISION_CHOICES = [
         ('U9', _('Under 9')),
         ('U11', _('Under 11')),

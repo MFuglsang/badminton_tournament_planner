@@ -369,12 +369,26 @@ def tournament_detail(request, pk):
                     seen[g].add(team.pk)
         return result
 
+    def _player_items(d):
+        """List of {player, checked} for single-discipline divisions."""
+        if d.discipline != 'single':
+            return []
+        from players.models import Player as _P
+        qs = _P.objects.order_by('name')
+        if request.user:
+            qs = qs.filter(owner=request.user)
+        checked_pks = set(
+            d.teams.filter(player2__isnull=True).values_list('player1_id', flat=True)
+        )
+        return [{'player': p, 'checked': p.pk in checked_pks} for p in qs]
+
     division_data = [
         {
             'division': d,
             'standings': compute_standings(d) if d.tournament_type == 'group' else [],
             'group_standings': compute_group_standings(d) if d.tournament_type == 'playoff' else [],
             'participants_form': get_participants_form(d, owner=request.user),
+            'player_items': _player_items(d),
             'match_count': d.matches.count(),
             'pending_count': d.matches.filter(status='pending').count(),
             'completed_count': d.matches.filter(status='completed').count(),
@@ -406,10 +420,12 @@ def tournament_detail(request, pk):
                 row['rest_until'] = ru
 
     division_form = DivisionForm()
+    from players.models import Player as _Player
     return render(request, 'tournaments/tournament_detail.html', {
         'tournament': tournament,
         'division_data': division_data,
         'division_form': division_form,
+        'player_division_choices': _Player.DIVISION_CHOICES,
     })
 
 

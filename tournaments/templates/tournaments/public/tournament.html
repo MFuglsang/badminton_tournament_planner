@@ -13,7 +13,7 @@
     <span><strong>Dato:</strong> {{ tournament.date }}</span>
     <span><strong>Scoring:</strong> {{ tournament.get_scoring_model_display }}</span>
     <span><strong>Baner:</strong> {{ tournament.court_count }}</span>
-    <span><strong>Start:</strong> {{ tournament.start_time|default:"–" }}</span>
+    <span><strong>Start:</strong> {{ tournament.start_time|time:"H:i"|default:"–" }}</span>
     {% if tournament.schedule_locked %}
     <span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fbbf24; padding:0.25rem 0.65rem;">🔒 Program låst</span>
     {% endif %}
