@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title %}Importer turnering{% endblock %}
+{% block content %}
+<div style="max-width:520px;">
+    <h1>Importer turnering fra backup</h1>
+    <div class="card">
+        <p style="color:#64748b; font-size:0.9rem; margin-top:0;">
+            Upload en JSON-backupfil fra en tidligere eksporteret turnering.
+            Alle r&aelig;kker, kampe og spillere genskabes. Spillere der allerede
+            findes i dit system (samme navn, k&oslash;n og r&aelig;kke) genbruges automatisk.
+        </p>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="backup_file">Backupfil (.json)</label>
+                <input type="file" name="backup_file" id="backup_file" accept=".json" required
+                       style="display:block; margin-top:0.35rem;">
+            </div>
+            <div style="margin-top:1.5rem;" class="btn-group">
+                <button type="submit" class="btn btn-primary">&#128229; Importer</button>
+                <a href="{% url 'tournament_list' %}" class="btn btn-secondary">Annuller</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

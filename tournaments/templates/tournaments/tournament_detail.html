@@ -14,6 +14,7 @@
         <a href="{% url 'tournament_schedule' tournament.pk %}" class="btn btn-secondary">📅 Spilleplan</a>
         <a href="{% url 'tournament_program_print' tournament.pk %}" class="btn btn-secondary" target="_blank">📋 Udprint program</a>
         <a href="{% url 'tournament_scoresheet' tournament.pk %}" class="btn btn-secondary" target="_blank">🖨 Scoresedler</a>
+        <a href="{% url 'tournament_export' tournament.pk %}" class="btn btn-secondary">💾 Eksporter backup</a>
         <a href="{% url 'tournament_delete' tournament.pk %}" class="btn btn-danger">🗑 Slet turnering</a>
     </div>
 </div>

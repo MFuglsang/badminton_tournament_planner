@@ -1285,3 +1285,416 @@ class DictGetFilterTest(TestCase):
         self.assertEqual(dict_get({'a': 'x'}, 'a'), 'x')
         self.assertEqual(dict_get({'a': 'x'}, 'b'), '')
 
+
+# ---------------------------------------------------------------------------
+# Tournament delete view
+# ---------------------------------------------------------------------------
+
+class TournamentDeleteTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = make_user(username='deleteclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
+
+    def test_delete_get_shows_confirm(self):
+        response = self.client.get(reverse('tournament_delete', args=[self.tournament.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.tournament.name)
+
+    def test_delete_post_removes_tournament(self):
+        pk = self.tournament.pk
+        response = self.client.post(reverse('tournament_delete', args=[pk]))
+        self.assertRedirects(response, reverse('tournament_list'))
+        self.assertFalse(Tournament.objects.filter(pk=pk).exists())
+
+    def test_delete_404_for_nonexistent(self):
+        response = self.client.get(reverse('tournament_delete', args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_delete_other_owners_tournament_returns_404(self):
+        other = make_user(username='otherdeleteclub')
+        other_tournament = make_tournament(owner=other)
+        response = self.client.get(reverse('tournament_delete', args=[other_tournament.pk]))
+        self.assertEqual(response.status_code, 404)
+
+
+# ---------------------------------------------------------------------------
+# Tournament export view
+# ---------------------------------------------------------------------------
+
+class TournamentExportTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = make_user(username='exportclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
+        self.division = make_division(tournament=self.tournament)
+        t1 = make_team(r1=1, r2=2)
+        t2 = make_team(r1=3, r2=4)
+        self.division.teams.add(t1, t2)
+        self.client.post(reverse('division_generate_schedule', args=[self.division.pk]))
+
+    def test_export_returns_json_attachment(self):
+        response = self.client.get(reverse('tournament_export', args=[self.tournament.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('application/json', response['Content-Type'])
+        self.assertIn('attachment', response['Content-Disposition'])
+
+    def test_export_filename_contains_tournament_date(self):
+        response = self.client.get(reverse('tournament_export', args=[self.tournament.pk]))
+        self.assertIn(str(self.tournament.date), response['Content-Disposition'])
+
+    def test_export_contains_required_sections(self):
+        import json as _json
+        response = self.client.get(reverse('tournament_export', args=[self.tournament.pk]))
+        data = _json.loads(response.content.decode('utf-8'))
+        for key in ('version', 'tournament', 'players', 'teams', 'divisions', 'matches', 'seeds'):
+            self.assertIn(key, data)
+
+    def test_export_version_is_1(self):
+        import json as _json
+        response = self.client.get(reverse('tournament_export', args=[self.tournament.pk]))
+        data = _json.loads(response.content.decode('utf-8'))
+        self.assertEqual(data['version'], 1)
+
+    def test_export_404_for_other_owner(self):
+        other = make_user(username='otherexportclub')
+        other_tournament = make_tournament(owner=other)
+        response = self.client.get(reverse('tournament_export', args=[other_tournament.pk]))
+        self.assertEqual(response.status_code, 404)
+
+
+# ---------------------------------------------------------------------------
+# Tournament import view
+# ---------------------------------------------------------------------------
+
+class TournamentImportTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = make_user(username='importclub')
+        self.client.force_login(self.user)
+        # Build a valid backup by exporting a real tournament
+        self.tournament = make_tournament(owner=self.user)
+        self.division = make_division(tournament=self.tournament)
+        t1 = make_team(r1=1, r2=2)
+        t2 = make_team(r1=3, r2=4)
+        self.division.teams.add(t1, t2)
+        self.client.post(reverse('division_generate_schedule', args=[self.division.pk]))
+
+    def _export_json(self):
+        import json as _json
+        response = self.client.get(reverse('tournament_export', args=[self.tournament.pk]))
+        return _json.loads(response.content.decode('utf-8'))
+
+    def _upload(self, data):
+        import json as _json
+        import io
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        raw = _json.dumps(data).encode('utf-8')
+        f = SimpleUploadedFile('backup.json', raw, content_type='application/json')
+        return self.client.post(reverse('tournament_import'), {'backup_file': f})
+
+    def test_import_get_returns_200(self):
+        response = self.client.get(reverse('tournament_import'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_import_no_file_shows_error(self):
+        response = self.client.post(reverse('tournament_import'), {})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Ingen fil valgt')
+
+    def test_import_invalid_json_shows_error(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        f = SimpleUploadedFile('bad.json', b'not valid json', content_type='application/json')
+        response = self.client.post(reverse('tournament_import'), {'backup_file': f})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'JSON')
+
+    def test_import_wrong_version_shows_error(self):
+        data = self._export_json()
+        data['version'] = 99
+        response = self._upload(data)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'version')
+
+    def test_import_valid_backup_creates_tournament(self):
+        data = self._export_json()
+        count_before = Tournament.objects.count()
+        response = self._upload(data)
+        self.assertEqual(Tournament.objects.count(), count_before + 1)
+        new_t = Tournament.objects.order_by('-pk').first()
+        self.assertIn('gendannet', new_t.name)
+        self.assertRedirects(response, reverse('tournament_detail', args=[new_t.pk]))
+
+    def test_import_deduplicates_players(self):
+        from players.models import Player as P
+        data = self._export_json()
+        # First import: creates players
+        self._upload(data)
+        count_after_first = P.objects.filter(owner=self.user).count()
+        self.assertGreater(count_after_first, 0)
+        # Second import of same data: players should be get_or_created, not duplicated
+        self._upload(data)
+        self.assertEqual(P.objects.filter(owner=self.user).count(), count_after_first)
+
+    def test_import_creates_divisions_and_matches(self):
+        import json as _json
+        data = self._export_json()
+        self._upload(data)
+        new_t = Tournament.objects.order_by('-pk').first()
+        self.assertEqual(new_t.divisions.count(), 1)
+        self.assertGreater(Match.objects.filter(division__tournament=new_t).count(), 0)
+
+
+# ---------------------------------------------------------------------------
+# Division set priority view
+# ---------------------------------------------------------------------------
+
+class DivisionSetPriorityTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = make_user(username='priorityclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
+        self.division = make_division(tournament=self.tournament)
+
+    def test_set_priority_updates_value(self):
+        response = self.client.post(
+            reverse('division_set_priority', args=[self.division.pk]),
+            {'schedule_priority': '3'},
+        )
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+        self.division.refresh_from_db()
+        self.assertEqual(self.division.schedule_priority, 3)
+
+    def test_set_priority_clamps_to_1_at_minimum(self):
+        self.client.post(
+            reverse('division_set_priority', args=[self.division.pk]),
+            {'schedule_priority': '-5'},
+        )
+        self.division.refresh_from_db()
+        self.assertEqual(self.division.schedule_priority, 1)
+
+    def test_set_priority_clamps_to_10_at_maximum(self):
+        self.client.post(
+            reverse('division_set_priority', args=[self.division.pk]),
+            {'schedule_priority': '99'},
+        )
+        self.division.refresh_from_db()
+        self.assertEqual(self.division.schedule_priority, 10)
+
+    def test_set_priority_invalid_string_leaves_value_unchanged(self):
+        self.division.schedule_priority = 5
+        self.division.save()
+        self.client.post(
+            reverse('division_set_priority', args=[self.division.pk]),
+            {'schedule_priority': 'abc'},
+        )
+        self.division.refresh_from_db()
+        self.assertEqual(self.division.schedule_priority, 5)
+
+    def test_set_priority_get_redirects(self):
+        response = self.client.get(
+            reverse('division_set_priority', args=[self.division.pk])
+        )
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+
+
+# ---------------------------------------------------------------------------
+# Match start view
+# ---------------------------------------------------------------------------
+
+class MatchStartTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = make_user(username='startclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
+        self.division = make_division(tournament=self.tournament)
+        self.t1 = make_team(r1=1, r2=2)
+        self.t2 = make_team(r1=3, r2=4)
+        self.match = Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2, match_number=1
+        )
+
+    def test_match_start_sets_in_progress(self):
+        response = self.client.post(reverse('match_start', args=[self.match.pk]))
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.status, 'in_progress')
+
+    def test_match_start_already_in_progress_not_changed(self):
+        self.match.status = 'in_progress'
+        self.match.save()
+        self.client.post(reverse('match_start', args=[self.match.pk]))
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.status, 'in_progress')
+
+    def test_match_start_blocked_when_player_already_playing(self):
+        from django.utils import timezone
+        # Put t1's players in another in_progress match
+        other_match = Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2,
+            status='in_progress', match_number=99
+        )
+        response = self.client.post(reverse('match_start', args=[self.match.pk]))
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+        self.match.refresh_from_db()
+        # Should stay pending because player is already playing
+        self.assertEqual(self.match.status, 'pending')
+        messages_list = list(response.wsgi_request._messages)
+        self.assertTrue(any('spiller allerede' in str(m) for m in messages_list))
+
+    def test_match_start_404_for_nonexistent(self):
+        response = self.client.post(reverse('match_start', args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+
+# ---------------------------------------------------------------------------
+# Public views (no login required)
+# ---------------------------------------------------------------------------
+
+class PublicViewTest(TestCase):
+    def setUp(self):
+        self.user = make_user(username='publicclub')
+        self.tournament = make_tournament(owner=self.user)
+        self.division = make_division(tournament=self.tournament)
+        t1 = make_team(r1=1, r2=2)
+        t2 = make_team(r1=3, r2=4)
+        self.division.teams.add(t1, t2)
+
+    def test_public_landing_returns_200_without_login(self):
+        response = self.client.get(reverse('public_landing'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_public_landing_lists_tournaments(self):
+        response = self.client.get(reverse('public_landing'))
+        self.assertContains(response, self.tournament.name)
+
+    def test_public_tournament_returns_200_without_login(self):
+        response = self.client.get(reverse('public_tournament', args=[self.tournament.pk]))
+        self.assertEqual(response.status_code, 200)
+
+    def test_public_tournament_contains_division(self):
+        response = self.client.get(reverse('public_tournament', args=[self.tournament.pk]))
+        self.assertContains(response, self.division.name)
+
+    def test_public_tournament_404_for_nonexistent(self):
+        response = self.client.get(reverse('public_tournament', args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_public_schedule_returns_200_without_login(self):
+        response = self.client.get(reverse('public_schedule', args=[self.tournament.pk]))
+        self.assertEqual(response.status_code, 200)
+
+    def test_public_schedule_404_for_nonexistent(self):
+        response = self.client.get(reverse('public_schedule', args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_public_schedule_shows_scheduled_matches(self):
+        import datetime as dt
+        from django.utils import timezone
+        t1 = make_team(r1=5, r2=6)
+        t2 = make_team(r1=7, r2=8)
+        Match.objects.create(
+            division=self.division, team1=t1, team2=t2, match_number=10,
+            scheduled_time=timezone.make_aware(dt.datetime(2026, 6, 1, 9, 0)),
+            court='1',
+        )
+        response = self.client.get(reverse('public_schedule', args=[self.tournament.pk]))
+        self.assertContains(response, t1.player1.name)
+
+
+# ---------------------------------------------------------------------------
+# Player status functions
+# ---------------------------------------------------------------------------
+
+class PlayerStatusFunctionTest(TestCase):
+    def setUp(self):
+        self.user = make_user(username='statusclub')
+        self.tournament = Tournament.objects.create(
+            name="Status T", date=datetime.date.today(),
+            division_model='mixed', scoring_model='best_of_3_21',
+            player_break_time=15, owner=self.user,
+        )
+        self.division = make_division(tournament=self.tournament)
+        self.t1 = make_team(r1=1, r2=2)
+        self.t2 = make_team(r1=3, r2=4)
+        self.division.teams.add(self.t1, self.t2)
+
+    def test_set_player_rest_sets_rest_until(self):
+        from tournaments.player_status import set_player_rest
+        from django.utils import timezone
+        match = Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2,
+            status='completed', winner=self.t1,
+        )
+        set_player_rest(match)
+        self.t1.player1.refresh_from_db()
+        self.t1.player2.refresh_from_db()
+        self.assertIsNotNone(self.t1.player1.rest_until)
+        self.assertIsNotNone(self.t1.player2.rest_until)
+        self.assertGreater(self.t1.player1.rest_until, timezone.now())
+
+    def test_check_match_startable_free_players_ok(self):
+        from tournaments.player_status import check_match_startable
+        match = Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2,
+        )
+        errors = check_match_startable(match)
+        self.assertEqual(errors, [])
+
+    def test_check_match_startable_resting_player_blocked(self):
+        from tournaments.player_status import check_match_startable
+        from django.utils import timezone
+        import datetime as dt
+        # Set rest_until to far future so player is resting
+        self.t1.player1.rest_until = timezone.now() + dt.timedelta(minutes=30)
+        self.t1.player1.save()
+        match = Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2,
+        )
+        errors = check_match_startable(match)
+        self.assertTrue(any('hviler' in e for e in errors))
+
+    def test_check_match_startable_playing_player_blocked(self):
+        from tournaments.player_status import check_match_startable
+        # Create an in_progress match with t1
+        Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2,
+            status='in_progress',
+        )
+        match2 = Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2,
+        )
+        errors = check_match_startable(match2)
+        self.assertTrue(any('spiller allerede' in e for e in errors))
+
+    def test_team_status_playing(self):
+        from tournaments.player_status import team_status, get_busy_info
+        Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2,
+            status='in_progress',
+        )
+        playing_pks, resting = get_busy_info()
+        status, _ = team_status(self.t1, playing_pks, resting)
+        self.assertEqual(status, 'playing')
+
+    def test_team_status_resting(self):
+        from tournaments.player_status import team_status, get_busy_info
+        import datetime as dt
+        from django.utils import timezone
+        self.t1.player1.rest_until = timezone.now() + dt.timedelta(minutes=20)
+        self.t1.player1.save()
+        playing_pks, resting = get_busy_info()
+        status, ru = team_status(self.t1, playing_pks, resting)
+        self.assertEqual(status, 'resting')
+        self.assertIsNotNone(ru)
+
+    def test_team_status_none_team_returns_none(self):
+        from tournaments.player_status import team_status
+        status, ru = team_status(None, set(), {})
+        self.assertIsNone(status)
+        self.assertIsNone(ru)
+

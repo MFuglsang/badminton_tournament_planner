@@ -3,7 +3,10 @@
 {% block content %}
 <div class="page-actions">
     <h1>Turneringer</h1>
-    <a href="{% url 'tournament_create' %}" class="btn btn-primary">+ Opret turnering</a>
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+        <a href="{% url 'tournament_create' %}" class="btn btn-primary">+ Opret turnering</a>
+        <a href="{% url 'tournament_import' %}" class="btn btn-secondary">📥 Importer backup</a>
+    </div>
 </div>
 {% if tournaments %}
 <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(310px,1fr)); gap:1rem; margin-bottom:1.5rem;">

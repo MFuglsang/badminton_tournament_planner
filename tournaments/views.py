@@ -1,7 +1,11 @@
+import json
+from datetime import datetime
+
 from django.db.models import Max
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse
 from .models import Tournament, Division, Match, DivisionSeed
 from .forms import MatchResultForm, DivisionForm, TournamentForm, get_participants_form, WalkoverForm
 from .standings import compute_standings, compute_group_standings
@@ -88,6 +92,251 @@ def tournament_delete(request, pk):
         messages.success(request, f'Turnering "{name}" er slettet.')
         return redirect('tournament_list')
     return render(request, 'tournaments/tournament_confirm_delete.html', {'tournament': tournament})
+
+
+@login_required
+def tournament_export(request, pk):
+    """Download a full JSON backup of a tournament."""
+    from players.models import Player, Team as PlayerTeam
+    tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
+
+    division_qs = list(tournament.divisions.prefetch_related('teams__player1', 'teams__player2', 'seeds'))
+
+    player_ids = set()
+    team_ids = set()
+    for division in division_qs:
+        for team in division.teams.all():
+            team_ids.add(team.pk)
+            player_ids.add(team.player1_id)
+            if team.player2_id:
+                player_ids.add(team.player2_id)
+
+    players = {p.pk: p for p in Player.objects.filter(pk__in=player_ids)}
+    teams = {t.pk: t for t in PlayerTeam.objects.filter(pk__in=team_ids).select_related('player1', 'player2')}
+
+    matches = list(
+        Match.objects
+        .filter(division__tournament=tournament)
+        .select_related('division', 'team1', 'team2', 'winner')
+        .order_by('match_number')
+    )
+    seeds = list(DivisionSeed.objects.filter(division__tournament=tournament))
+
+    data = {
+        "version": 1,
+        "exported_at": datetime.utcnow().isoformat() + "Z",
+        "tournament": {
+            "name": tournament.name,
+            "date": str(tournament.date),
+            "division_model": tournament.division_model,
+            "scoring_model": tournament.scoring_model,
+            "single_match_duration": tournament.single_match_duration,
+            "double_match_duration": tournament.double_match_duration,
+            "player_break_time": tournament.player_break_time,
+            "court_count": tournament.court_count,
+            "start_time": str(tournament.start_time) if tournament.start_time else None,
+            "schedule_locked": tournament.schedule_locked,
+        },
+        "players": [
+            {
+                "_id": p.pk,
+                "name": p.name,
+                "age": p.age,
+                "division": p.division,
+                "gender": p.gender,
+            }
+            for p in players.values()
+        ],
+        "teams": [
+            {
+                "_id": t.pk,
+                "player1_id": t.player1_id,
+                "player2_id": t.player2_id,
+                "pair_type": t.pair_type,
+                "division": t.division,
+                "name": t.name,
+            }
+            for t in teams.values()
+        ],
+        "divisions": [
+            {
+                "_id": d.pk,
+                "name": d.name,
+                "discipline": d.discipline,
+                "tournament_type": d.tournament_type,
+                "group_count": d.group_count,
+                "advance_count": d.advance_count,
+                "schedule_priority": d.schedule_priority,
+                "team_ids": list(d.teams.values_list('pk', flat=True)),
+            }
+            for d in division_qs
+        ],
+        "matches": [
+            {
+                "division_id": m.division_id,
+                "team1_id": m.team1_id,
+                "team2_id": m.team2_id,
+                "winner_id": m.winner_id,
+                "score": m.score,
+                "match_round": m.match_round,
+                "match_number": m.match_number,
+                "bracket_slot": m.bracket_slot,
+                "bracket_label": m.bracket_label,
+                "status": m.status,
+                "walkover": m.walkover,
+                "scheduled_time": m.scheduled_time.isoformat() if m.scheduled_time else None,
+                "court": m.court,
+                "group_number": m.group_number,
+                "phase": m.phase,
+            }
+            for m in matches
+        ],
+        "seeds": [
+            {
+                "division_id": s.division_id,
+                "team_id": s.team_id,
+                "seed_number": s.seed_number,
+            }
+            for s in seeds
+        ],
+    }
+
+    filename = f"turnering_{tournament.pk}_{tournament.date}.json"
+    response = HttpResponse(
+        json.dumps(data, ensure_ascii=False, indent=2),
+        content_type="application/json; charset=utf-8",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+@login_required
+def tournament_import(request):
+    """Upload a JSON backup and recreate the tournament under the current user."""
+    from players.models import Player, Team as PlayerTeam
+    from django.utils.dateparse import parse_datetime, parse_time, parse_date
+
+    if request.method != 'POST':
+        return render(request, 'tournaments/tournament_import.html')
+
+    upload = request.FILES.get('backup_file')
+    if not upload:
+        messages.error(request, 'Ingen fil valgt.')
+        return render(request, 'tournaments/tournament_import.html')
+
+    try:
+        raw = upload.read().decode('utf-8-sig')  # handles BOM if present
+        data = json.loads(raw)
+    except Exception:
+        messages.error(request, 'Filen kunne ikke læses som JSON.')
+        return render(request, 'tournaments/tournament_import.html')
+
+    if data.get('version') != 1:
+        messages.error(request, 'Ukendt backup-format (version mangler eller er forkert).')
+        return render(request, 'tournaments/tournament_import.html')
+
+    td = data['tournament']
+    tournament = Tournament.objects.create(
+        owner=request.user,
+        name=td['name'] + ' (gendannet)',
+        date=parse_date(td['date']),
+        division_model=td['division_model'],
+        scoring_model=td['scoring_model'],
+        single_match_duration=td['single_match_duration'],
+        double_match_duration=td['double_match_duration'],
+        player_break_time=td['player_break_time'],
+        court_count=td['court_count'],
+        start_time=parse_time(td['start_time']) if td.get('start_time') else None,
+        schedule_locked=td.get('schedule_locked', False),
+    )
+
+    # Players: dedup by (name, gender, division) for this owner
+    player_map = {}  # old_id → Player instance
+    for pd in data.get('players', []):
+        player, _ = Player.objects.get_or_create(
+            owner=request.user,
+            name=pd['name'],
+            gender=pd['gender'],
+            division=pd['division'],
+            defaults={'age': pd.get('age', 0)},
+        )
+        player_map[pd['_id']] = player
+
+    # Teams: dedup by (player1, player2)
+    team_map = {}  # old_id → Team instance
+    for ti in data.get('teams', []):
+        p1 = player_map.get(ti['player1_id'])
+        p2 = player_map.get(ti['player2_id']) if ti.get('player2_id') else None
+        if not p1:
+            continue
+        if p2:
+            team, _ = PlayerTeam.objects.get_or_create(
+                player1=p1, player2=p2,
+                defaults={
+                    'pair_type': ti.get('pair_type'),
+                    'division': ti.get('division'),
+                    'name': ti.get('name'),
+                },
+            )
+        else:
+            team, _ = PlayerTeam.objects.get_or_create(
+                player1=p1, player2=None,
+                defaults={'name': p1.name},
+            )
+        team_map[ti['_id']] = team
+
+    # Divisions
+    division_map = {}  # old_id → Division instance
+    for dd in data.get('divisions', []):
+        division = Division.objects.create(
+            tournament=tournament,
+            name=dd['name'],
+            discipline=dd['discipline'],
+            tournament_type=dd['tournament_type'],
+            group_count=dd.get('group_count', 2),
+            advance_count=dd.get('advance_count', 2),
+            schedule_priority=dd.get('schedule_priority', 5),
+        )
+        teams_for_div = [team_map[tid] for tid in dd.get('team_ids', []) if tid in team_map]
+        division.teams.set(teams_for_div)
+        division_map[dd['_id']] = division
+
+    # Matches
+    for md in data.get('matches', []):
+        div = division_map.get(md['division_id'])
+        if not div:
+            continue
+        scheduled_time = parse_datetime(md['scheduled_time']) if md.get('scheduled_time') else None
+        Match.objects.create(
+            division=div,
+            team1=team_map.get(md['team1_id']) if md.get('team1_id') else None,
+            team2=team_map.get(md['team2_id']) if md.get('team2_id') else None,
+            winner=team_map.get(md['winner_id']) if md.get('winner_id') else None,
+            score=md.get('score'),
+            match_round=md.get('match_round', 1),
+            match_number=md.get('match_number'),
+            bracket_slot=md.get('bracket_slot'),
+            bracket_label=md.get('bracket_label'),
+            status=md.get('status', 'pending'),
+            walkover=md.get('walkover', False),
+            scheduled_time=scheduled_time,
+            court=md.get('court'),
+            group_number=md.get('group_number'),
+            phase=md.get('phase', 'group'),
+        )
+
+    # Seeds
+    for sd in data.get('seeds', []):
+        div = division_map.get(sd['division_id'])
+        team = team_map.get(sd['team_id'])
+        if div and team:
+            DivisionSeed.objects.get_or_create(
+                division=div, team=team,
+                defaults={'seed_number': sd['seed_number']},
+            )
+
+    messages.success(request, f'Turnering "{tournament.name}" er gendannet med {len(division_map)} rækker og {len(data.get("matches", []))} kampe.')
+    return redirect('tournament_detail', pk=tournament.pk)
 
 
 @login_required

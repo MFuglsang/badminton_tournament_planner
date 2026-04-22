@@ -201,6 +201,88 @@ class TeamViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_team_delete_post_removes_team(self):
+        pk = self.team.pk
+        response = self.client.post(reverse("team_delete", args=[pk]))
+        self.assertRedirects(response, reverse("team_list"))
+        self.assertFalse(Team.objects.filter(pk=pk).exists())
+
+    def test_team_delete_nonexistent_returns_404(self):
+        response = self.client.get(reverse("team_delete", args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_team_list_search_by_name(self):
+        response = self.client.get(reverse("team_list") + "?search=alice")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Alice")
+
+    def test_team_list_filter_by_pair_type(self):
+        response = self.client.get(reverse("team_list") + "?pair_type=double")
+        self.assertEqual(response.status_code, 200)
+
+    def test_team_edit_post_saves_changes(self):
+        from players.models import Player
+        p1 = make_player("EditP1", gender="M", owner=self.user)
+        p2 = make_player("EditP2", gender="M", owner=self.user)
+        team = Team.objects.create(player1=p1, player2=p2, pair_type="double")
+        data = {"player1": p1.pk, "player2": p2.pk, "pair_type": "double"}
+        response = self.client.post(reverse("team_edit", args=[team.pk]), data)
+        self.assertRedirects(response, reverse("team_list"))
+
+
+# ---------------------------------------------------------------------------
+# player_clear_rest view
+# ---------------------------------------------------------------------------
+
+class PlayerClearRestTest(TestCase):
+    def setUp(self):
+        import datetime as dt
+        from django.utils import timezone
+        self.client = Client()
+        self.user = make_user(username='restclub')
+        self.client.force_login(self.user)
+        # Create a player with rest_until set
+        self.player = make_player("Resting Player", owner=self.user)
+        self.player.rest_until = timezone.now() + dt.timedelta(minutes=20)
+        self.player.save()
+
+    def test_clear_rest_removes_rest_until(self):
+        response = self.client.post(reverse("player_clear_rest", args=[self.player.pk]))
+        self.assertRedirects(response, reverse("player_list"))
+        self.player.refresh_from_db()
+        self.assertIsNone(self.player.rest_until)
+
+    def test_clear_rest_get_does_not_clear(self):
+        response = self.client.get(reverse("player_clear_rest", args=[self.player.pk]))
+        self.assertRedirects(response, reverse("player_list"))
+        self.player.refresh_from_db()
+        self.assertIsNotNone(self.player.rest_until)
+
+
+# ---------------------------------------------------------------------------
+# player_schedule_print view
+# ---------------------------------------------------------------------------
+
+class PlayerSchedulePrintTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = make_user(username='printplayer')
+        self.client.force_login(self.user)
+        self.player = make_player("PrintPlayer", owner=self.user)
+
+    def test_player_schedule_print_returns_200(self):
+        response = self.client.get(
+            reverse("player_schedule_print", args=[self.player.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_player_schedule_print_404_for_other_owner(self):
+        other = make_user("otheruser2")
+        p = make_player("Other Player", owner=other)
+        response = self.client.get(reverse("player_schedule_print", args=[p.pk]))
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 200)
+
+    def test_team_delete_post_removes_team(self):
         response = self.client.post(reverse("team_delete", args=[self.team.pk]))
         self.assertRedirects(response, reverse("team_list"))
         self.assertFalse(Team.objects.filter(pk=self.team.pk).exists())
