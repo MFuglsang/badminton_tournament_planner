@@ -727,6 +727,29 @@ def tournament_schedule_print(request, pk):
     )
     seed_lookup = _build_seed_lookup(tournament)
     _apply_seed_labels(matches, seed_lookup)
+
+    # Build per-division lookup: (division_id, round, bracket_slot) → match_number
+    # so placeholder matches can show "Vinder kamp X vs vinder kamp Y"
+    all_div_matches = list(
+        Match.objects
+        .filter(division__tournament=tournament)
+        .exclude(match_number=None)
+        .values('id', 'division_id', 'match_round', 'bracket_slot', 'match_number')
+    )
+    slot_to_num = {
+        (m['division_id'], m['match_round'], m['bracket_slot']): m['match_number']
+        for m in all_div_matches
+        if m['bracket_slot'] is not None and m['match_number'] is not None
+    }
+    for m in matches:
+        if m.team1 is None and m.bracket_slot is not None:
+            prev_round = m.match_round - 1
+            m.feeder1_num = slot_to_num.get((m.division_id, prev_round, 2 * m.bracket_slot - 1))
+            m.feeder2_num = slot_to_num.get((m.division_id, prev_round, 2 * m.bracket_slot))
+        else:
+            m.feeder1_num = None
+            m.feeder2_num = None
+
     return render(request, 'tournaments/tournament_schedule_print.html', {
         'tournament': tournament,
         'matches': matches,
@@ -755,9 +778,27 @@ def tournament_program_print(request, pk):
                 Q(bracket_label__isnull=False)
             )
             .select_related('team1', 'team2')
-            .order_by('match_round', 'match_number')
+            .order_by('scheduled_time', 'match_number')
         )
         _apply_seed_labels(matches, seed_lookup)
+
+        # Build lookup: (round, bracket_slot) → match_number for feeder annotations
+        slot_to_num = {
+            (m.match_round, m.bracket_slot): m.match_number
+            for m in matches
+            if m.bracket_slot is not None and m.match_number is not None
+        }
+        for m in matches:
+            if m.team1 is None and m.bracket_slot is not None:
+                prev_round = m.match_round - 1
+                feeder1 = slot_to_num.get((prev_round, 2 * m.bracket_slot - 1))
+                feeder2 = slot_to_num.get((prev_round, 2 * m.bracket_slot))
+                m.feeder1_num = feeder1
+                m.feeder2_num = feeder2
+            else:
+                m.feeder1_num = None
+                m.feeder2_num = None
+
         division_data.append({
             'division': division,
             'teams': teams,
@@ -866,4 +907,18 @@ def tournament_toggle_lock(request, pk):
         else:
             messages.success(request, 'Spilleplanen er nu låst op.')
     return redirect('tournament_schedule', pk=pk)
+
+
+@login_required
+def tournament_reset_schedule(request, pk):
+    """POST: Delete all matches for all divisions in this tournament and reset match numbering."""
+    tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
+    if request.method == 'POST':
+        Match.objects.filter(division__tournament=tournament).delete()
+        # Unlock the schedule so new ones can be generated
+        if tournament.schedule_locked:
+            tournament.schedule_locked = False
+            tournament.save(update_fields=['schedule_locked'])
+        messages.success(request, 'Alle kampe er slettet og kampnummer-tæller er nulstillet.')
+    return redirect('tournament_detail', pk=pk)
 

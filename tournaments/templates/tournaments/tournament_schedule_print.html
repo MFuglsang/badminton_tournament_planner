@@ -209,10 +209,14 @@
       <td class="col-no">{{ match.match_number }}</td>
       <td class="col-time">{{ match.scheduled_time|time:"H:i" }}</td>
       <td class="col-match">
-        {% if match.bracket_label %}
+        {% if match.team1 and match.team2 %}
+          {{ match.team1.name }}{{ match.t1_seed }}<span class="vs">vs</span>{{ match.team2.name }}{{ match.t2_seed }}
+        {% elif match.feeder1_num and match.feeder2_num %}
+          <em style="color:#555;">Vinder kamp {{ match.feeder1_num }} vs vinder kamp {{ match.feeder2_num }}</em>
+        {% elif match.bracket_label %}
           <em style="color:#888;">{{ match.bracket_label }}</em>
         {% else %}
-          {{ match.team1.name }}{{ match.t1_seed }}<span class="vs">vs</span>{{ match.team2.name }}{{ match.t2_seed }}
+          <em style="color:#aaa;">TBD vs TBD</em>
         {% endif %}
       </td>
       <td class="col-div">{{ match.division.name }}</td>
