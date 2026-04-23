@@ -71,7 +71,7 @@
 <h3>Gruppestillinger</h3>
 {% for g_num, g_rows in dd.group_standings %}
 <div style="margin-bottom:1rem; overflow-x:auto; -webkit-overflow-scrolling:touch;">
-    <div style="font-weight:700; font-size:0.9rem; color:#005BAC; margin-bottom:0.35rem;">Gruppe {{ g_num }}</div>
+    <div style="font-weight:700; font-size:0.9rem; color:#16692c; margin-bottom:0.35rem;">Gruppe {{ g_num }}</div>
     <table style="max-width:600px;">
         <thead>
             <tr><th>#</th><th>{% if division.discipline == 'single' %}Spiller{% else %}Par{% endif %}</th><th>Kampe</th><th>Vundet</th><th>Tabt</th><th>Point</th></tr>
@@ -160,7 +160,7 @@
         {% if match.team2 or match.bracket_label %}
         <tr>
             {% if division.tournament_type == 'playoff' %}
-            <td style="font-size:0.8rem; color:{% if match.phase == 'playoff' %}#7c3aed{% else %}#005BAC{% endif %}; font-weight:600;">
+            <td style="font-size:0.8rem; color:{% if match.phase == 'playoff' %}#7c3aed{% else %}#16692c{% endif %}; font-weight:600;">
                 {% if match.phase == 'playoff' %}Slutspil{% else %}G{{ match.group_number }}{% endif %}
             </td>
             {% endif %}

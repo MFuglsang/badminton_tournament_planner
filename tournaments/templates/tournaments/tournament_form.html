@@ -9,7 +9,7 @@
     {% csrf_token %}
 
     <div class="card">
-        <h2 style="margin-top:0; font-size:1.05rem; color:#005BAC;">Grundoplysninger</h2>
+        <h2 style="margin-top:0; font-size:1.05rem; color:#16692c;">Grundoplysninger</h2>
         <div class="form-group">
             <label for="{{ form.name.id_for_label }}">Navn</label>
             {{ form.name }}
@@ -46,7 +46,7 @@
     </div>
 
     <div class="card">
-        <h2 style="margin-top:0; font-size:1.05rem; color:#005BAC;">Spilleplan</h2>
+        <h2 style="margin-top:0; font-size:1.05rem; color:#16692c;">Spilleplan</h2>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
             <div class="form-group">
                 <label for="{{ form.court_count.id_for_label }}">Antal baner</label>
@@ -62,7 +62,7 @@
     </div>
 
     <div class="card">
-        <h2 style="margin-top:0; font-size:1.05rem; color:#005BAC;">Kampvarighed & pauser</h2>
+        <h2 style="margin-top:0; font-size:1.05rem; color:#16692c;">Kampvarighed & pauser</h2>
         <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem;">
             <div class="form-group">
                 <label for="{{ form.single_match_duration.id_for_label }}">Single (min)</label>

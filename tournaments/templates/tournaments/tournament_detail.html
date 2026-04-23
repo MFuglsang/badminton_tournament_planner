@@ -105,7 +105,7 @@
 
 {# ── Vælg deltagere ────────────────────────────────────────────────────── #}
 <details {% if not division.teams.all %}open{% endif %} style="margin-bottom:1rem;">
-    <summary style="cursor:pointer; font-weight:600; color:#005BAC; padding:0.4rem 0;">
+    <summary style="cursor:pointer; font-weight:600; color:#16692c; padding:0.4rem 0;">
         👥 {% if division.discipline == 'single' %}Tilmeld spillere{% else %}Tilmeld par{% endif %} ({{ division.teams.count }} tilmeldt)
     </summary>
     <div class="card" style="margin-top:0.5rem; max-width:700px;">
@@ -186,7 +186,7 @@
 {# ── Seedning ──────────────────────────────────────────────────────────────── #}
 {% if division.teams.all and division.tournament_type != 'group' %}
 <details style="margin-bottom:1rem;">
-    <summary style="cursor:pointer; font-weight:600; color:#005BAC; padding:0.4rem 0;">
+    <summary style="cursor:pointer; font-weight:600; color:#16692c; padding:0.4rem 0;">
         🎯 Seedning
         {% with seed_count=division.seeds.count %}{% if seed_count %}<span style="font-weight:normal; color:#666; margin-left:0.4rem;">({{ seed_count }} seedet)</span>{% endif %}{% endwith %}
     </summary>
@@ -258,7 +258,7 @@
 <h3>Gruppestillinger</h3>
 {% for g_num, g_rows in dd.group_standings %}
 <div style="margin-bottom:1rem;">
-    <div style="font-weight:700; font-size:0.9rem; color:#005BAC; margin-bottom:0.35rem;">Gruppe {{ g_num }}</div>
+    <div style="font-weight:700; font-size:0.9rem; color:#16692c; margin-bottom:0.35rem;">Gruppe {{ g_num }}</div>
     <table style="max-width:600px;">
         <thead>
             <tr><th>#</th><th>{% if division.discipline == 'single' %}Spiller{% else %}Par{% endif %}</th><th>Kampe</th><th>Vundet</th><th>Tabt</th><th>Point</th></tr>
@@ -341,7 +341,7 @@
 
 {% if division.tournament_type == 'playoff' and dd.match_count and not dd.completed_count and not tournament.schedule_locked and dd.group_teams %}
 <details style="margin-bottom:1rem;">
-    <summary style="cursor:pointer; font-weight:600; color:#005BAC; padding:0.4rem 0;">
+    <summary style="cursor:pointer; font-weight:600; color:#16692c; padding:0.4rem 0;">
         🔀 Juster gruppefordeling manuelt
     </summary>
     <div class="card group-reassign-card" id="group-reassign-{{ division.pk }}" style="margin-top:0.5rem;">
@@ -398,7 +398,7 @@
         {% if match.phase != 'playoff' %}
         {% if match.team2 or match.bracket_label %}
         <tr>
-            {% if division.tournament_type == 'playoff' %}<td style="font-size:0.82rem; color:#005BAC; font-weight:600;">G{{ match.group_number }}</td>{% endif %}
+            {% if division.tournament_type == 'playoff' %}<td style="font-size:0.82rem; color:#16692c; font-weight:600;">G{{ match.group_number }}</td>{% endif %}
             <td>{{ match.match_round }}</td>
             <td style="color:#888; font-size:0.85rem;">{% if match.match_number %}#{{ match.match_number }}{% else %}–{% endif %}</td>
             {% if match.bracket_label %}
@@ -559,11 +559,11 @@
 .group-col-header {
     font-weight: 700;
     font-size: 0.85rem;
-    color: #005BAC;
+    color: #16692c;
     padding: 0.3rem 0.5rem;
-    background: #eff6ff;
+    background: #f0fdf4;
     border-radius: 5px 5px 0 0;
-    border: 1.5px solid #bfdbfe;
+    border: 1.5px solid #bbf7d0;
     border-bottom: none;
 }
 .group-drop-zone {
@@ -572,15 +572,15 @@
     margin: 0;
     min-height: 60px;
     background: #f8fafc;
-    border: 1.5px solid #bfdbfe;
+    border: 1.5px solid #bbf7d0;
     border-radius: 0 0 5px 5px;
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
 }
 .group-drop-zone.drag-over-zone {
-    background: #dbeafe;
-    border-color: #3b82f6;
+    background: #dcfce7;
+    border-color: #22c55e;
 }
 .group-drag-item {
     display: flex;
@@ -693,8 +693,8 @@ function toggleDivFilter(btn, containerId) {
 
     // Activate this button
     btn.classList.add('filter-active');
-    btn.style.background = '#005BAC';
-    btn.style.borderColor = '#005BAC';
+    btn.style.background = '#16692c';
+    btn.style.borderColor = '#16692c';
     btn.style.color = '#fff';
 
     // Exact match on data attribute
