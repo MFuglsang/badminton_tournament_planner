@@ -12,4 +12,7 @@ urlpatterns = [
     path('teams/add/', views.team_add, name='team_add'),
     path('teams/<int:pk>/edit/', views.team_edit, name='team_edit'),
     path('teams/<int:pk>/delete/', views.team_delete, name='team_delete'),
+    path('categories/', views.division_category_list, name='division_category_list'),
+    path('categories/<int:pk>/delete/', views.division_category_delete, name='division_category_delete'),
+    path('categories/seed-defaults/', views.division_category_seed_defaults, name='division_category_seed_defaults'),
 ]

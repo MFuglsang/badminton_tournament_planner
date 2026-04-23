@@ -1,5 +1,11 @@
 from django.contrib import admin
-from .models import Player, Team
+from .models import Player, Team, DivisionCategory
+
+@admin.register(DivisionCategory)
+class DivisionCategoryAdmin(admin.ModelAdmin):
+    list_display = ('name', 'sort_order', 'owner')
+    list_filter = ('owner',)
+    search_fields = ('name',)
 
 @admin.register(Player)
 class PlayerAdmin(admin.ModelAdmin):

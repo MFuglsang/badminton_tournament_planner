@@ -185,6 +185,8 @@ var MATCH_LOOKUP = {
                     <input type="text"
                            placeholder="Søg navn…"
                            oninput="filterParticipants(this, 'pl-{{ division.pk }}')"
+                           data-container="pl-{{ division.pk }}"
+                           id="txt-pl-{{ division.pk }}"
                            style="padding:0.3rem 0.6rem; font-size:0.85rem; border:1px solid #cbd5e1; border-radius:6px; width:160px;">
                     <span style="font-size:0.8rem; color:#64748b;">Række:</span>
                     {% for code, label in player_division_choices %}
@@ -209,6 +211,7 @@ var MATCH_LOOKUP = {
                 <div id="pl-{{ division.pk }}" style="columns: 2; gap:1.5rem; margin-bottom:0.5rem; max-height:320px; overflow-y:auto; padding-right:4px;">
                     {% for item in player_items %}
                     <label data-division="{{ item.player.division }}" data-gender="{{ item.player.gender }}"
+                           data-label="{{ item.player.name }}"
                            style="display:flex; gap:0.5rem; align-items:center; font-weight:normal; margin-bottom:0.4rem; break-inside:avoid;">
                         <input type="checkbox" name="players" value="{{ item.player.pk }}"{% if item.checked %} checked{% endif %}>
                         {{ item.player.name }} ({{ item.player.get_gender_display }}, {{ item.player.division }})
@@ -725,50 +728,70 @@ var MATCH_LOOKUP = {
 
 <script>
 /* ── Deltager-filter ─────────────────────────────────────────────────── */
-function filterParticipants(input, containerId) {
-    var q = input.value.toLowerCase();
+
+/**
+ * Applies ALL active filters simultaneously to labels in a container:
+ *  - text search (data-label or textContent, name-only)
+ *  - active division/gender buttons
+ */
+function applyFilters(containerId) {
     var container = document.getElementById(containerId);
     if (!container) return;
+
+    // Collect active filter values per filterType
+    var activeFilters = {};
+    document.querySelectorAll('.filter-btn.filter-active').forEach(function(btn) {
+        var cid = btn.dataset.container || btn.getAttribute('onclick');
+        // Only consider buttons targeting this container
+        if (!btn.getAttribute('onclick') || btn.getAttribute('onclick').indexOf(containerId) === -1) return;
+        var ft = btn.dataset.filterType;
+        activeFilters[ft] = btn.dataset.filterVal;
+    });
+
+    // Get text search value from input linked to this container
+    var textInput = document.querySelector('input[data-container="' + containerId + '"]');
+    var q = textInput ? textInput.value.toLowerCase().trim() : '';
+
     container.querySelectorAll('label').forEach(function(label) {
-        var text = (label.dataset.label || label.textContent).toLowerCase();
-        label.style.display = text.includes(q) ? '' : 'none';
+        // Text search: match against data-label (name only) or full textContent
+        var name = (label.dataset.label || label.textContent).toLowerCase();
+        if (q && !name.includes(q)) { label.style.display = 'none'; return; }
+
+        // Attribute filters (division, gender)
+        for (var ft in activeFilters) {
+            var attrVal = ft === 'division' ? label.dataset.division : label.dataset.gender;
+            if (attrVal !== activeFilters[ft]) { label.style.display = 'none'; return; }
+        }
+
+        label.style.display = '';
     });
 }
 
+function filterParticipants(input, containerId) {
+    applyFilters(containerId);
+}
+
 function toggleDivFilter(btn, containerId) {
-    var group      = btn.dataset.filterGroup;
-    var filterType = btn.dataset.filterType;  // 'division' or 'gender'
-    var val        = btn.dataset.filterVal;   // exact value e.g. 'A', 'B', 'M', 'K'
-    var isActive   = btn.classList.contains('filter-active');
+    var group    = btn.dataset.filterGroup;
+    var isActive = btn.classList.contains('filter-active');
 
     // Deactivate all buttons in same group
     document.querySelectorAll('[data-filter-group="' + group + '"]').forEach(function(b) {
         b.classList.remove('filter-active');
-        b.style.background = '#f8fafc';
+        b.style.background  = '#f8fafc';
         b.style.borderColor = '#cbd5e1';
-        b.style.color = '';
+        b.style.color       = '';
     });
 
-    var container = document.getElementById(containerId);
-    if (!container) return;
-
-    if (isActive) {
-        // Toggle off – show all labels (reapply text search if any)
-        container.querySelectorAll('label').forEach(function(l) { l.style.display = ''; });
-        return;
+    if (!isActive) {
+        // Activate this button
+        btn.classList.add('filter-active');
+        btn.style.background  = '#16692c';
+        btn.style.borderColor = '#16692c';
+        btn.style.color       = '#fff';
     }
 
-    // Activate this button
-    btn.classList.add('filter-active');
-    btn.style.background = '#16692c';
-    btn.style.borderColor = '#16692c';
-    btn.style.color = '#fff';
-
-    // Exact match on data attribute
-    container.querySelectorAll('label').forEach(function(label) {
-        var attrVal = filterType === 'division' ? label.dataset.division : label.dataset.gender;
-        label.style.display = (attrVal === val) ? '' : 'none';
-    });
+    applyFilters(containerId);
 }
 </script>
 {% endblock %}

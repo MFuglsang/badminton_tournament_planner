@@ -420,12 +420,16 @@ def tournament_detail(request, pk):
                 row['rest_until'] = ru
 
     division_form = DivisionForm()
-    from players.models import Player as _Player
+    from players.models import DivisionCategory
+    player_division_choices = [
+        (c, c) for c in
+        DivisionCategory.objects.filter(owner=request.user).values_list('name', flat=True)
+    ]
     return render(request, 'tournaments/tournament_detail.html', {
         'tournament': tournament,
         'division_data': division_data,
         'division_form': division_form,
-        'player_division_choices': _Player.DIVISION_CHOICES,
+        'player_division_choices': player_division_choices,
     })
 
 

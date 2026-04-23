@@ -2,7 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
-from .models import Player, Team
+from .models import Player, Team, DivisionCategory, DEFAULT_DIVISION_CATEGORIES
 from .forms import PlayerForm, TeamForm
 from tournaments.player_status import get_busy_info, player_status as _player_status
 
@@ -39,9 +39,14 @@ def player_list(request):
         p.play_status = status
         p.rest_until_ts = int(rest_until.timestamp()) if rest_until else None
 
+    division_choices = [
+        (c, c) for c in
+        DivisionCategory.objects.filter(owner=request.user).values_list('name', flat=True)
+    ]
+
     return render(request, 'players/player_list.html', {
         'players': players,
-        'division_choices': Player.DIVISION_CHOICES,
+        'division_choices': division_choices,
         'gender_choices': Player.GENDER_CHOICES,
         'selected_division': division,
         'selected_gender': gender,
@@ -60,7 +65,7 @@ def player_list(request):
 @login_required
 def player_add(request):
     if request.method == 'POST':
-        form = PlayerForm(request.POST)
+        form = PlayerForm(request.POST, owner=request.user)
         if form.is_valid():
             player = form.save(commit=False)
             player.owner = request.user
@@ -68,20 +73,20 @@ def player_add(request):
             messages.success(request, f'Spiller "{player.name}" er oprettet.')
             return redirect('player_list')
     else:
-        form = PlayerForm()
+        form = PlayerForm(owner=request.user)
     return render(request, 'players/player_form.html', {'form': form})
 
 @login_required
 def player_edit(request, pk):
     player = get_object_or_404(Player, pk=pk, owner=request.user)
     if request.method == 'POST':
-        form = PlayerForm(request.POST, instance=player)
+        form = PlayerForm(request.POST, instance=player, owner=request.user)
         if form.is_valid():
             form.save()
             messages.success(request, f'Spiller "{player.name}" er opdateret.')
             return redirect('player_list')
     else:
-        form = PlayerForm(instance=player)
+        form = PlayerForm(instance=player, owner=request.user)
     return render(request, 'players/player_form.html', {'form': form, 'player': player})
 
 @login_required
@@ -145,6 +150,11 @@ def team_list(request):
         ('',          ''),
     ]
 
+    division_choices = [
+        (c, c) for c in
+        DivisionCategory.objects.filter(owner=request.user).values_list('name', flat=True)
+    ]
+
     return render(request, 'players/team_list.html', {
         'teams': teams,
         'search': search,
@@ -152,7 +162,7 @@ def team_list(request):
         'dir': direction,
         'selected_division': filter_division,
         'selected_type': filter_type,
-        'division_choices': Team.DIVISION_CHOICES,
+        'division_choices': division_choices,
         'pair_type_choices': Team.PAIR_TYPE_CHOICES,
         'col_defs': col_defs,
     })
@@ -167,7 +177,11 @@ def team_add(request):
             return redirect('team_list')
     else:
         form = TeamForm(owner=request.user)
-    return render(request, 'players/team_form.html', {'form': form, 'division_choices': Player.DIVISION_CHOICES})
+    division_choices = [
+        (c, c) for c in
+        DivisionCategory.objects.filter(owner=request.user).values_list('name', flat=True)
+    ]
+    return render(request, 'players/team_form.html', {'form': form, 'division_choices': division_choices})
 
 @login_required
 def team_edit(request, pk):
@@ -180,7 +194,11 @@ def team_edit(request, pk):
             return redirect('team_list')
     else:
         form = TeamForm(instance=team, owner=request.user)
-    return render(request, 'players/team_form.html', {'form': form, 'team': team, 'division_choices': Player.DIVISION_CHOICES})
+    division_choices = [
+        (c, c) for c in
+        DivisionCategory.objects.filter(owner=request.user).values_list('name', flat=True)
+    ]
+    return render(request, 'players/team_form.html', {'form': form, 'team': team, 'division_choices': division_choices})
 
 @login_required
 def team_delete(request, pk):
@@ -230,3 +248,49 @@ def player_schedule_print(request, pk):
         'matches': matches,
         'logo_tournament': logo_tournament,
     })
+
+
+@login_required
+def division_category_list(request):
+    """Manage the user's configurable division categories."""
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        if name:
+            DivisionCategory.objects.get_or_create(owner=request.user, name=name)
+            messages.success(request, f'Kategori "{name}" er tilføjet.')
+        return redirect('division_category_list')
+
+    categories = DivisionCategory.objects.filter(owner=request.user)
+    return render(request, 'players/division_categories.html', {
+        'categories': categories,
+        'default_categories': DEFAULT_DIVISION_CATEGORIES,
+    })
+
+
+@login_required
+def division_category_delete(request, pk):
+    """Delete a single category (POST only)."""
+    cat = get_object_or_404(DivisionCategory, pk=pk, owner=request.user)
+    if request.method == 'POST':
+        cat.delete()
+        messages.success(request, f'Kategori "{cat.name}" er slettet.')
+    return redirect('division_category_list')
+
+
+@login_required
+def division_category_seed_defaults(request):
+    """POST: pre-populate the default categories for this user."""
+    if request.method == 'POST':
+        created = 0
+        for i, name in enumerate(DEFAULT_DIVISION_CATEGORIES):
+            _, was_created = DivisionCategory.objects.get_or_create(
+                owner=request.user, name=name,
+                defaults={'sort_order': i},
+            )
+            if was_created:
+                created += 1
+        if created:
+            messages.success(request, f'{created} standardkategorier er tilføjet.')
+        else:
+            messages.info(request, 'Alle standardkategorier findes allerede.')
+    return redirect('division_category_list')

@@ -4,25 +4,39 @@ from django.utils.translation import gettext_lazy as _
 
 # Create your models here.
 
+# Default categories used for seeding and pre-population
+DEFAULT_DIVISION_CATEGORIES = ['U9', 'U11', 'U13', 'U15', 'U17', 'U19', 'A', 'B', 'C']
+
+
+class DivisionCategory(models.Model):
+    """User-defined division/age-group categories (e.g. U9, A, B, Begynder)."""
+    name = models.CharField(max_length=30, verbose_name=_("Navn"))
+    sort_order = models.IntegerField(default=0, verbose_name=_("Sortering"))
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='division_categories',
+        verbose_name=_("Klubbruger"),
+    )
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+        constraints = [
+            models.UniqueConstraint(fields=['owner', 'name'], name='unique_owner_category'),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
 class Player(models.Model):
     name = models.CharField(max_length=100, verbose_name=_("Navn"))
     age = models.IntegerField(verbose_name=_("Alder"), blank=True, null=True)
-    DIVISION_CHOICES = [
-        ('U9', _('Under 9')),
-        ('U11', _('Under 11')),
-        ('U13', _('Under 13')),
-        ('U15', _('Under 15')),
-        ('U17', _('Under 17')),
-        ('U19', _('Under 19')),
-        ('A', _('A Række')),
-        ('B', _('B Række')),
-        ('C', _('C Række')),
-    ]
-    division = models.CharField(max_length=10, choices=DIVISION_CHOICES, verbose_name=_("Division"))
     GENDER_CHOICES = [
         ('M', _('Mand')),
         ('K', _('Kvinde')),
     ]
+    division = models.CharField(max_length=30, blank=True, verbose_name=_("Division"))
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES, default='M', verbose_name=_("Køn"))
     rest_until = models.DateTimeField(
         null=True, blank=True,
@@ -45,17 +59,6 @@ class Team(models.Model):
         ('double', _('Double')),
         ('mixed', _('Mixeddouble')),
     ]
-    DIVISION_CHOICES = [
-        ('U9', _('Under 9')),
-        ('U11', _('Under 11')),
-        ('U13', _('Under 13')),
-        ('U15', _('Under 15')),
-        ('U17', _('Under 17')),
-        ('U19', _('Under 19')),
-        ('A', _('A Række')),
-        ('B', _('B Række')),
-        ('C', _('C Række')),
-    ]
     player1 = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='team_player1')
     player2 = models.ForeignKey(Player, on_delete=models.SET_NULL, related_name='team_player2', null=True, blank=True)
     pair_type = models.CharField(
@@ -64,7 +67,7 @@ class Team(models.Model):
         help_text=_('Double: samme køn · Mixeddouble: blandede'),
     )
     division = models.CharField(
-        max_length=10, choices=DIVISION_CHOICES, blank=True, null=True,
+        max_length=30, blank=True, null=True,
         verbose_name=_('Række'),
     )
     name = models.CharField(max_length=100, blank=True, null=True)

@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% block title %}Rækker / kategorier{% endblock %}
+{% block content %}
+<div style="max-width:600px;">
+    <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap; margin-bottom:1.2rem;">
+        <h1 style="margin:0;">Rækker / kategorier</h1>
+        <a href="{% url 'player_list' %}" class="btn btn-secondary" style="margin-left:auto;">← Spillerliste</a>
+    </div>
+
+    <p style="color:#475569; margin-bottom:1.5rem;">
+        Her definerer du de rækker/kategorier der bruges til at inddele spillere og par
+        (f.eks. U9, U11, A, B, C, Begynder …).
+        Disse valg vises i formularer på hele sitet.
+    </p>
+
+    {% if messages %}
+    {% for msg in messages %}
+    <div class="alert" style="background:{% if msg.tags == 'success' %}#f0fdf4{% else %}#fefce8{% endif %}; border-left:4px solid {% if msg.tags == 'success' %}#16692c{% else %}#ca8a04{% endif %}; padding:0.7rem 1rem; border-radius:6px; margin-bottom:1rem;">
+        {{ msg }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="card" style="margin-bottom:1.5rem;">
+        <h2 style="margin-top:0; font-size:1rem; color:#16692c;">Tilføj kategori</h2>
+        <form method="post" style="display:flex; gap:0.6rem; align-items:flex-end; flex-wrap:wrap;">
+            {% csrf_token %}
+            <div class="form-group" style="margin:0; flex:1; min-width:160px;">
+                <label for="id_name" style="font-size:0.85rem;">Navn (f.eks. U13, A, Begynder)</label>
+                <input type="text" id="id_name" name="name" maxlength="30"
+                       placeholder="Skriv kategorinavn…"
+                       style="width:100%; padding:0.5rem 0.7rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.95rem;">
+            </div>
+            <button type="submit" class="btn btn-primary" style="height:2.4rem; padding:0 1.2rem;">Tilføj</button>
+        </form>
+    </div>
+
+    <div class="card" style="margin-bottom:1.5rem;">
+        <h2 style="margin-top:0; font-size:1rem; color:#16692c;">Dine kategorier</h2>
+        {% if categories %}
+        <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+            <thead>
+                <tr style="background:#f0fdf4; border-bottom:2px solid #bbf7d0;">
+                    <th style="padding:0.5rem 0.7rem; text-align:left;">Navn</th>
+                    <th style="padding:0.5rem 0.7rem; text-align:right;">Slet</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for cat in categories %}
+            <tr style="border-bottom:1px solid #e2e8f0;">
+                <td style="padding:0.5rem 0.7rem;">
+                    <span class="badge badge-pending">{{ cat.name }}</span>
+                </td>
+                <td style="padding:0.5rem 0.7rem; text-align:right;">
+                    <form method="post" action="{% url 'division_category_delete' cat.pk %}"
+                          style="display:inline;"
+                          onsubmit="return confirm('Slet kategori {{ cat.name }}?');">
+                        {% csrf_token %}
+                        <button type="submit"
+                                style="background:none; border:none; cursor:pointer; color:#ef4444; font-size:0.85rem; padding:0.2rem 0.5rem;">
+                            ✕ Slet
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color:#94a3b8; margin:0;">Ingen kategorier endnu.</p>
+        {% endif %}
+    </div>
+
+    {% if default_categories %}
+    <div class="card" style="background:#fafafa; border:1px dashed #cbd5e1;">
+        <h2 style="margin-top:0; font-size:0.95rem; color:#475569;">Standardkategorier</h2>
+        <p style="font-size:0.85rem; color:#64748b; margin-bottom:0.8rem;">
+            Klik for at tilføje de typiske badmintonkategorier på én gang:
+            {% for c in default_categories %}<code style="background:#e2e8f0; border-radius:3px; padding:1px 5px; font-size:0.8rem;">{{ c }}</code> {% endfor %}
+        </p>
+        <form method="post" action="{% url 'division_category_seed_defaults' %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-secondary">Tilføj standardkategorier</button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

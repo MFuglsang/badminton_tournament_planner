@@ -3,7 +3,10 @@
 {% block content %}
 <div class="page-actions">
     <h1>Spillere</h1>
-    <a href="{% url 'player_add' %}" class="btn btn-primary">+ Tilføj spiller</a>
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+        <a href="{% url 'player_add' %}" class="btn btn-primary">+ Tilføj spiller</a>
+        <a href="{% url 'division_category_list' %}" class="btn btn-secondary" style="font-size:0.85rem;">&#9881; Rækker/kategorier</a>
+    </div>
 </div>
 
 {# ── Filterbar ─── #}
@@ -85,7 +88,7 @@
             </td>
             <td>{{ player.get_gender_display }}</td>
             <td>{{ player.age }}</td>
-            <td><span class="badge badge-pending">{{ player.get_division_display }}</span></td>
+            <td><span class="badge badge-pending">{{ player.division }}</span></td>
             <td>
                 <div class="btn-group">
                     <a href="{% url 'player_schedule_print' player.id %}" class="btn btn-secondary btn-sm" target="_blank">📋 Program</a>

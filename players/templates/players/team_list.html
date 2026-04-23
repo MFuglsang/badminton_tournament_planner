@@ -81,13 +81,13 @@
             </td>
             <td>
                 {% if team.division %}
-                    <span class="badge badge-pending">{{ team.get_division_display }}</span>
+                    <span class="badge badge-pending">{{ team.division }}</span>
                 {% else %}
                     <span style="color:#bbb; font-size:0.8rem;">–</span>
                 {% endif %}
             </td>
-            <td>{{ team.player1.name }} <span class="badge badge-pending">{{ team.player1.get_division_display }}</span></td>
-            <td>{% if team.player2 %}{{ team.player2.name }} <span class="badge badge-pending">{{ team.player2.get_division_display }}</span>{% endif %}</td>
+            <td>{{ team.player1.name }} <span class="badge badge-pending">{{ team.player1.division }}</span></td>
+            <td>{% if team.player2 %}{{ team.player2.name }} <span class="badge badge-pending">{{ team.player2.division }}</span>{% endif %}</td>
             <td>
                 <div class="btn-group">
                     <a href="{% url 'team_edit' team.id %}" class="btn btn-secondary btn-sm">Rediger</a>

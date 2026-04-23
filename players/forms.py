@@ -1,10 +1,23 @@
 from django import forms
-from .models import Player, Team
+from .models import Player, Team, DivisionCategory
+
+
+def _division_choices(owner):
+    """Return a list of (value, label) tuples from the user's DivisionCategory list."""
+    cats = DivisionCategory.objects.filter(owner=owner).values_list('name', flat=True)
+    return [('', '— Vælg række —')] + [(c, c) for c in cats]
+
 
 class PlayerForm(forms.ModelForm):
     class Meta:
         model = Player
         fields = ['name', 'age', 'gender', 'division']
+
+    def __init__(self, *args, owner=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if owner is not None:
+            self.fields['division'].widget = forms.Select(choices=_division_choices(owner))
+
 
 class TeamForm(forms.ModelForm):
     class Meta:
@@ -17,6 +30,7 @@ class TeamForm(forms.ModelForm):
             qs = Player.objects.filter(owner=owner).order_by('name')
             self.fields['player1'].queryset = qs
             self.fields['player2'].queryset = qs
+            self.fields['division'].widget = forms.Select(choices=_division_choices(owner))
 
     def clean(self):
         cleaned = super().clean()
