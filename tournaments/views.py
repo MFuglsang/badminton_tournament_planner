@@ -87,6 +87,9 @@ def tournament_edit(request, pk):
 def tournament_delete(request, pk):
     tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
     if request.method == 'POST':
+        if request.POST.get('confirm', '').strip() != 'SLET TURNERING':
+            messages.error(request, 'Du skal skrive SLET TURNERING for at bekræfte.')
+            return render(request, 'tournaments/tournament_confirm_delete.html', {'tournament': tournament})
         name = tournament.name
         tournament.delete()
         messages.success(request, f'Turnering "{name}" er slettet.')
@@ -911,14 +914,17 @@ def tournament_toggle_lock(request, pk):
 
 @login_required
 def tournament_reset_schedule(request, pk):
-    """POST: Delete all matches for all divisions in this tournament and reset match numbering."""
+    """GET: confirmation page. POST: delete all matches if confirmed."""
     tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
     if request.method == 'POST':
+        if request.POST.get('confirm', '').strip() != 'NULSTIL KAMPPROGRAM':
+            messages.error(request, 'Du skal skrive NULSTIL KAMPPROGRAM for at bekræfte.')
+            return render(request, 'tournaments/tournament_confirm_reset.html', {'tournament': tournament})
         Match.objects.filter(division__tournament=tournament).delete()
-        # Unlock the schedule so new ones can be generated
         if tournament.schedule_locked:
             tournament.schedule_locked = False
             tournament.save(update_fields=['schedule_locked'])
         messages.success(request, 'Alle kampe er slettet og kampnummer-tæller er nulstillet.')
-    return redirect('tournament_detail', pk=pk)
+        return redirect('tournament_detail', pk=pk)
+    return render(request, 'tournaments/tournament_confirm_reset.html', {'tournament': tournament})
 

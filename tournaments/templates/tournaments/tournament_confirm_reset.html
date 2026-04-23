@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
-{% block title %}Slet turnering{% endblock %}
+{% block title %}Nulstil kampprogram{% endblock %}
 {% block content %}
 <div style="max-width:500px; margin:0 auto;">
     <div class="card">
-        <h1 style="color:#B02A37;">Bekræft sletning</h1>
-        <p>Er du sikker på, at du vil slette turneringen <strong>{{ tournament.name }}</strong>?</p>
+        <h1 style="color:#B02A37;">Bekræft nulstilling</h1>
+        <p>Er du sikker på, at du vil nulstille kampprogrammet for <strong>{{ tournament.name }}</strong>?</p>
         <p style="color:#888; font-size:0.9rem;">
-            Dette sletter turneringen og <strong>alle</strong> tilhørende rækker og kampe permanent.<br>
-            Denne handling kan ikke fortrydes.
+            Dette sletter <strong>alle kampe</strong> i alle rækker og nulstiller kampnummer-tælleren til 0.<br>
+            Spillere, par og rækker bevares. Denne handling kan ikke fortrydes.
         </p>
         <form method="post" style="margin-top:1.5rem;">
             {% csrf_token %}
@@ -17,14 +17,14 @@
             {% endfor %}
             {% endif %}
             <div class="form-group">
-                <label for="id_confirm" style="font-weight:600;">Skriv <code>SLET TURNERING</code> for at bekræfte:</label>
+                <label for="id_confirm" style="font-weight:600;">Skriv <code>NULSTIL KAMPPROGRAM</code> for at bekræfte:</label>
                 <input type="text" id="id_confirm" name="confirm"
-                       placeholder="SLET TURNERING"
+                       placeholder="NULSTIL KAMPPROGRAM"
                        autocomplete="off"
                        style="width:100%; margin-top:0.4rem;">
             </div>
             <div class="btn-group" style="margin-top:1rem;">
-                <button type="submit" class="btn btn-danger">Slet turnering</button>
+                <button type="submit" class="btn btn-danger">Nulstil kampprogram</button>
                 <a href="{% url 'tournament_detail' tournament.pk %}" class="btn btn-secondary">Annuller</a>
             </div>
         </form>
