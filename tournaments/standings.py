@@ -40,6 +40,22 @@ def _parse_score(score_str):
     return t1_total, t2_total
 
 
+def _parse_sets(score_str):
+    """
+    Returns (sets_won_t1, sets_won_t2) — count of sets where each team scored more.
+    """
+    if not score_str:
+        return 0, 0
+    sw1 = sw2 = 0
+    for m in re.finditer(r'(\d+)\s*-\s*(\d+)', score_str):
+        a, b = int(m.group(1)), int(m.group(2))
+        if a > b:
+            sw1 += 1
+        elif b > a:
+            sw2 += 1
+    return sw1, sw2
+
+
 # ---------------------------------------------------------------------------
 # Core standings computation
 # ---------------------------------------------------------------------------
@@ -66,6 +82,8 @@ def compute_standings(division):
             'won': 0,
             'lost': 0,
             'points': 0,
+            'sets_won': 0,
+            'sets_lost': 0,
             'score_for': 0,
             'score_against': 0,
         }
@@ -80,12 +98,15 @@ def compute_standings(division):
         if t2 is None:
             continue  # bye match – skip for standings
         sf1, sf2 = _parse_score(match.score)
+        sw1, sw2 = _parse_sets(match.score)
 
-        for pk, sf, sa in ((t1, sf1, sf2), (t2, sf2, sf1)):
+        for pk, sf, sa, sw, sl in ((t1, sf1, sf2, sw1, sw2), (t2, sf2, sf1, sw2, sw1)):
             if pk in rows:
                 rows[pk]['played'] += 1
                 rows[pk]['score_for'] += sf
                 rows[pk]['score_against'] += sa
+                rows[pk]['sets_won'] += sw
+                rows[pk]['sets_lost'] += sl
 
         if match.winner_id in rows:
             rows[match.winner_id]['won'] += 1
@@ -142,6 +163,8 @@ def compute_group_standings(division):
                 'won': 0,
                 'lost': 0,
                 'points': 0,
+                'sets_won': 0,
+                'sets_lost': 0,
                 'score_for': 0,
                 'score_against': 0,
             }
@@ -154,11 +177,14 @@ def compute_group_standings(division):
             if t2 is None:
                 continue
             sf1, sf2 = _parse_score(match.score)
-            for pk, sf, sa in ((t1, sf1, sf2), (t2, sf2, sf1)):
+            sw1, sw2 = _parse_sets(match.score)
+            for pk, sf, sa, sw, sl in ((t1, sf1, sf2, sw1, sw2), (t2, sf2, sf1, sw2, sw1)):
                 if pk in rows:
                     rows[pk]['played'] += 1
                     rows[pk]['score_for'] += sf
                     rows[pk]['score_against'] += sa
+                    rows[pk]['sets_won'] += sw
+                    rows[pk]['sets_lost'] += sl
             if match.winner_id in rows:
                 rows[match.winner_id]['won'] += 1
                 rows[match.winner_id]['points'] += cfg['win_points']

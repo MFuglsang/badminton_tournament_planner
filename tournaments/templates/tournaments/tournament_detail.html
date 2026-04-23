@@ -304,9 +304,9 @@ var MATCH_LOOKUP = {
 {# ── Stilling: normale grupper ─── #}
 {% if standings %}
 <h3>Stilling</h3>
-<table style="max-width:600px;">
+<table style="max-width:780px;">
     <thead>
-        <tr><th>#</th><th>{% if division.discipline == 'single' %}Spiller{% else %}Par{% endif %}</th><th>Kampe</th><th>Vundet</th><th>Tabt</th><th>Point</th></tr>
+        <tr><th>#</th><th>{% if division.discipline == 'single' %}Spiller{% else %}Par{% endif %}</th><th title="Spillede kampe">K</th><th title="Vundne kampe">V</th><th title="Tabte kampe">T</th><th title="Konkurrencepoint">Pt</th><th title="Sæt vundet/tabt">Sæt</th><th title="Point for/imod">Point</th></tr>
     </thead>
     <tbody>
         {% for row in standings %}
@@ -322,6 +322,8 @@ var MATCH_LOOKUP = {
             <td>{{ row.won }}</td>
             <td>{{ row.lost }}</td>
             <td><strong>{{ row.points }}</strong></td>
+            <td style="color:#374151;">{{ row.sets_won }}-{{ row.sets_lost }}</td>
+            <td style="color:#374151;">{{ row.score_for }}-{{ row.score_against }}</td>
         </tr>
         {% endfor %}
     </tbody>
@@ -334,9 +336,9 @@ var MATCH_LOOKUP = {
 {% for g_num, g_rows in dd.group_standings %}
 <div style="margin-bottom:1rem;">
     <div style="font-weight:700; font-size:0.9rem; color:#16692c; margin-bottom:0.35rem;">Gruppe {{ g_num }}</div>
-    <table style="max-width:600px;">
+    <table style="max-width:780px;">
         <thead>
-            <tr><th>#</th><th>{% if division.discipline == 'single' %}Spiller{% else %}Par{% endif %}</th><th>Kampe</th><th>Vundet</th><th>Tabt</th><th>Point</th></tr>
+            <tr><th>#</th><th>{% if division.discipline == 'single' %}Spiller{% else %}Par{% endif %}</th><th title="Spillede kampe">K</th><th title="Vundne kampe">V</th><th title="Tabte kampe">T</th><th title="Konkurrencepoint">Pt</th><th title="Sæt vundet/tabt">Sæt</th><th title="Point for/imod">Point</th></tr>
         </thead>
         <tbody>
             {% for row in g_rows %}
@@ -353,6 +355,8 @@ var MATCH_LOOKUP = {
                 <td>{{ row.won }}</td>
                 <td>{{ row.lost }}</td>
                 <td><strong>{{ row.points }}</strong></td>
+                <td style="color:#374151;">{{ row.sets_won }}-{{ row.sets_lost }}</td>
+                <td style="color:#374151;">{{ row.score_for }}-{{ row.score_against }}</td>
             </tr>
             {% endfor %}
         </tbody>
