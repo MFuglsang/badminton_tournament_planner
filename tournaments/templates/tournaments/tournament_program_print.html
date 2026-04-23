@@ -274,7 +274,13 @@
             <td class="tid-col">–</td>
             {% endif %}
             <td class="teams-col">
+              {% if match.team1 and match.team2 %}
               {{ match.team1.name }}{{ match.t1_seed }}<span class="vs">vs</span>{{ match.team2.name }}{{ match.t2_seed }}
+              {% elif match.bracket_label %}
+              <span style="color:#888; font-style:italic;">{{ match.bracket_label }}</span>
+              {% else %}
+              <span style="color:#aaa;">TBD vs TBD</span>
+              {% endif %}
             </td>
           </tr>
           {% endfor %}

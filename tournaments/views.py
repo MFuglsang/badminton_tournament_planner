@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 
-from django.db.models import Max
+from django.db.models import Max, Q
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -746,8 +746,10 @@ def tournament_program_print(request, pk):
         matches = list(
             division.matches
             .exclude(match_number=None)
-            .exclude(team2__isnull=True)
-            .exclude(team1__isnull=True)
+            .filter(
+                Q(team1__isnull=False, team2__isnull=False) |
+                Q(bracket_label__isnull=False)
+            )
             .select_related('team1', 'team2')
             .order_by('match_round', 'match_number')
         )

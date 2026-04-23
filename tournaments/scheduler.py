@@ -106,6 +106,12 @@ def get_round_label(round_num, total_rounds):
     return labels.get(from_end, f'Runde {round_num}')
 
 
+def _bracket_placeholder_label(round_num, total_rounds, n_slots, slot_num):
+    """Human-readable label for a not-yet-determined bracket match."""
+    name = get_round_label(round_num, total_rounds)
+    return name if n_slots == 1 else f'{name} {slot_num}'
+
+
 def generate_bracket(division):
     """
     Pre-create the ENTIRE single-elimination bracket structure:
@@ -170,7 +176,7 @@ def generate_bracket(division):
                 division=division,
                 team1=None, team2=None,
                 match_round=r, bracket_slot=s,
-                bracket_label=f'R{r-1}S{2*s-1}vsR{r-1}S{2*s}',  # temp, updated in views
+                bracket_label=_bracket_placeholder_label(r, total_rounds, n_slots, s),
                 status='pending',
             )
             created.append(match)
@@ -424,7 +430,7 @@ def generate_playoff(division):
                 team1=None, team2=None,
                 match_round=r,
                 bracket_slot=s,
-                bracket_label=f'R{r-1}S{2*s-1}vsR{r-1}S{2*s}',
+                bracket_label=_bracket_placeholder_label(r_offset + 1, total_rounds, n_slots, s),
                 phase='playoff',
                 status='pending',
             )
@@ -550,7 +556,7 @@ def regenerate_playoff_with_groups(division, groups):
             match = Match.objects.create(
                 division=division, team1=None, team2=None,
                 match_round=r, bracket_slot=s,
-                bracket_label=f'R{r-1}S{2*s-1}vsR{r-1}S{2*s}',
+                bracket_label=_bracket_placeholder_label(r_offset + 1, total_rounds, n_slots, s),
                 phase='playoff', status='pending',
             )
             created.append(match)

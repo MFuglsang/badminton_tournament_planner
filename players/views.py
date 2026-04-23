@@ -167,7 +167,7 @@ def team_add(request):
             return redirect('team_list')
     else:
         form = TeamForm(owner=request.user)
-    return render(request, 'players/team_form.html', {'form': form})
+    return render(request, 'players/team_form.html', {'form': form, 'division_choices': Player.DIVISION_CHOICES})
 
 @login_required
 def team_edit(request, pk):
@@ -180,7 +180,7 @@ def team_edit(request, pk):
             return redirect('team_list')
     else:
         form = TeamForm(instance=team, owner=request.user)
-    return render(request, 'players/team_form.html', {'form': form, 'team': team})
+    return render(request, 'players/team_form.html', {'form': form, 'team': team, 'division_choices': Player.DIVISION_CHOICES})
 
 @login_required
 def team_delete(request, pk):

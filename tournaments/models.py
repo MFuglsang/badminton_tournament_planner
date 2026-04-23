@@ -5,37 +5,37 @@ from django.utils.translation import gettext_lazy as _
 # Create your models here.
 
 class Tournament(models.Model):
-    name = models.CharField(max_length=200, verbose_name=_("Name"))
-    date = models.DateField(verbose_name=_("Date"))
+    name = models.CharField(max_length=200, verbose_name=_("Navn"))
+    date = models.DateField(verbose_name=_("Dato"))
     DIVISION_MODEL_CHOICES = [
-        ('youth', _('Youth Divisions (U9-U19)')),
-        ('mixed', _('Mixed Divisions (A, B, C)')),
+        ('youth', _('Ungdomsrækker (U9-U19)')),
+        ('mixed', _('Blandede rækker (A, B, C)')),
     ]
-    division_model = models.CharField(max_length=10, choices=DIVISION_MODEL_CHOICES, verbose_name=_("Division Model"))
+    division_model = models.CharField(max_length=10, choices=DIVISION_MODEL_CHOICES, verbose_name=_("Divisionsmodel"))
     SCORING_MODEL_CHOICES = [
-        ('best_of_3_21', _('Best of 3 sets to 21')),
-        ('best_of_5_15', _('Best of 5 sets to 15')),
+        ('best_of_3_21', _('Bedst af 3 sæt til 21')),
+        ('best_of_5_15', _('Bedst af 5 sæt til 15')),
     ]
     scoring_model = models.CharField(
         max_length=20,
         choices=SCORING_MODEL_CHOICES,
         default='best_of_3_21',
-        verbose_name=_("Scoring Model")
+        verbose_name=_("Scoringsmodel")
     )
     single_match_duration = models.IntegerField(
-        help_text=_("Duration of a single match in minutes"),
+        help_text=_("Varighed af en singlekamp i minutter"),
         default=30,
-        verbose_name=_("Single Match Duration")
+        verbose_name=_("Singlekamp varighed")
     )
     double_match_duration = models.IntegerField(
-        help_text=_("Duration of a double match in minutes"),
+        help_text=_("Varighed af en doublekamp i minutter"),
         default=40,
-        verbose_name=_("Double Match Duration")
+        verbose_name=_("Doublekamp varighed")
     )
     player_break_time = models.IntegerField(
-        help_text=_("Minimum break time for players between matches in minutes"),
+        help_text=_("Minimum hvileperiode for spillere mellem kampe i minutter"),
         default=15,
-        verbose_name=_("Player Break Time")
+        verbose_name=_("Spillers pausetid")
     )
     court_count = models.IntegerField(
         default=4,
@@ -81,7 +81,7 @@ class Division(models.Model):
         ('tree', _('Enkeltelimination')),
     ]
     tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name='divisions')
-    name = models.CharField(max_length=100, verbose_name=_("Division Name"))
+    name = models.CharField(max_length=100, verbose_name=_("Rækkenavn"))
     discipline = models.CharField(
         max_length=10, choices=DISCIPLINE_CHOICES, default='single',
         verbose_name=_("Disciplin")

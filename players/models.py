@@ -5,8 +5,8 @@ from django.utils.translation import gettext_lazy as _
 # Create your models here.
 
 class Player(models.Model):
-    name = models.CharField(max_length=100, verbose_name=_("Name"))
-    age = models.IntegerField(verbose_name=_("Age"), blank=True, null=True)
+    name = models.CharField(max_length=100, verbose_name=_("Navn"))
+    age = models.IntegerField(verbose_name=_("Alder"), blank=True, null=True)
     DIVISION_CHOICES = [
         ('U9', _('Under 9')),
         ('U11', _('Under 11')),
@@ -61,7 +61,7 @@ class Team(models.Model):
     pair_type = models.CharField(
         max_length=10, choices=PAIR_TYPE_CHOICES, null=True, blank=True,
         verbose_name=_('Par-type'),
-        help_text=_('Double: samme køn · Mixeddouble: et af hvert'),
+        help_text=_('Double: samme køn · Mixeddouble: blandede'),
     )
     division = models.CharField(
         max_length=10, choices=DIVISION_CHOICES, blank=True, null=True,
