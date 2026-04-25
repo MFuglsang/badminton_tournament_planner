@@ -206,6 +206,7 @@
 <div class="screen-header">
   <h1>Kampprogram – {{ tournament.name }}</h1>
   <button class="btn btn-primary" onclick="window.print()">🖨 Udskriv / Gem PDF</button>
+  <button class="btn btn-secondary" id="toggle-times-btn" onclick="toggleTimes()">⏰ Skjul tidspunkter</button>
   <a href="{% url 'tournament_detail' tournament.pk %}" class="btn btn-secondary">← Turnering</a>
 </div>
 
@@ -259,7 +260,7 @@
           <tr>
             <th>#</th>
             <th>Runde</th>
-            {% if dd.matches.0.scheduled_time %}<th>Tidspunkt</th>{% endif %}
+            {% if dd.matches.0.scheduled_time %}<th class="tid-header">Tidspunkt</th>{% endif %}
             <th>Kamp</th>
           </tr>
         </thead>
@@ -304,4 +305,23 @@
 {% endif %}
 
 </body>
+
+<script>
+function toggleTimes() {
+  var hidden = document.body.classList.toggle('hide-times');
+  document.getElementById('toggle-times-btn').textContent =
+    hidden ? '⏰ Vis tidspunkter' : '⏰ Skjul tidspunkter';
+}
+</script>
+
+<style>
+body.hide-times .tid-col,
+body.hide-times .tid-header { display: none; }
+
+@media print {
+  body.hide-times .tid-col,
+  body.hide-times .tid-header { display: none; }
+}
+</style>
+
 </html>

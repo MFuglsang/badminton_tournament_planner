@@ -728,6 +728,49 @@ def tournament_scoresheet(request, pk):
 
 
 @login_required
+def tournament_wallchart(request, pk):
+    """Printable wall-chart: one section per division, matches listed with blank result boxes."""
+    tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
+
+    divisions = list(tournament.divisions.prefetch_related('teams', 'seeds').order_by('schedule_priority', 'name'))
+    seed_lookup = _build_seed_lookup(tournament)
+
+    wallchart_data = []
+    for div in divisions:
+        matches = list(
+            Match.objects
+            .filter(division=div)
+            .exclude(match_number=None)
+            .exclude(walkover=True)
+            .select_related('team1', 'team2')
+            .order_by('scheduled_time', 'match_number')
+        )
+        _apply_seed_labels(matches, seed_lookup)
+        slot_to_num = {
+            (m.match_round, m.bracket_slot): m.match_number
+            for m in matches
+            if m.bracket_slot is not None
+        }
+        for m in matches:
+            if m.team1 is None and m.bracket_slot is not None:
+                r, s = m.match_round, m.bracket_slot
+                m.feeder1_num = slot_to_num.get((r - 1, 2 * s - 1))
+                m.feeder2_num = slot_to_num.get((r - 1, 2 * s))
+            else:
+                m.feeder1_num = m.feeder2_num = None
+        wallchart_data.append({
+            'division': div,
+            'matches': matches,
+            'seeds_dict': _seeds_dict_for_division(div, seed_lookup),
+        })
+
+    return render(request, 'tournaments/tournament_wallchart_print.html', {
+        'tournament': tournament,
+        'wallchart_data': wallchart_data,
+    })
+
+
+@login_required
 def tournament_schedule_print(request, pk):
     """Print-venlig tidssorteret spilleplan for hele turneringen (én A4-tabel pr. bane/tidspunkt)."""
     tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
