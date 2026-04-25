@@ -1,11 +1,13 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from django.db.models import Max, Q
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
+from django.utils import timezone
+from django.views.decorators.http import require_POST
 from .models import Tournament, Division, Match, DivisionSeed
 from .forms import MatchResultForm, DivisionForm, TournamentForm, get_participants_form, WalkoverForm
 from .standings import compute_standings, compute_group_standings
@@ -428,11 +430,19 @@ def tournament_detail(request, pk):
         (c, c) for c in
         DivisionCategory.objects.filter(owner=request.user).values_list('name', flat=True)
     ]
+
+    total_matches    = sum(dd['match_count']     for dd in division_data)
+    completed_matches = sum(dd['completed_count'] for dd in division_data)
+    pending_matches  = sum(dd['pending_count']    for dd in division_data)
+
     return render(request, 'tournaments/tournament_detail.html', {
         'tournament': tournament,
         'division_data': division_data,
         'division_form': division_form,
         'player_division_choices': player_division_choices,
+        'total_matches': total_matches,
+        'completed_matches': completed_matches,
+        'pending_matches': pending_matches,
     })
 
 
@@ -928,3 +938,292 @@ def tournament_reset_schedule(request, pk):
         return redirect('tournament_detail', pk=pk)
     return render(request, 'tournaments/tournament_confirm_reset.html', {'tournament': tournament})
 
+
+# ---------------------------------------------------------------------------
+# Manual schedule editor
+# ---------------------------------------------------------------------------
+
+def _match_duration_td(match, tournament):
+    minutes = (
+        tournament.single_match_duration
+        if match.division.discipline == 'single'
+        else tournament.double_match_duration
+    )
+    return timedelta(minutes=minutes)
+
+
+@login_required
+def schedule_editor(request, pk):
+    """Render the manual schedule editor grid."""
+    tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
+
+    slot_interval = max(5, min(120, int(request.GET.get('interval', 30))))
+
+    scheduled = list(
+        Match.objects
+        .filter(division__tournament=tournament, scheduled_time__isnull=False)
+        .exclude(match_number=None)
+        .select_related('division', 'team1', 'team2')
+        .order_by('scheduled_time', 'court')
+    )
+    unscheduled_count = (
+        Match.objects
+        .filter(division__tournament=tournament, scheduled_time__isnull=True)
+        .exclude(match_number=None)
+        .count()
+    )
+
+    # Build grid: {slot_str: {court_str: match}}
+    # Slots are derived from tournament.start_time; show from first to last match + buffer
+    slots = []
+    grid = {}   # slot_label → {court: match}
+
+    if tournament.start_time:
+        naive_start = datetime.combine(tournament.date, tournament.start_time)
+        start_dt = timezone.make_aware(naive_start) if timezone.is_naive(naive_start) else naive_start
+
+        # Determine how many slots to show
+        if scheduled:
+            last_end = max(
+                m.scheduled_time + _match_duration_td(m, tournament) for m in scheduled
+            )
+            total_minutes = int((last_end - start_dt).total_seconds() / 60) + slot_interval * 4
+        else:
+            total_minutes = slot_interval * 20  # show 20 empty slots by default
+
+        n_slots = max(4, (total_minutes + slot_interval - 1) // slot_interval)
+
+        for i in range(n_slots):
+            slot_dt = start_dt + timedelta(minutes=i * slot_interval)
+            label = slot_dt.strftime("%H:%M")
+            slots.append(label)
+            grid[label] = {str(c): None for c in range(1, tournament.court_count + 1)}
+
+        # Place scheduled matches into the nearest slot row
+        for m in scheduled:
+            offset_min = int((m.scheduled_time - start_dt).total_seconds() / 60)
+            slot_idx = round(offset_min / slot_interval)
+            slot_idx = max(0, min(len(slots) - 1, slot_idx))
+            court = m.court or '1'
+            label = slots[slot_idx]
+            if court not in grid[label]:
+                grid[label][court] = m
+            elif grid[label][court] is None:
+                grid[label][court] = m
+            else:
+                # Court collision in same slot: add to a spill-over slot if available
+                for j in range(slot_idx + 1, len(slots)):
+                    alt_label = slots[j]
+                    if grid[alt_label].get(court) is None:
+                        grid[alt_label][court] = m
+                        break
+
+    courts = [str(c) for c in range(1, tournament.court_count + 1)]
+
+    return render(request, 'tournaments/schedule_editor.html', {
+        'tournament': tournament,
+        'slots': slots,
+        'courts': courts,
+        'grid': grid,
+        'unscheduled_count': unscheduled_count,
+        'slot_interval': slot_interval,
+    })
+
+
+@login_required
+def schedule_suggestions(request, pk):
+    """
+    GET ?time=HH:MM&court=1&interval=30
+    Returns JSON list of unscheduled matches that can start at the given slot
+    without causing player conflicts or court collisions.
+    """
+    tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
+    time_str = request.GET.get('time', '')
+    court_str = request.GET.get('court', '')
+    try:
+        slot_interval = max(5, int(request.GET.get('interval', 30)))
+        naive_dt = datetime.combine(tournament.date, datetime.strptime(time_str, "%H:%M").time())
+        slot_dt = timezone.make_aware(naive_dt) if timezone.is_naive(naive_dt) else naive_dt
+    except (ValueError, TypeError):
+        return JsonResponse({'error': 'Invalid time'}, status=400)
+
+    break_td = timedelta(minutes=tournament.player_break_time)
+
+    # All currently scheduled matches → build player & court intervals
+    scheduled = list(
+        Match.objects
+        .filter(division__tournament=tournament, scheduled_time__isnull=False)
+        .select_related('division', 'team1__player1', 'team1__player2',
+                        'team2__player1', 'team2__player2')
+    )
+
+    player_intervals = {}  # player_pk → [(busy_start, busy_end)]
+    court_intervals = {}   # court_str → [(start, end)]
+
+    for m in scheduled:
+        dur = _match_duration_td(m, tournament)
+        m_start = m.scheduled_time
+        m_end = m_start + dur
+        # Include break buffer around each match for player checks
+        for team in (m.team1, m.team2):
+            if team is None:
+                continue
+            for p_id in filter(None, [team.player1_id, getattr(team, 'player2_id', None)]):
+                player_intervals.setdefault(p_id, []).append(
+                    (m_start - break_td, m_end + break_td)
+                )
+        if m.court:
+            court_intervals.setdefault(m.court, []).append((m_start, m_end))
+
+    # Unscheduled matches (real matches with two teams assigned, not byes)
+    unscheduled = list(
+        Match.objects
+        .filter(division__tournament=tournament, scheduled_time__isnull=True)
+        .exclude(match_number=None)
+        .select_related('division', 'team1__player1', 'team1__player2',
+                        'team2__player1', 'team2__player2')
+        .order_by('division__schedule_priority', 'division__name', 'match_round', 'match_number')
+    )
+
+    suggestions = []
+    for m in unscheduled:
+        dur = _match_duration_td(m, tournament)
+        slot_end = slot_dt + dur
+
+        # Court conflict check
+        if court_str:
+            if any(cs < slot_end and ce > slot_dt
+                   for cs, ce in court_intervals.get(court_str, [])):
+                continue
+
+        # Player conflict check (includes break buffer)
+        conflict = False
+        players = []
+        for team in (m.team1, m.team2):
+            if team is None:
+                continue
+            for p_id in filter(None, [team.player1_id, getattr(team, 'player2_id', None)]):
+                players.append(p_id)
+
+        for p_id in players:
+            if any(ps < slot_end + break_td and pe > slot_dt - break_td
+                   for ps, pe in player_intervals.get(p_id, [])):
+                conflict = True
+                break
+        if conflict:
+            continue
+
+        suggestions.append({
+            'id': m.id,
+            'match_number': m.match_number,
+            'division': m.division.name,
+            'priority': m.division.schedule_priority,
+            'discipline': m.division.discipline,
+            'team1': m.team1.name if m.team1 else (m.bracket_label or 'TBD'),
+            'team2': m.team2.name if m.team2 else 'TBD',
+            'phase': m.phase,
+            'round': m.match_round,
+        })
+
+    return JsonResponse({'suggestions': suggestions, 'slot': time_str, 'court': court_str})
+
+
+@login_required
+@require_POST
+def schedule_assign(request, pk):
+    """POST: assign a match to a time slot + court."""
+    tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
+    if tournament.schedule_locked:
+        return JsonResponse({'error': 'Spilleplanen er låst.'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+        match_id = int(data['match_id'])
+        time_str = data['time']      # "HH:MM"
+        court_str = str(data['court'])
+        naive_dt = datetime.combine(tournament.date, datetime.strptime(time_str, "%H:%M").time())
+        slot_dt = timezone.make_aware(naive_dt) if timezone.is_naive(naive_dt) else naive_dt
+    except (KeyError, ValueError, TypeError):
+        return JsonResponse({'error': 'Ugyldige data.'}, status=400)
+
+    match = get_object_or_404(Match, pk=match_id, division__tournament=tournament)
+    match.scheduled_time = slot_dt
+    match.court = court_str
+    match.save(update_fields=['scheduled_time', 'court'])
+
+    return JsonResponse({
+        'ok': True,
+        'match_number': match.match_number,
+        'division': match.division.name,
+        'team1': match.team1.name if match.team1 else (match.bracket_label or 'TBD'),
+        'team2': match.team2.name if match.team2 else 'TBD',
+    })
+
+
+@login_required
+@require_POST
+def schedule_unassign(request, pk):
+    """POST: remove a match from its time slot."""
+    tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
+    if tournament.schedule_locked:
+        return JsonResponse({'error': 'Spilleplanen er låst.'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+        match_id = int(data['match_id'])
+    except (KeyError, ValueError, TypeError):
+        return JsonResponse({'error': 'Ugyldige data.'}, status=400)
+
+    match = get_object_or_404(Match, pk=match_id, division__tournament=tournament)
+    match.scheduled_time = None
+    match.court = None
+    match.save(update_fields=['scheduled_time', 'court'])
+
+    return JsonResponse({'ok': True})
+
+
+@login_required
+@require_POST
+def schedule_clear(request, pk):
+    """POST: clear scheduled_time and court from all matches (keeps matches intact)."""
+    tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
+    if tournament.schedule_locked:
+        return JsonResponse({'error': 'Spilleplanen er låst.'}, status=403)
+
+    count = (
+        Match.objects
+        .filter(division__tournament=tournament, scheduled_time__isnull=False)
+        .update(scheduled_time=None, court=None)
+    )
+    return JsonResponse({'ok': True, 'cleared': count})
+
+
+@login_required
+@require_POST
+def tournament_renumber_matches(request, pk):
+    """
+    POST: Re-assign consecutive match_numbers starting from 1 across the whole
+    tournament, ordered by scheduled_time / division priority / match_round.
+    Does NOT change scheduled_time, court or any other field.
+    """
+    tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
+
+    matches = list(
+        Match.objects
+        .filter(division__tournament=tournament)
+        .exclude(match_number=None)
+        .order_by(
+            'division__schedule_priority',
+            'scheduled_time',
+            'match_round',
+            'division',
+            'match_number',
+        )
+    )
+
+    for i, match in enumerate(matches, start=1):
+        match.match_number = i
+
+    Match.objects.bulk_update(matches, ['match_number'])
+    messages.success(request, f'Kampnumre genberegnet – {len(matches)} kampe nummereret fra 1.')
+    return redirect('tournament_detail', pk=pk)

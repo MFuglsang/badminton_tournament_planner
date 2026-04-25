@@ -27,5 +27,11 @@ urlpatterns = [
     path('<int:pk>/schedule/generate/', views.tournament_generate_time_schedule, name='tournament_generate_time_schedule'),
     path('<int:pk>/schedule/lock/', views.tournament_toggle_lock, name='tournament_toggle_lock'),
     path('<int:pk>/schedule/reset/', views.tournament_reset_schedule, name='tournament_reset_schedule'),
+    path('<int:pk>/schedule/editor/', views.schedule_editor, name='schedule_editor'),
+    path('<int:pk>/schedule/suggestions/', views.schedule_suggestions, name='schedule_suggestions'),
+    path('<int:pk>/schedule/assign/', views.schedule_assign, name='schedule_assign'),
+    path('<int:pk>/schedule/unassign/', views.schedule_unassign, name='schedule_unassign'),
+    path('<int:pk>/schedule/clear/', views.schedule_clear, name='schedule_clear'),
+    path('<int:pk>/renumber/', views.tournament_renumber_matches, name='tournament_renumber_matches'),
     path('<int:pk>/bigscreen/', views.tournament_bigscreen, name='tournament_bigscreen'),
 ]

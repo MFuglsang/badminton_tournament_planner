@@ -20,6 +20,13 @@
         </div>
         <div style="display:flex; gap:0.5rem; flex-wrap:wrap; border-left:2px solid #f5c6c6; padding-left:0.75rem;">
             <a href="{% url 'tournament_reset_schedule' tournament.pk %}" class="btn btn-danger">🔄 Nulstil kampprogram</a>
+            <form method="post" action="{% url 'tournament_renumber_matches' tournament.pk %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger"
+                        onclick="return confirm('Genberegn kampnumre fra 1? Selve kampprogrammet ændres ikke.')">
+                    🔢 Genberegn kampnumre
+                </button>
+            </form>
             <a href="{% url 'tournament_delete' tournament.pk %}" class="btn btn-danger">🗑 Slet turnering</a>
         </div>
     </div>
@@ -29,6 +36,16 @@
     <span><strong>Scoring:</strong> {{ tournament.get_scoring_model_display }}</span>
     <span><strong>Baner:</strong> {{ tournament.court_count }}</span>
     <span><strong>Start:</strong> {{ tournament.start_time|time:"H:i"|default:"–" }}</span>
+    {% if total_matches %}
+    <span><strong>Kampe:</strong>
+        {{ completed_matches }}&thinsp;/&thinsp;{{ total_matches }} afviklet
+        {% if pending_matches %}
+        <span style="color:#b91c1c; font-weight:600;">({{ pending_matches }} mangler)</span>
+        {% else %}
+        <span style="color:#16a34a; font-weight:600;">✓ alle færdige</span>
+        {% endif %}
+    </span>
+    {% endif %}
     {% if tournament.schedule_locked %}
     <span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fbbf24; padding:0.25rem 0.65rem;">🔒 Program låst</span>
     {% endif %}

@@ -48,7 +48,7 @@ def generate_time_schedule(tournament):
         Match.objects
         .filter(division__tournament=tournament)
         .exclude(match_number=None)
-        .exclude(team1__isnull=False, team2__isnull=True)  # exclude byes
+        .exclude(walkover=True)  # exclude auto-bye matches (team1=X, team2=None, walkover=True)
         .order_by('division__schedule_priority', 'match_round', 'division', 'match_number')
         .select_related('division', 'team1__player1', 'team1__player2',
                         'team2__player1', 'team2__player2')
@@ -181,12 +181,35 @@ def _schedule_ortools(tournament, matches):
                 if feeder and feeder.id in end_vars:
                     model.add(start_vars[m.id] >= end_vars[feeder.id] + break_slots)
 
+    # ── Priority ordering (hard constraint) ─────────────────────────────
+    # A match in a lower-priority division (higher schedule_priority number)
+    # cannot start before the earliest-finishing match from any higher-priority
+    # division has ended.  This prevents free courts being filled by
+    # low-priority matches while the high-priority first wave is still running.
+    priority_groups = {}
+    for m in matches:
+        priority_groups.setdefault(m.division.schedule_priority, []).append(m)
+    sorted_priorities = sorted(priority_groups.keys())
+
+    for i, p_low in enumerate(sorted_priorities[1:], 1):
+        higher_end_vars = [
+            end_vars[m.id]
+            for q in sorted_priorities[:i]
+            for m in priority_groups[q]
+        ]
+        if higher_end_vars:
+            min_end_higher = model.new_int_var(0, horizon, f'min_end_higher_{p_low}')
+            model.add_min_equality(min_end_higher, higher_end_vars)
+            for m in priority_groups[p_low]:
+                model.add(start_vars[m.id] >= min_end_higher)
+
     # ── Objective: minimise makespan + weighted division completion ────────
     # For each division, compute div_end = max(end_vars of its matches).
-    # Divisions with low schedule_priority (= finish early) get a high weight
-    # on their div_end, pushing the solver to schedule them earlier.
-    # We scale the secondary term so it doesn't compromise the main makespan
-    # objective: makespan weight = 1000, per-match weight = (11-priority).
+    # Weight scaling: priority=1 → weight=1000 (same order as makespan),
+    # priority=10 → weight=10.  Without this, makespan at weight=1000 was
+    # 100× stronger than div_end at weight=10, so the solver barely cared
+    # when individual divisions finished — high-priority divisions spread
+    # across the whole day.
     makespan = model.new_int_var(0, horizon, 'makespan')
     model.add_max_equality(makespan, list(end_vars.values()))
 
@@ -199,17 +222,27 @@ def _schedule_ortools(tournament, matches):
     objective_terms = [1000 * makespan]
     for div_id, ends in div_end_vars.items():
         priority = div_priority[div_id]
-        weight = 11 - priority  # priority=1 → weight=10 (finish early); priority=10 → weight=1
+        # priority=1 → weight=1000  (finish as early as total makespan matters)
+        # priority=10 → weight=100  (still meaningful)
+        weight = (11 - priority) * 100
         div_end = model.new_int_var(0, horizon, f'div_end_{div_id}')
         model.add_max_equality(div_end, ends)
         objective_terms.append(weight * div_end)
+
+    # ── Compactness: priority-weighted early-start pull ────────────────────
+    # Each match is penalised for starting late, proportional to its division
+    # priority.  Priority-1 matches are pulled toward time 0 ten times harder
+    # than priority-10 matches, clustering high-priority rounds at the front.
+    for m in matches:
+        compactness_weight = (11 - m.division.schedule_priority)  # 1→10, 10→1
+        objective_terms.append(compactness_weight * start_vars[m.id])
 
     model.minimize(sum(objective_terms))
 
     # ── Solve ──────────────────────────────────────────────────────────────
     solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = 30.0
-    solver.parameters.num_workers = 4
+    solver.parameters.max_time_in_seconds = 120.0
+    solver.parameters.num_workers = 8
     status = solver.solve(model)
 
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
@@ -255,8 +288,23 @@ def _schedule_greedy(tournament, matches):
     playoff_group_end = {}
     break_td = timedelta(minutes=tournament.player_break_time)
 
+    # Priority ordering: track the minimum end time of each priority group
+    # so that the next (lower) priority group cannot start before the first
+    # match of the previous group has finished.
+    current_priority_group = None
+    current_group_ends = []
+    priority_floor = start_dt
+
     updated = []
     for match in matches:
+        # When priority group changes, update the floor for the new group
+        p = match.division.schedule_priority
+        if p != current_priority_group:
+            if current_group_ends:
+                priority_floor = max(priority_floor, min(current_group_ends))
+            current_priority_group = p
+            current_group_ends = []
+
         is_placeholder = (match.team1 is None)
         duration = (
             tournament.single_match_duration
@@ -292,6 +340,10 @@ def _schedule_greedy(tournament, matches):
             group_done = playoff_group_end.get(match.division_id, start_dt)
             player_earliest = max(player_earliest, group_done + break_td)
 
+        # Enforce priority floor: lower-priority matches wait for the first
+        # match of all higher-priority groups to have finished.
+        player_earliest = max(player_earliest, priority_floor)
+
         best_time = None
         best_court_free = None
         best_court_idx = 0
@@ -324,6 +376,8 @@ def _schedule_greedy(tournament, matches):
 
         if match.bracket_slot is not None:
             bracket_slot_end[(match.division_id, match.match_round, match.bracket_slot)] = end_time
+
+        current_group_ends.append(end_time)
 
     for m in updated:
         m.save(update_fields=['scheduled_time', 'court'])
