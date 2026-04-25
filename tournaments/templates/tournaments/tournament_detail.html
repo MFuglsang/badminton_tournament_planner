@@ -17,6 +17,7 @@
             <a href="{% url 'tournament_schedule_print' tournament.pk %}" class="btn btn-secondary" target="_blank">🖨 Udskriv spilleplan</a>
             <a href="{% url 'tournament_scoresheet' tournament.pk %}" class="btn btn-secondary" target="_blank">🖨 Scoresedler</a>
             <a href="{% url 'tournament_wallchart' tournament.pk %}" class="btn btn-secondary" target="_blank">📋 Resultattavle</a>
+            <a href="{% url 'tournament_court_signs' tournament.pk %}" class="btn btn-secondary" target="_blank">🏸 Baneskilte</a>
             <a href="{% url 'tournament_export' tournament.pk %}" class="btn btn-secondary">💾 Eksporter backup</a>
         </div>
         <div style="display:flex; gap:0.5rem; flex-wrap:wrap; border-left:2px solid #f5c6c6; padding-left:0.75rem;">

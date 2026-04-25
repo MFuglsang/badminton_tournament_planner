@@ -771,6 +771,17 @@ def tournament_wallchart(request, pk):
 
 
 @login_required
+def tournament_court_signs(request, pk):
+    """Printable A3 court-number signs — one page per court."""
+    tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
+    courts = list(range(1, tournament.court_count + 1))
+    return render(request, 'tournaments/tournament_court_signs_print.html', {
+        'tournament': tournament,
+        'courts': courts,
+    })
+
+
+@login_required
 def tournament_schedule_print(request, pk):
     """Print-venlig tidssorteret spilleplan for hele turneringen (én A4-tabel pr. bane/tidspunkt)."""
     tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
