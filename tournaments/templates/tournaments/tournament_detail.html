@@ -11,6 +11,7 @@
     <h1>{{ tournament.name }}</h1>
     <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; justify-content:space-between;">
         <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+            <a href="{% url 'tournament_run' tournament.pk %}" class="btn btn-primary">🏸 Afvikling</a>
             <a href="{% url 'tournament_edit' tournament.pk %}" class="btn btn-secondary">Rediger opsætning</a>
             <a href="{% url 'tournament_schedule' tournament.pk %}" class="btn btn-secondary">📅 Spilleplan</a>
             <a href="{% url 'tournament_program_print' tournament.pk %}" class="btn btn-secondary" target="_blank">📋 Udprint program</a>

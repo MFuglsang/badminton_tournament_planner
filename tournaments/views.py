@@ -657,6 +657,7 @@ def division_generate_schedule(request, pk):
 @login_required
 def match_record_result(request, pk):
     match = get_object_or_404(Match, pk=pk, division__tournament__owner=request.user)
+    next_url = request.GET.get('next') or request.POST.get('next') or ''
     if request.method == 'POST':
         form = MatchResultForm(request.POST, instance=match)
         if form.is_valid():
@@ -666,10 +667,12 @@ def match_record_result(request, pk):
                 set_player_rest(match)
             advance_bracket(match)
             messages.success(request, 'Resultat er gemt.')
+            if next_url:
+                return redirect(next_url)
             return redirect('tournament_detail', pk=match.division.tournament.pk)
     else:
         form = MatchResultForm(instance=match)
-    return render(request, 'tournaments/match_result_form.html', {'form': form, 'match': match})
+    return render(request, 'tournaments/match_result_form.html', {'form': form, 'match': match, 'next_url': next_url})
 
 
 WALKOVER_SCORE = '21-0, 21-0'
@@ -678,6 +681,7 @@ WALKOVER_SCORE = '21-0, 21-0'
 @login_required
 def match_start(request, pk):
     match = get_object_or_404(Match, pk=pk, division__tournament__owner=request.user)
+    next_url = request.POST.get('next') or ''
     if request.method == 'POST' and match.status == 'pending':
         errors = check_match_startable(match)
         if errors:
@@ -686,12 +690,15 @@ def match_start(request, pk):
             match.status = 'in_progress'
             match.save(update_fields=['status'])
             messages.success(request, f'Kamp #{match.match_number or match.pk} er nu i gang.')
+    if next_url:
+        return redirect(next_url)
     return redirect('tournament_detail', pk=match.division.tournament.pk)
 
 
 @login_required
 def match_walkover(request, pk):
     match = get_object_or_404(Match, pk=pk, division__tournament__owner=request.user)
+    next_url = request.GET.get('next') or request.POST.get('next') or ''
     if request.method == 'POST':
         form = WalkoverForm(request.POST, match=match)
         if form.is_valid():
@@ -703,10 +710,12 @@ def match_walkover(request, pk):
             set_player_rest(match)
             advance_bracket(match)
             messages.success(request, f'Walk-over registreret – {match.winner} vinder.')
+            if next_url:
+                return redirect(next_url)
             return redirect('tournament_detail', pk=match.division.tournament.pk)
     else:
         form = WalkoverForm(match=match)
-    return render(request, 'tournaments/match_walkover_form.html', {'form': form, 'match': match})
+    return render(request, 'tournaments/match_walkover_form.html', {'form': form, 'match': match, 'next_url': next_url})
 
 
 @login_required
@@ -954,6 +963,105 @@ def tournament_bigscreen(request, pk):
     return render(request, 'tournaments/bigscreen.html', {
         'tournament': tournament,
         'matches': matches,
+    })
+
+
+@login_required
+def tournament_run(request, pk):
+    """Afviklingsside – fokuseret visning til turneringsdagen."""
+    tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
+
+    divisions = tournament.divisions.prefetch_related(
+        'teams', 'matches__team1', 'matches__team2', 'matches__winner', 'seeds',
+    ).order_by('schedule_priority', 'name')
+
+    seed_lookup = _build_seed_lookup(tournament)
+    playing_pks, resting = get_busy_info()
+
+    division_data = []
+    for division in divisions:
+        # Standings
+        if division.tournament_type == 'group':
+            standings = compute_standings(division)
+            group_standings = []
+        elif division.tournament_type == 'playoff':
+            standings = []
+            group_standings = compute_group_standings(division)
+        else:
+            standings = []
+            group_standings = []
+
+        # Annotate standings rows with team status
+        for row in standings:
+            s, ru = _team_status(row['team'], playing_pks, resting)
+            row['status'] = s
+            row['rest_until'] = ru
+        for _gnum, g_rows in group_standings:
+            for row in g_rows:
+                s, ru = _team_status(row['team'], playing_pks, resting)
+                row['status'] = s
+                row['rest_until'] = ru
+
+        # All division matches (with time/number ordering); exclude auto-completed byes
+        all_matches = list(
+            division.matches
+            .exclude(match_number=None)
+            .exclude(team2__isnull=True, score='Bye')
+            .select_related('team1', 'team2', 'winner')
+            .order_by('scheduled_time', 'match_number')
+        )
+        _apply_seed_labels(all_matches, seed_lookup)
+        apply_status_to_matches(all_matches, playing_pks, resting)
+
+        # Bracket data for tree/playoff
+        bracket_data = get_bracket_data(division) if division.tournament_type in ('tree', 'playoff') else None
+
+        division_data.append({
+            'division': division,
+            'standings': standings,
+            'group_standings': group_standings,
+            'bracket_data': bracket_data,
+            'seeds_dict': _seeds_dict_for_division(division, seed_lookup),
+            'matches': all_matches,
+            'match_count': len(all_matches),
+            'pending_count': sum(1 for m in all_matches if m.status == 'pending'),
+            'in_progress_count': sum(1 for m in all_matches if m.status == 'in_progress'),
+            'completed_count': sum(1 for m in all_matches if m.status == 'completed'),
+        })
+
+    # Next 5 matches (same logic as bigscreen)
+    next_matches = list(
+        Match.objects
+        .filter(division__tournament=tournament, scheduled_time__isnull=False, status='pending')
+        .exclude(team1__isnull=True, team2__isnull=True, bracket_label__isnull=False)
+        .select_related('division', 'team1', 'team2')
+        .order_by('scheduled_time', 'court')
+    )[:5]
+    _apply_seed_labels(next_matches, seed_lookup)
+    apply_status_to_matches(next_matches, playing_pks, resting)
+
+    # Matches currently in progress
+    active_matches = list(
+        Match.objects
+        .filter(division__tournament=tournament, status='in_progress')
+        .select_related('division', 'team1', 'team2')
+        .order_by('scheduled_time', 'match_number')
+    )
+    _apply_seed_labels(active_matches, seed_lookup)
+
+    # Summary counts
+    total_matches = sum(dd['match_count'] for dd in division_data)
+    completed_matches = sum(dd['completed_count'] for dd in division_data)
+    in_progress_matches = sum(dd['in_progress_count'] for dd in division_data)
+
+    return render(request, 'tournaments/tournament_run.html', {
+        'tournament': tournament,
+        'division_data': division_data,
+        'next_matches': next_matches,
+        'active_matches': active_matches,
+        'total_matches': total_matches,
+        'completed_matches': completed_matches,
+        'in_progress_matches': in_progress_matches,
     })
 
 
