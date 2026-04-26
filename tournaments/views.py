@@ -866,11 +866,51 @@ def tournament_program_print(request, pk):
                 m.feeder1_num = None
                 m.feeder2_num = None
 
+        # Build groups for playoff type (teams + matches per group)
+        groups = []
+        if division.tournament_type == 'playoff':
+            group_teams_dict = {}
+            seen = {}
+            for m in division.matches.filter(phase='group').select_related('team1', 'team2').order_by('group_number', 'match_round'):
+                for team in (m.team1, m.team2):
+                    if team is None:
+                        continue
+                    g = m.group_number or 1
+                    if g not in group_teams_dict:
+                        group_teams_dict[g] = []
+                        seen[g] = set()
+                    if team.pk not in seen[g]:
+                        group_teams_dict[g].append(team)
+                        seen[g].add(team.pk)
+            group_matches_dict = {}
+            for m in matches:
+                if m.phase != 'group':
+                    continue
+                g = m.group_number or 1
+                if g not in group_matches_dict:
+                    group_matches_dict[g] = []
+                group_matches_dict[g].append(m)
+            for g_num in sorted(group_teams_dict.keys()):
+                groups.append({
+                    'number': g_num,
+                    'teams': group_teams_dict[g_num],
+                    'matches': group_matches_dict.get(g_num, []),
+                })
+
+        # Bracket data for tree / playoff types
+        bracket_data = get_bracket_data(division) if division.tournament_type in ('tree', 'playoff') else None
+
+        # Playoff bracket-phase matches (same objects from matches list, already annotated)
+        playoff_matches = [m for m in matches if m.phase == 'playoff'] if division.tournament_type == 'playoff' else []
+
         division_data.append({
             'division': division,
             'teams': teams,
             'matches': matches,
             'seeds_dict': _seeds_dict_for_division(division, seed_lookup),
+            'groups': groups,
+            'bracket_data': bracket_data,
+            'playoff_matches': playoff_matches,
         })
     return render(request, 'tournaments/tournament_program_print.html', {
         'tournament': tournament,
