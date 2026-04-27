@@ -35,6 +35,7 @@ urlpatterns = [
     path('<int:pk>/schedule/unassign/', views.schedule_unassign, name='schedule_unassign'),
     path('<int:pk>/schedule/clear/', views.schedule_clear, name='schedule_clear'),
     path('<int:pk>/renumber/', views.tournament_renumber_matches, name='tournament_renumber_matches'),
+    path('<int:pk>/renumber-by-schedule/', views.tournament_renumber_by_schedule, name='tournament_renumber_by_schedule'),
     path('<int:pk>/bigscreen/', views.tournament_bigscreen, name='tournament_bigscreen'),
     path('<int:pk>/run/', views.tournament_run, name='tournament_run'),
 ]

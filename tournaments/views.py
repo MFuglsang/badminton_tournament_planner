@@ -1469,3 +1469,77 @@ def tournament_renumber_matches(request, pk):
     Match.objects.bulk_update(matches, ['match_number'])
     messages.success(request, f'Kampnumre genberegnet – {len(matches)} kampe nummereret fra 1.')
     return redirect('tournament_detail', pk=pk)
+
+
+@login_required
+@require_POST
+def tournament_renumber_by_schedule(request, pk):
+    """
+    POST: Re-assign match_numbers so they follow the time-schedule order.
+    Matches with scheduled_time come first (sorted by scheduled_time, then court,
+    then match_number for ties). Matches without scheduled_time are numbered last
+    (sorted by division priority, match_round, match_number).
+    Bracket labels are rebuilt to reflect the new numbers.
+    Does NOT change scheduled_time, court or any other field.
+    """
+    tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
+
+    base_qs = (
+        Match.objects
+        .filter(division__tournament=tournament)
+        .exclude(match_number=None)
+        .select_related('division', 'team1', 'team2')
+    )
+
+    scheduled = list(
+        base_qs
+        .filter(scheduled_time__isnull=False)
+        .order_by('scheduled_time', 'court', 'match_number')
+    )
+    unscheduled = list(
+        base_qs
+        .filter(scheduled_time__isnull=True)
+        .order_by('division__schedule_priority', 'match_round', 'division', 'match_number')
+    )
+
+    ordered = scheduled + unscheduled
+    for i, match in enumerate(ordered, start=1):
+        match.match_number = i
+
+    Match.objects.bulk_update(ordered, ['match_number'])
+
+    # Rebuild bracket_label for tree/playoff divisions using the new numbers.
+    slot_to_num = {
+        (m.division_id, m.match_round, m.bracket_slot): m.match_number
+        for m in ordered
+        if m.bracket_slot is not None
+    }
+    label_updates = []
+    for match in ordered:
+        if match.bracket_label is not None:
+            r = match.match_round
+            s = match.bracket_slot
+            t1_label = (
+                match.team1.name if match.team1
+                else f"V-kamp #{slot_to_num.get((match.division_id, r - 1, 2 * s - 1), '?')}"
+            )
+            t2_label = (
+                match.team2.name if match.team2
+                else f"V-kamp #{slot_to_num.get((match.division_id, r - 1, 2 * s), '?')}"
+            )
+            new_label = f"{t1_label} vs {t2_label}"
+            if new_label != match.bracket_label:
+                match.bracket_label = new_label
+                label_updates.append(match)
+
+    if label_updates:
+        Match.objects.bulk_update(label_updates, ['bracket_label'])
+
+    messages.success(
+        request,
+        f'Kampnumre sorteret efter spilleplan – {len(ordered)} kampe nummereret fra 1'
+        f' ({len(unscheduled)} uden tidspunkt placeret sidst).'
+        if unscheduled else
+        f'Kampnumre sorteret efter spilleplan – {len(ordered)} kampe nummereret fra 1.'
+    )
+    return redirect('tournament_detail', pk=pk)
