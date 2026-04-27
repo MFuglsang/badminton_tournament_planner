@@ -23,6 +23,13 @@
         </div>
         <div style="display:flex; gap:0.5rem; flex-wrap:wrap; border-left:2px solid #f5c6c6; padding-left:0.75rem;">
             <a href="{% url 'tournament_reset_schedule' tournament.pk %}" class="btn btn-danger">🔄 Nulstil kampprogram</a>
+            <form method="post" action="{% url 'tournament_rebuild_playoff_labels' tournament.pk %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger"
+                        onclick="return confirm('Genopbyg slutspils-labels? Brug dette hvis labels er ødelagt (viser V-kamp #?).')">
+                    🔧 Genopbyg slutspilsnavne
+                </button>
+            </form>
             <form method="post" action="{% url 'tournament_renumber_by_schedule' tournament.pk %}" style="display:inline;">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-danger"

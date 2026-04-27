@@ -12,7 +12,7 @@ from .models import Tournament, Division, Match, DivisionSeed
 from .forms import MatchResultForm, DivisionForm, TournamentForm, get_participants_form, WalkoverForm
 from .standings import compute_standings, compute_group_standings
 from players.models import Team
-from .scheduler import generate_schedule, advance_bracket, get_bracket_data, regenerate_playoff_with_groups
+from .scheduler import generate_schedule, advance_bracket, get_bracket_data, regenerate_playoff_with_groups, _seeding_order, _bracket_placeholder_label
 from .schedule_planner import generate_time_schedule
 from .player_status import (
     get_busy_info, apply_status_to_matches, set_player_rest,
@@ -1473,6 +1473,96 @@ def tournament_renumber_matches(request, pk):
 
 @login_required
 @require_POST
+def tournament_rebuild_playoff_labels(request, pk):
+    """
+    POST: Rebuild bracket_label for all pending playoff-type matches whose labels
+    have been corrupted (e.g. replaced with 'V-kamp #?'). Safe to run at any time;
+    only touches matches where team1 IS NULL (i.e. participants are still unknown).
+    """
+    import math
+    tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
+    updated = 0
+
+    for division in tournament.divisions.filter(tournament_type='playoff'):
+        advance_count = max(1, division.advance_count)
+        group_count = division.group_count
+        total_advancing = group_count * advance_count
+        if total_advancing < 2:
+            continue
+        total_rounds = math.ceil(math.log2(total_advancing))
+        bracket_size = 2 ** total_rounds
+
+        seed_order = _seeding_order(bracket_size)
+        advancing_seeds = [
+            f'Nr.{pos} gr.{g}'
+            for pos in range(1, advance_count + 1)
+            for g in range(1, group_count + 1)
+        ]
+        slots = [
+            advancing_seeds[s - 1] if s <= total_advancing else None
+            for s in seed_order
+        ]
+
+        # Determine first bracket round
+        bracket_base_round = (
+            Match.objects
+            .filter(division=division, phase='playoff')
+            .order_by('match_round')
+            .values_list('match_round', flat=True)
+            .first()
+        )
+        if bracket_base_round is None:
+            continue
+
+        # Round 1: group-position labels
+        n_r1_slots = bracket_size // 2
+        for i in range(n_r1_slots):
+            slot_num = i + 1
+            t1_label = slots[i * 2]
+            t2_label = slots[i * 2 + 1]
+            match = Match.objects.filter(
+                division=division, phase='playoff',
+                match_round=bracket_base_round,
+                bracket_slot=slot_num, team1=None,
+            ).first()
+            if not match:
+                continue
+            if t1_label and t2_label:
+                new_label = f'{t1_label} vs {t2_label}'
+            elif t1_label:
+                new_label = f'{t1_label} (fri)'
+            elif t2_label:
+                new_label = f'{t2_label} (fri)'
+            else:
+                continue
+            if match.bracket_label != new_label:
+                match.bracket_label = new_label
+                match.save(update_fields=['bracket_label'])
+                updated += 1
+
+        # Round 2+: round-name labels (Semifinale, Finale, etc.)
+        for r_offset in range(1, total_rounds):
+            r = bracket_base_round + r_offset
+            n_slots = bracket_size // (2 ** (r_offset + 1))
+            for s in range(1, n_slots + 1):
+                match = Match.objects.filter(
+                    division=division, phase='playoff',
+                    match_round=r, bracket_slot=s, team1=None,
+                ).first()
+                if not match:
+                    continue
+                new_label = _bracket_placeholder_label(r_offset + 1, total_rounds, n_slots, s)
+                if match.bracket_label != new_label:
+                    match.bracket_label = new_label
+                    match.save(update_fields=['bracket_label'])
+                    updated += 1
+
+    messages.success(request, f'Bracket-labels genopbygget ({updated} kampe opdateret).')
+    return redirect('tournament_detail', pk=pk)
+
+
+@login_required
+@require_POST
 def tournament_renumber_by_schedule(request, pk):
     """
     POST: Re-assign match_numbers so they follow the time-schedule order.
@@ -1508,15 +1598,21 @@ def tournament_renumber_by_schedule(request, pk):
 
     Match.objects.bulk_update(ordered, ['match_number'])
 
-    # Rebuild bracket_label for tree/playoff divisions using the new numbers.
+    # Rebuild bracket_label only for pure tree-type divisions.
+    # Playoff divisions use group-position labels ("Nr.1 gr.1 vs Nr.2 gr.2") that
+    # must not be replaced with match-number references.
+    tree_division_ids = {
+        m.division_id for m in ordered
+        if m.division.tournament_type == 'tree'
+    }
     slot_to_num = {
         (m.division_id, m.match_round, m.bracket_slot): m.match_number
         for m in ordered
-        if m.bracket_slot is not None
+        if m.bracket_slot is not None and m.division_id in tree_division_ids
     }
     label_updates = []
     for match in ordered:
-        if match.bracket_label is not None:
+        if match.bracket_label is not None and match.division_id in tree_division_ids:
             r = match.match_round
             s = match.bracket_slot
             t1_label = (
