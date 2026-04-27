@@ -1327,7 +1327,7 @@ class TournamentDeleteTest(TestCase):
 
     def test_delete_post_removes_tournament(self):
         pk = self.tournament.pk
-        response = self.client.post(reverse('tournament_delete', args=[pk]))
+        response = self.client.post(reverse('tournament_delete', args=[pk]), {'confirm': 'SLET TURNERING'})
         self.assertRedirects(response, reverse('tournament_list'))
         self.assertFalse(Tournament.objects.filter(pk=pk).exists())
 

@@ -11,15 +11,25 @@
     <h1>{{ tournament.name }}</h1>
     <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; justify-content:space-between;">
         <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+            <a href="{% url 'tournament_run' tournament.pk %}" class="btn btn-primary">🏸 Afvikling</a>
             <a href="{% url 'tournament_edit' tournament.pk %}" class="btn btn-secondary">Rediger opsætning</a>
             <a href="{% url 'tournament_schedule' tournament.pk %}" class="btn btn-secondary">📅 Spilleplan</a>
             <a href="{% url 'tournament_program_print' tournament.pk %}" class="btn btn-secondary" target="_blank">📋 Udprint program</a>
             <a href="{% url 'tournament_schedule_print' tournament.pk %}" class="btn btn-secondary" target="_blank">🖨 Udskriv spilleplan</a>
             <a href="{% url 'tournament_scoresheet' tournament.pk %}" class="btn btn-secondary" target="_blank">🖨 Scoresedler</a>
+            <a href="{% url 'tournament_wallchart' tournament.pk %}" class="btn btn-secondary" target="_blank">📋 Resultattavle</a>
+            <a href="{% url 'tournament_court_signs' tournament.pk %}" class="btn btn-secondary" target="_blank">🏸 Baneskilte</a>
             <a href="{% url 'tournament_export' tournament.pk %}" class="btn btn-secondary">💾 Eksporter backup</a>
         </div>
         <div style="display:flex; gap:0.5rem; flex-wrap:wrap; border-left:2px solid #f5c6c6; padding-left:0.75rem;">
             <a href="{% url 'tournament_reset_schedule' tournament.pk %}" class="btn btn-danger">🔄 Nulstil kampprogram</a>
+            <form method="post" action="{% url 'tournament_renumber_matches' tournament.pk %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger"
+                        onclick="return confirm('Genberegn kampnumre fra 1? Selve kampprogrammet ændres ikke.')">
+                    🔢 Genberegn kampnumre
+                </button>
+            </form>
             <a href="{% url 'tournament_delete' tournament.pk %}" class="btn btn-danger">🗑 Slet turnering</a>
         </div>
     </div>
@@ -29,6 +39,16 @@
     <span><strong>Scoring:</strong> {{ tournament.get_scoring_model_display }}</span>
     <span><strong>Baner:</strong> {{ tournament.court_count }}</span>
     <span><strong>Start:</strong> {{ tournament.start_time|time:"H:i"|default:"–" }}</span>
+    {% if total_matches %}
+    <span><strong>Kampe:</strong>
+        {{ completed_matches }}&thinsp;/&thinsp;{{ total_matches }} afviklet
+        {% if pending_matches %}
+        <span style="color:#b91c1c; font-weight:600;">({{ pending_matches }} mangler)</span>
+        {% else %}
+        <span style="color:#16a34a; font-weight:600;">✓ alle færdige</span>
+        {% endif %}
+    </span>
+    {% endif %}
     {% if tournament.schedule_locked %}
     <span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fbbf24; padding:0.25rem 0.65rem;">🔒 Program låst</span>
     {% endif %}
@@ -500,20 +520,6 @@ var MATCH_LOOKUP = {
             </td>
             <td>
                 {% if not match.bracket_label %}
-                {% if match.status == 'pending' %}
-                {% if match.t1_status or match.t2_status %}
-                <span style="font-size:0.8rem; color:#d97706;" title="En spiller er optaget eller i hvile">⚠ Optaget</span>
-                {% else %}
-                <form method="post" action="{% url 'match_start' match.pk %}" style="display:inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-secondary btn-sm">▶ Start</button>
-                </form>
-                {% endif %}
-                {% endif %}
-                {% if match.status == 'in_progress' or match.status == 'pending' %}
-                <a href="{% url 'match_record_result' match.pk %}" class="btn btn-primary btn-sm" style="margin-left:0.25rem;">Registrer resultat</a>
-                <a href="{% url 'match_walkover' match.pk %}" class="btn btn-secondary btn-sm" style="margin-left:0.25rem;" title="Walk-over">WO</a>
-                {% endif %}
                 {% if match.status == 'completed' %}
                 <a href="{% url 'match_record_result' match.pk %}" class="btn btn-secondary btn-sm">Ret resultat</a>
                 {% endif %}
@@ -567,20 +573,6 @@ var MATCH_LOOKUP = {
             </td>
             <td>
                 {% if match.team1 and match.team2 %}
-                {% if match.status == 'pending' %}
-                {% if match.t1_status or match.t2_status %}
-                <span style="font-size:0.8rem; color:#d97706;" title="En spiller er optaget eller i hvile">⚠ Optaget</span>
-                {% else %}
-                <form method="post" action="{% url 'match_start' match.pk %}" style="display:inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-secondary btn-sm">▶ Start</button>
-                </form>
-                {% endif %}
-                {% endif %}
-                {% if match.status == 'in_progress' or match.status == 'pending' %}
-                <a href="{% url 'match_record_result' match.pk %}" class="btn btn-primary btn-sm" style="margin-left:0.25rem;">Registrer resultat</a>
-                <a href="{% url 'match_walkover' match.pk %}" class="btn btn-secondary btn-sm" style="margin-left:0.25rem;">WO</a>
-                {% endif %}
                 {% if match.status == 'completed' %}
                 <a href="{% url 'match_record_result' match.pk %}" class="btn btn-secondary btn-sm">Ret resultat</a>
                 {% endif %}

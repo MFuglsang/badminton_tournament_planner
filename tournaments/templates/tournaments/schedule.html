@@ -27,6 +27,7 @@
         <a href="{% url 'tournament_detail' tournament.pk %}" class="btn btn-secondary">← Turnering</a>
         <a href="{% url 'tournament_bigscreen' tournament.pk %}" class="btn btn-secondary" target="_blank">📺 Storskærm</a>
         <a href="{% url 'tournament_schedule_print' tournament.pk %}" class="btn btn-secondary" target="_blank">🖨 Udskriv spilleplan</a>
+        <a href="{% url 'schedule_editor' tournament.pk %}" class="btn btn-secondary">✏️ Manuel editor</a>
     </div>
 </div>
 

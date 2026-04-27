@@ -186,11 +186,14 @@
             padding: 1rem 1.5rem; cursor: pointer; list-style: none;
             border-left: 4px solid #16692c; user-select: none;
             background: white; transition: background 0.12s;
+            -webkit-appearance: none; appearance: none;
         }
         .division-summary:hover { background: #f8fdf9; }
         .division-summary::-webkit-details-marker { display: none; }
+        .division-summary::marker { display: none; }
         .division-summary::before {
             content: '▶'; font-size: 0.6rem; color: #94a3b8;
+            display: inline-block;
             transition: transform 0.2s; flex-shrink: 0; margin-right: 0.1rem;
         }
         details[open] .division-summary::before { transform: rotate(90deg); color: #16692c; }

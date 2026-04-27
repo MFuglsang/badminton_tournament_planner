@@ -167,6 +167,7 @@
 <div class="screen-header">
   <h1>Spilleplan – {{ tournament.name }}</h1>
   <button class="btn btn-primary" onclick="window.print()">🖨 Udskriv / Gem PDF</button>
+  <button class="btn btn-secondary" id="toggle-times-btn" onclick="toggleTimes()">🕐 Skjul tidspunkter</button>
   <a href="{% url 'tournament_schedule' tournament.pk %}" class="btn btn-secondary">← Spilleplan</a>
   <a href="{% url 'tournament_detail' tournament.pk %}" class="btn btn-secondary">← Turnering</a>
 </div>
@@ -193,7 +194,7 @@
   <thead>
     <tr>
       <th>#</th>
-      <th>Tidspunkt</th>
+      <th class="col-time-header">Tidspunkt</th>
       <th>Kamp</th>
       <th>Række</th>
     </tr>
@@ -201,13 +202,15 @@
   <tbody>
     {% regroup matches by scheduled_time as time_groups %}
     {% for tg in time_groups %}
-    <tr class="time-sep">
-      <td colspan="4">{{ tg.grouper|time:"H:i" }} — {{ tg.list|length }} kamp{{ tg.list|length|pluralize:"e" }}</td>
+    <tr class="time-sep time-row">
+      <td colspan="4" class="time-sep-content">
+        <span class="time-label">{{ tg.grouper|time:"H:i" }} — </span>{{ tg.list|length }} kamp{{ tg.list|length|pluralize:"e" }}
+      </td>
     </tr>
     {% for match in tg.list %}
     <tr>
       <td class="col-no">{{ match.match_number }}</td>
-      <td class="col-time">{{ match.scheduled_time|time:"H:i" }}</td>
+      <td class="col-time time-cell">{{ match.scheduled_time|time:"H:i" }}</td>
       <td class="col-match">
         {% if match.team1 and match.team2 %}
           {{ match.team1.name }}{{ match.t1_seed }}<span class="vs">vs</span>{{ match.team2.name }}{{ match.t2_seed }}
@@ -235,4 +238,25 @@
 {% endif %}
 
 </body>
+
+<script>
+function toggleTimes() {
+  var hidden = document.body.classList.toggle('hide-times');
+  document.getElementById('toggle-times-btn').textContent =
+    hidden ? '⏰ Vis tidspunkter' : '⏰ Skjul tidspunkter';
+}
+</script>
+
+<style>
+body.hide-times .time-cell,
+body.hide-times .col-time-header,
+body.hide-times .time-label { display: none; }
+
+@media print {
+  body.hide-times .time-cell,
+  body.hide-times .col-time-header,
+  body.hide-times .time-label { display: none; }
+}
+</style>
+
 </html>

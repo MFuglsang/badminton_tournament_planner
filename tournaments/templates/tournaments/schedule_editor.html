@@ -1,0 +1,380 @@
+{% extends 'base.html' %}
+{% load tournament_extras %}
+{% block title %}Manuel spilleplan – {{ tournament.name }}{% endblock %}
+{% block content %}
+
+<div class="page-actions">
+  <h1>Manuel spilleplan – {{ tournament.name }}</h1>
+  <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+    {% if tournament.schedule_locked %}
+      <span class="badge" style="background:#fef3c7;color:#92400e;border:1px solid #fbbf24;padding:.35rem .75rem;font-size:.85rem;">🔒 Låst</span>
+    {% endif %}
+    <a href="{% url 'tournament_schedule' tournament.pk %}" class="btn btn-secondary">← Spilleplan</a>
+    <a href="{% url 'tournament_schedule_print' tournament.pk %}" class="btn btn-secondary" target="_blank">🖨 Udskriv</a>
+    {% if not tournament.schedule_locked %}
+    <button type="button" id="clear-schedule-btn" class="btn"
+            style="background:#b91c1c; color:#fff;">🗑 Nulstil tider</button>
+    {% endif %}
+  </div>
+</div>
+
+{% if not tournament.start_time %}
+<div class="flash flash-warning">
+  Sæt et starttidspunkt på turneringen for at bruge editoren.
+</div>
+{% else %}
+
+<div style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem; flex-wrap:wrap;">
+  <form method="get" style="display:flex; gap:.5rem; align-items:center;">
+    <label style="font-weight:500; white-space:nowrap;">Slot-interval:</label>
+    <input type="number" name="interval" value="{{ slot_interval }}" min="5" max="120" step="5"
+           style="width:5rem; padding:.3rem .5rem; border:1px solid #d1d5db; border-radius:6px; font-size:.9rem;">
+    <span style="color:#64748b; font-size:.9rem;">min</span>
+    <button type="submit" class="btn btn-secondary" style="padding:.3rem .75rem;">Opdater</button>
+  </form>
+  <span style="color:#64748b; font-size:.9rem;">
+    <strong style="color:{% if unscheduled_count %}#b91c1c{% else %}#16a34a{% endif %};">{{ unscheduled_count }}</strong>
+    kamp{% if unscheduled_count != 1 %}e{% endif %} mangler tidspunkt
+  </span>
+</div>
+
+<div style="overflow-x:auto;">
+<table id="editor-grid" style="border-collapse:collapse; min-width:600px; width:100%;">
+  <thead>
+    <tr>
+      <th style="background:#0d4f22; color:#fff; padding:.5rem .75rem; text-align:left; white-space:nowrap; min-width:70px;">Tid</th>
+      {% for court in courts %}
+      <th style="background:#0d4f22; color:#fff; padding:.5rem .75rem; text-align:center; min-width:160px;">
+        Bane {{ court }}
+      </th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for slot in slots %}
+    <tr data-slot="{{ slot }}">
+      <td style="padding:.4rem .75rem; border-bottom:1px solid #e5e7eb; font-weight:500; color:#374151; white-space:nowrap; background:#f8fafc;">
+        {{ slot }}
+      </td>
+      {% for court in courts %}
+      {% with match=grid|dict_get:slot|dict_get:court %}
+      <td data-court="{{ court }}"
+          style="border-bottom:1px solid #e5e7eb; border-left:1px solid #e5e7eb; vertical-align:top; padding:.3rem; min-height:52px;">
+        {% if match %}
+        <div class="match-card" data-match-id="{{ match.id }}" data-match-label="#{{ match.match_number }}">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:.25rem;">
+            <div>
+              <span style="font-size:.75rem; font-weight:600; color:#0d4f22; text-transform:uppercase; letter-spacing:.03em;">
+                {{ match.division.name }}{% if match.phase == 'playoff' %} · Slutspil{% endif %}
+              </span>
+              <div style="font-size:.85rem; font-weight:500; line-height:1.4;">
+                {{ match.team1.name|default:match.bracket_label|default:"TBD" }}
+                <span style="color:#94a3b8; font-weight:400;"> mod </span>
+                {{ match.team2.name|default:"TBD" }}
+              </div>
+              <div style="font-size:.75rem; color:#64748b;">#{{ match.match_number }} · R{{ match.match_round }}</div>
+            </div>
+            {% if not tournament.schedule_locked %}
+            <button class="unassign-btn" title="Frigør slot"
+                    style="flex-shrink:0; background:none; border:none; cursor:pointer; color:#94a3b8; font-size:1rem; padding:.1rem .25rem; line-height:1;"
+                    data-match-id="{{ match.id }}">✕</button>
+            {% endif %}
+          </div>
+        </div>
+        {% else %}
+        {% if not tournament.schedule_locked %}
+        <button class="add-btn" title="Tildel kamp her"
+                style="width:100%; min-height:46px; background:#f0fdf4; border:1.5px dashed #86efac; border-radius:6px;
+                       color:#16a34a; font-size:1.1rem; cursor:pointer; transition:background .15s;">
+          +
+        </button>
+        {% endif %}
+        {% endif %}
+      </td>
+      {% endwith %}
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% endif %}{# end start_time check #}
+
+{# ── Forslags-panel ──────────────────────────────────────────────────────── #}
+<div id="suggestion-panel" style="
+    display:none; position:fixed; top:0; right:0; width:min(420px,100vw); height:100vh;
+    background:#fff; box-shadow:-4px 0 24px rgba(0,0,0,.18); z-index:1000;
+    display:none; flex-direction:column; overflow:hidden;">
+  <div style="background:#0d4f22; color:#fff; padding:1rem 1.25rem; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+    <div>
+      <div style="font-weight:600; font-size:1rem;" id="panel-title">Vælg kamp</div>
+      <div style="font-size:.82rem; opacity:.8;" id="panel-subtitle"></div>
+    </div>
+    <button id="panel-close" style="background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;line-height:1;">✕</button>
+  </div>
+  <div id="panel-loading" style="padding:2rem; text-align:center; color:#64748b;">Henter forslag…</div>
+  <div id="panel-empty" style="display:none; padding:2rem; text-align:center; color:#64748b;">
+    <div style="font-size:2rem; margin-bottom:.5rem;">😴</div>
+    Ingen tilgængelige kampe til dette tidspunkt.<br>
+    <small>Alle uplanlagte kampe har enten spillerkonflikter eller banen er optaget.</small>
+  </div>
+  <ul id="suggestion-list" style="list-style:none; margin:0; padding:.5rem; overflow-y:auto; flex:1;"></ul>
+</div>
+<div id="panel-backdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.3); z-index:999;"></div>
+
+{# ── Bekræft frigør-dialog ───────────────────────────────────────────────── #}
+<dialog id="unassign-dialog" style="border:none; border-radius:10px; padding:0; box-shadow:0 8px 32px rgba(0,0,0,.25); max-width:380px; width:90%;">
+  <div style="background:#b91c1c; color:#fff; padding:1rem 1.5rem; border-radius:10px 10px 0 0; font-weight:600;">Frigør slot?</div>
+  <div style="padding:1.25rem 1.5rem;">
+    <p style="margin:0 0 1rem; color:#374151;">Kamp <strong id="unassign-label"></strong> fjernes fra spilleplanen.</p>
+    <div style="display:flex; justify-content:flex-end; gap:.75rem;">
+      <button type="button" class="btn btn-secondary" id="unassign-cancel">Annuller</button>
+      <button type="button" class="btn" id="unassign-confirm"
+              style="background:#b91c1c; color:#fff;">Frigør</button>
+    </div>
+  </div>
+</dialog>
+
+{# ── Nulstil spilleplan-dialog ────────────────────────────────────────────── #}
+<dialog id="clear-dialog" style="border:none; border-radius:10px; padding:0; box-shadow:0 8px 32px rgba(0,0,0,.25); max-width:400px; width:90%;">
+  <div style="background:#b91c1c; color:#fff; padding:1rem 1.5rem; border-radius:10px 10px 0 0; display:flex; align-items:center; gap:.6rem;">
+    <span style="font-size:1.2rem;">⚠️</span>
+    <strong style="font-size:1.05rem;">Nulstil spilleplan?</strong>
+  </div>
+  <div style="padding:1.25rem 1.5rem;">
+    <p style="margin:0 0 1rem; color:#374151;">
+      Alle tider og baner fjernes fra <strong>alle kampe</strong> i turneringen.
+      Selve kampene og resultaterne bevares.
+    </p>
+    <div style="display:flex; justify-content:flex-end; gap:.75rem;">
+      <button type="button" class="btn btn-secondary" id="clear-cancel">Annuller</button>
+      <button type="button" class="btn" id="clear-confirm"
+              style="background:#b91c1c; color:#fff;">Nulstil</button>
+    </div>
+  </div>
+</dialog>
+
+<style>
+.match-card {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  padding: .35rem .5rem;
+}
+.add-btn:hover { background: #dcfce7 !important; }
+.suggestion-item {
+  padding: .65rem .85rem;
+  border-radius: 8px;
+  margin-bottom: .35rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+  list-style: none;
+}
+.suggestion-item:hover { background: #f0fdf4; border-color: #86efac; }
+.suggestion-item .s-division { font-size: .73rem; font-weight: 600; color: #0d4f22; text-transform: uppercase; letter-spacing: .03em; }
+.suggestion-item .s-teams { font-size: .9rem; font-weight: 500; color: #1e293b; line-height: 1.35; }
+.suggestion-item .s-meta { font-size: .75rem; color: #64748b; }
+.priority-badge {
+  display: inline-block;
+  padding: .1rem .45rem;
+  border-radius: 99px;
+  font-size: .7rem;
+  font-weight: 600;
+}
+</style>
+
+<script>
+(function () {
+  const TOURNAMENT_PK = {{ tournament.pk }};
+  const INTERVAL = {{ slot_interval }};
+  const SUGGESTIONS_URL = "{% url 'schedule_suggestions' tournament.pk %}";
+  const ASSIGN_URL      = "{% url 'schedule_assign' tournament.pk %}";
+  const UNASSIGN_URL    = "{% url 'schedule_unassign' tournament.pk %}";
+  const CLEAR_URL       = "{% url 'schedule_clear' tournament.pk %}";
+  const CSRF = "{{ csrf_token }}";
+
+  let pendingSlot = null;
+  let pendingCourt = null;
+  let pendingUnassignId = null;
+
+  // ── panel helpers ──────────────────────────────────────────────────────
+  function openPanel(slot, court) {
+    pendingSlot  = slot;
+    pendingCourt = court;
+    document.getElementById('panel-title').textContent    = `Bane ${court} · ${slot}`;
+    document.getElementById('panel-subtitle').textContent = 'Kun kampe uden konflikter vises';
+    document.getElementById('panel-loading').style.display = 'block';
+    document.getElementById('panel-empty').style.display   = 'none';
+    document.getElementById('suggestion-list').innerHTML   = '';
+    document.getElementById('suggestion-panel').style.display = 'flex';
+    document.getElementById('panel-backdrop').style.display  = 'block';
+
+    fetch(`${SUGGESTIONS_URL}?time=${encodeURIComponent(slot)}&court=${encodeURIComponent(court)}&interval=${INTERVAL}`)
+      .then(r => r.json())
+      .then(data => {
+        document.getElementById('panel-loading').style.display = 'none';
+        const list = document.getElementById('suggestion-list');
+        if (!data.suggestions || data.suggestions.length === 0) {
+          document.getElementById('panel-empty').style.display = 'block';
+          return;
+        }
+        data.suggestions.forEach(m => {
+          const li = document.createElement('li');
+          li.className = 'suggestion-item';
+          li.dataset.matchId = m.id;
+          const pColor = m.priority <= 3 ? '#dc2626' : m.priority <= 6 ? '#d97706' : '#64748b';
+          li.innerHTML = `
+            <div class="s-division">${escHtml(m.division)}
+              <span class="priority-badge" style="background:${pColor}22; color:${pColor}; margin-left:.4rem;">
+                P${m.priority}
+              </span>
+              ${m.phase === 'playoff' ? '<span style="margin-left:.3rem; font-size:.7rem;">Slutspil</span>' : ''}
+            </div>
+            <div class="s-teams">${escHtml(m.team1)} <span style="color:#94a3b8;font-weight:400;"> mod </span> ${escHtml(m.team2)}</div>
+            <div class="s-meta">#${m.match_number} · Runde ${m.round} · ${m.discipline}</div>
+          `;
+          li.addEventListener('click', () => assignMatch(m.id, slot, court, li));
+          list.appendChild(li);
+        });
+      })
+      .catch(() => {
+        document.getElementById('panel-loading').textContent = 'Fejl ved hentning af forslag.';
+      });
+  }
+
+  function closePanel() {
+    document.getElementById('suggestion-panel').style.display = 'none';
+    document.getElementById('panel-backdrop').style.display   = 'none';
+    pendingSlot = null;
+    pendingCourt = null;
+  }
+
+  document.getElementById('panel-close').addEventListener('click', closePanel);
+  document.getElementById('panel-backdrop').addEventListener('click', closePanel);
+
+  // ── assign ─────────────────────────────────────────────────────────────
+  function assignMatch(matchId, slot, court, listItem) {
+    listItem.style.opacity = '0.5';
+    listItem.style.pointerEvents = 'none';
+
+    fetch(ASSIGN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+      body: JSON.stringify({ match_id: matchId, time: slot, court: court }),
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        closePanel();
+        // Reload the page to refresh the grid
+        window.location.reload();
+      } else {
+        alert(data.error || 'Fejl ved tildeling af kamp.');
+        listItem.style.opacity = '';
+        listItem.style.pointerEvents = '';
+      }
+    })
+    .catch(() => {
+      alert('Netværksfejl – prøv igen.');
+      listItem.style.opacity = '';
+      listItem.style.pointerEvents = '';
+    });
+  }
+
+  // ── unassign ───────────────────────────────────────────────────────────
+  function openUnassignDialog(matchId, label) {
+    pendingUnassignId = matchId;
+    document.getElementById('unassign-label').textContent = label;
+    document.getElementById('unassign-dialog').showModal();
+  }
+
+  document.getElementById('unassign-cancel').addEventListener('click', () => {
+    document.getElementById('unassign-dialog').close();
+    pendingUnassignId = null;
+  });
+
+  document.getElementById('unassign-confirm').addEventListener('click', () => {
+    if (!pendingUnassignId) return;
+    document.getElementById('unassign-confirm').disabled = true;
+    fetch(UNASSIGN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+      body: JSON.stringify({ match_id: pendingUnassignId }),
+    })
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('unassign-dialog').close();
+      if (data.ok) {
+        window.location.reload();
+      } else {
+        alert(data.error || 'Fejl ved frigørelse.');
+        document.getElementById('unassign-confirm').disabled = false;
+      }
+    })
+    .catch(() => {
+      alert('Netværksfejl – prøv igen.');
+      document.getElementById('unassign-confirm').disabled = false;
+    });
+  });
+
+  // ── clear all ──────────────────────────────────────────────────────────
+  const clearBtn = document.getElementById('clear-schedule-btn');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      document.getElementById('clear-dialog').showModal();
+    });
+  }
+
+  document.getElementById('clear-cancel').addEventListener('click', () => {
+    document.getElementById('clear-dialog').close();
+  });
+
+  document.getElementById('clear-confirm').addEventListener('click', () => {
+    document.getElementById('clear-confirm').disabled = true;
+    fetch(CLEAR_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+      body: '{}',
+    })
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('clear-dialog').close();
+      if (data.ok) {
+        window.location.reload();
+      } else {
+        alert(data.error || 'Fejl ved nulstilling.');
+        document.getElementById('clear-confirm').disabled = false;
+      }
+    })
+    .catch(() => {
+      alert('Netværksfejl – prøv igen.');
+      document.getElementById('clear-confirm').disabled = false;
+    });
+  });
+
+  // ── wire up buttons ────────────────────────────────────────────────────
+  document.querySelectorAll('.add-btn').forEach(btn => {
+    const td    = btn.closest('td');
+    const tr    = td.closest('tr');
+    const slot  = tr.dataset.slot;
+    const court = td.dataset.court;
+    btn.addEventListener('click', () => openPanel(slot, court));
+  });
+
+  document.querySelectorAll('.unassign-btn').forEach(btn => {
+    const card  = btn.closest('.match-card');
+    const label = card.dataset.matchLabel;
+    const id    = btn.dataset.matchId;
+    btn.addEventListener('click', () => openUnassignDialog(id, label));
+  });
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+})();
+</script>
+
+{% endblock %}
