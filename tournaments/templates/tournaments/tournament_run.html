@@ -11,11 +11,8 @@
   gap: 1.25rem;
   align-items: start;
 }
-.run-layout.has-active {
-  grid-template-columns: 1fr 650px;
-}
-@media (max-width: 1100px) {
-  .run-layout, .run-layout.has-active { grid-template-columns: 1fr; }
+@media (max-width: 900px) {
+  .run-layout { grid-template-columns: 1fr; }
   .run-sidebar { order: -1; }
 }
 
@@ -35,15 +32,10 @@
   border: 1px solid #e2e8f0; overflow: hidden; margin-bottom: 1.25rem;
 }
 .panels-row {
-  display: flex; gap: 0.75rem; align-items: start;
-  position: sticky; top: 70px; margin-bottom: 1.25rem;
+  position: sticky; top: 70px;
 }
-.panels-row .next-panel {
-  flex: 1; min-width: 0; margin-bottom: 0;
-}
-@media (max-width: 1100px) {
-  .panels-row { position: static; flex-direction: column; }
-  .panels-row .next-panel { width: 100%; }
+@media (max-width: 900px) {
+  .panels-row { position: static; }
 }
 .next-panel-header {
   background: #0d4f22; color: white;
@@ -101,6 +93,7 @@
 .pill-pending    { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
 .pill-progress   { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
 .pill-done       { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+.pill-complete   { background: #1d4ed8; color: #fff; border: 1px solid #1d4ed8; font-weight: 700; }
 
 /* ── Tabs inside division ─── */
 .run-tabs {
@@ -200,24 +193,25 @@
 </div>
 {% endif %}
 
-<div class="run-layout{% if active_matches %} has-active{% endif %}">
+<div class="run-layout">
 
   {# ── Main column: divisions ─── #}
   <div class="run-main">
     {% for dd in division_data %}
     {% with division=dd.division %}
     <div class="division-block">
-      <div class="rd-header {% if dd.in_progress_count %}rd-open{% endif %}" onclick="rdToggle(this)">
+      <div class="rd-header" onclick="rdToggle(this)">
         <span class="run-div-title">{{ division.name }}</span>
         <span class="run-div-meta">{{ division.get_discipline_display }}</span>
         <span class="run-div-pills">
           {% if dd.in_progress_count %}<span class="pill pill-progress">{{ dd.in_progress_count }} i gang</span>{% endif %}
           {% if dd.pending_count %}<span class="pill pill-pending">{{ dd.pending_count }} venter</span>{% endif %}
           {% if dd.completed_count %}<span class="pill pill-done">{{ dd.completed_count }} færdige</span>{% endif %}
+          {% if dd.match_count and dd.completed_count == dd.match_count %}<span class="pill pill-complete">✓ Færdig</span>{% endif %}
         </span>
       </div>
 
-      <div class="rd-body" style="padding:0;{% if not dd.in_progress_count %} display:none;{% endif %}">
+      <div class="rd-body" style="padding:0; display:none;">
         {# Tabs #}
         <div class="run-tabs" data-div="{{ division.pk }}">
           <button class="run-tab active" data-tab="matches">Kampe</button>
@@ -246,9 +240,9 @@
             <span class="run-match-teams">
               {% if match.team1 and match.team2 %}
               <span {% if match.status == 'in_progress' and match.startable_errors is not None %}{% endif %}>
-                {{ match.team1.name }}{{ match.t1_seed }}
+                {{ match.team1.name }}{{ match.t1_seed }}{% if match.t1_status == 'playing' %} 🏸{% elif match.t1_status == 'resting' %} <span style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ match.t1_rest_until|unix_ts }}"></span></span>{% endif %}
                 <span class="vs">vs</span>
-                {{ match.team2.name }}{{ match.t2_seed }}
+                {{ match.team2.name }}{{ match.t2_seed }}{% if match.t2_status == 'playing' %} 🏸{% elif match.t2_status == 'resting' %} <span style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ match.t2_rest_until|unix_ts }}"></span></span>{% endif %}
               </span>
               {% elif match.bracket_label %}
               <span style="color:#888; font-style:italic;">{{ match.bracket_label }}</span>
@@ -258,13 +252,17 @@
             <span></span>{# spacer #}
             <span class="run-match-actions">
               {% if match.status == 'pending' and match.team1 and match.team2 %}
+              {% if match.t1_status or match.t2_status %}
+              <span style="font-size:0.8rem; color:#d97706; white-space:nowrap;" title="En spiller er optaget eller i hvile">⚠ Optaget</span>
+              {% else %}
               <form method="post" action="{% url 'match_start' match.pk %}?next={% url 'tournament_run' tournament.pk %}" style="display:inline;">
                 {% csrf_token %}
                 <input type="hidden" name="next" value="{% url 'tournament_run' tournament.pk %}">
                 <button type="submit" class="btn btn-primary btn-sm">▶ Start</button>
               </form>
               {% endif %}
-              {% if match.status == 'in_progress' or match.status == 'pending' %}
+              {% endif %}
+              {% if match.status == 'in_progress' %}
               {% if match.team1 and match.team2 %}
               <a href="{% url 'match_record_result' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="btn btn-secondary btn-sm">Resultat</a>
               <a href="{% url 'match_walkover' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="btn btn-secondary btn-sm" style="color:#d97706; border-color:#fde68a;">WO</a>
@@ -480,7 +478,6 @@
             <input type="hidden" name="next" value="{% url 'tournament_run' tournament.pk %}">
             <button type="submit" class="btn btn-primary btn-sm">▶ Start</button>
           </form>
-          <a href="{% url 'match_record_result' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="btn btn-secondary btn-sm">Resultat</a>
         </div>
       </div>
       {% endfor %}
@@ -496,8 +493,6 @@
       {% endif %}
     </div>
 
-    </div>{# /panels-row #}
-
     {# Quick links #}
     <div class="card" style="padding:0.85rem 1rem;">
       <div class="section-label" style="margin-top:0;">Genveje</div>
@@ -508,6 +503,8 @@
         <a href="{% url 'tournament_scoresheet' tournament.pk %}" class="btn btn-secondary btn-sm" target="_blank">🖨 Scoresedler</a>
       </div>
     </div>
+
+    </div>{# /panels-row #}
   </div>{# /sidebar #}
 
 </div>{# /run-layout #}

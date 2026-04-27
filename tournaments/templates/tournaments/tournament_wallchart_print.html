@@ -156,6 +156,33 @@
     border-bottom: 1px solid #86efac;
   }
 
+  /* ── Group sections ─── */
+  .group-section {
+    border-top: 1px solid #d1fae5;
+    padding: 0.5rem 0.85rem 0.35rem;
+  }
+  .group-heading {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #064e3b;
+    margin-bottom: 0.3rem;
+    border-bottom: 1px solid #bbf7d0;
+    padding-bottom: 0.15rem;
+  }
+  .phase-heading {
+    background: #dcfce7;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #064e3b;
+    padding: 0.25rem 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-top: 1px solid #86efac;
+    border-bottom: 1px solid #86efac;
+  }
+
   /* ── Empty ─── */
   .no-matches { color: #94a3b8; font-style: italic; font-size: 0.82rem; padding: 0.5rem 0.85rem; }
 
@@ -232,6 +259,87 @@
   </div>
 
   {# Matches #}
+  {% if dd.division.tournament_type == 'playoff' and dd.groups %}
+
+    {# ── Gruppespil ─── #}
+    <div class="phase-heading">Gruppespil</div>
+    {% for group in dd.groups %}
+    <div class="group-section">
+      <div class="group-heading">Gruppe {{ group.number }}</div>
+      <div style="font-size:0.8rem; color:#374151; margin-bottom:0.4rem;">
+        {% for team in group.teams %}{{ team.name }}{{ dd.seeds_dict|dict_get:team.pk }}{% if not forloop.last %} &nbsp;·&nbsp; {% endif %}{% endfor %}
+      </div>
+      {% if group.matches %}
+      <table class="match-table">
+        <thead><tr>
+          <th class="col-no">#</th>
+          <th class="time-th">Tid</th>
+          <th>Hold 1</th><th></th><th>Hold 2</th>
+          <th class="result-th">Sæt 1</th>
+          <th class="result-th">Sæt 2</th>
+          <th class="result-th">Sæt 3</th>
+        </tr></thead>
+        <tbody>
+          {% for match in group.matches %}
+          <tr>
+            <td class="col-no">{{ match.match_number }}</td>
+            <td class="col-time">{% if match.scheduled_time %}{{ match.scheduled_time|time:"H:i" }}{% else %}–{% endif %}</td>
+            <td class="col-team">{{ match.team1.name }}{{ match.t1_seed }}</td>
+            <td class="col-vs">mod</td>
+            <td class="col-team">{{ match.team2.name }}{{ match.t2_seed }}</td>
+            <td class="result-cell"><div class="set-boxes"><span class="set-box"></span><span class="set-sep">/</span><span class="set-box"></span></div></td>
+            <td class="result-cell"><div class="set-boxes"><span class="set-box"></span><span class="set-sep">/</span><span class="set-box"></span></div></td>
+            <td class="result-cell"><div class="set-boxes"><span class="set-box"></span><span class="set-sep">/</span><span class="set-box"></span></div></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    {# ── Slutspil ─── #}
+    {% if dd.playoff_matches %}
+    <div class="phase-heading">Slutspil</div>
+    <div style="padding: 0 0.85rem 0.35rem;">
+    <table class="match-table">
+      <thead><tr>
+        <th class="col-no">#</th>
+        <th class="time-th">Tid</th>
+        <th>Hold 1</th><th></th><th>Hold 2</th>
+        <th class="result-th">Sæt 1</th>
+        <th class="result-th">Sæt 2</th>
+        <th class="result-th">Sæt 3</th>
+      </tr></thead>
+      <tbody>
+        {% for match in dd.playoff_matches %}
+        <tr>
+          <td class="col-no">{{ match.match_number }}</td>
+          <td class="col-time">{% if match.scheduled_time %}{{ match.scheduled_time|time:"H:i" }}{% else %}–{% endif %}</td>
+          <td class="col-team">
+            {% if match.team1 %}{{ match.team1.name }}{{ match.t1_seed }}
+            {% elif match.feeder1_num %}V-kamp #{{ match.feeder1_num }}
+            {% else %}TBD{% endif %}
+          </td>
+          <td class="col-vs">mod</td>
+          <td class="col-team">
+            {% if match.team2 %}{{ match.team2.name }}{{ match.t2_seed }}
+            {% elif match.feeder2_num %}V-kamp #{{ match.feeder2_num }}
+            {% else %}TBD{% endif %}
+          </td>
+          <td class="result-cell"><div class="set-boxes"><span class="set-box"></span><span class="set-sep">/</span><span class="set-box"></span></div></td>
+          <td class="result-cell"><div class="set-boxes"><span class="set-box"></span><span class="set-sep">/</span><span class="set-box"></span></div></td>
+          <td class="result-cell"><div class="set-boxes"><span class="set-box"></span><span class="set-sep">/</span><span class="set-box"></span></div></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% endif %}
+
+  {% else %}
+
+  {# Standard match list (round-robin or tree) #}
   {% if dd.matches %}
   <table class="match-table">
     <thead>
@@ -289,6 +397,8 @@
   {% else %}
   <p class="no-matches">Ingen kampe genereret endnu.</p>
   {% endif %}
+
+  {% endif %}{# end playoff groups vs standard #}
 
 </div>
 {% endfor %}

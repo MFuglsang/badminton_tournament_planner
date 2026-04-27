@@ -767,10 +767,48 @@ def tournament_wallchart(request, pk):
                 m.feeder2_num = slot_to_num.get((r - 1, 2 * s))
             else:
                 m.feeder1_num = m.feeder2_num = None
+
+        # Build groups for playoff type
+        groups = []
+        if div.tournament_type == 'playoff':
+            group_teams_dict = {}
+            seen = {}
+            for m in div.matches.filter(phase='group').select_related('team1', 'team2').order_by('group_number', 'match_round'):
+                for team in (m.team1, m.team2):
+                    if team is None:
+                        continue
+                    g = m.group_number or 1
+                    if g not in group_teams_dict:
+                        group_teams_dict[g] = []
+                        seen[g] = set()
+                    if team.pk not in seen[g]:
+                        group_teams_dict[g].append(team)
+                        seen[g].add(team.pk)
+            group_matches_dict = {}
+            for m in matches:
+                if m.phase != 'group':
+                    continue
+                g = m.group_number or 1
+                if g not in group_matches_dict:
+                    group_matches_dict[g] = []
+                group_matches_dict[g].append(m)
+            for g_num in sorted(group_teams_dict.keys()):
+                groups.append({
+                    'number': g_num,
+                    'teams': group_teams_dict[g_num],
+                    'matches': group_matches_dict.get(g_num, []),
+                })
+
+        bracket_data = get_bracket_data(div) if div.tournament_type in ('tree', 'playoff') else None
+        playoff_matches = [m for m in matches if m.phase == 'playoff'] if div.tournament_type == 'playoff' else []
+
         wallchart_data.append({
             'division': div,
             'matches': matches,
             'seeds_dict': _seeds_dict_for_division(div, seed_lookup),
+            'groups': groups,
+            'bracket_data': bracket_data,
+            'playoff_matches': playoff_matches,
         })
 
     return render(request, 'tournaments/tournament_wallchart_print.html', {
@@ -1036,9 +1074,11 @@ def tournament_run(request, pk):
         .exclude(team1__isnull=True, team2__isnull=True, bracket_label__isnull=False)
         .select_related('division', 'team1', 'team2')
         .order_by('scheduled_time', 'court')
-    )[:5]
+    )[:20]  # fetch extra so we can filter down to 5 after removing busy
     _apply_seed_labels(next_matches, seed_lookup)
     apply_status_to_matches(next_matches, playing_pks, resting)
+    # Exclude matches where a player is currently playing (not just resting)
+    next_matches = [m for m in next_matches if m.t1_status != 'playing' and m.t2_status != 'playing'][:5]
 
     # Matches currently in progress
     active_matches = list(

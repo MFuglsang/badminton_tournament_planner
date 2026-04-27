@@ -224,6 +224,7 @@ def player_schedule_print(request, pk):
         .filter(Q(team1__in=teams) | Q(team2__in=teams))
         .filter(scheduled_time__isnull=False)
         .exclude(match_number=None)
+        .distinct()
         .select_related('team1', 'team2', 'division', 'division__tournament', 'winner')
         .order_by('scheduled_time')
     )

@@ -520,20 +520,6 @@ var MATCH_LOOKUP = {
             </td>
             <td>
                 {% if not match.bracket_label %}
-                {% if match.status == 'pending' %}
-                {% if match.t1_status or match.t2_status %}
-                <span style="font-size:0.8rem; color:#d97706;" title="En spiller er optaget eller i hvile">⚠ Optaget</span>
-                {% else %}
-                <form method="post" action="{% url 'match_start' match.pk %}" style="display:inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-secondary btn-sm">▶ Start</button>
-                </form>
-                {% endif %}
-                {% endif %}
-                {% if match.status == 'in_progress' or match.status == 'pending' %}
-                <a href="{% url 'match_record_result' match.pk %}" class="btn btn-primary btn-sm" style="margin-left:0.25rem;">Registrer resultat</a>
-                <a href="{% url 'match_walkover' match.pk %}" class="btn btn-secondary btn-sm" style="margin-left:0.25rem;" title="Walk-over">WO</a>
-                {% endif %}
                 {% if match.status == 'completed' %}
                 <a href="{% url 'match_record_result' match.pk %}" class="btn btn-secondary btn-sm">Ret resultat</a>
                 {% endif %}
@@ -587,20 +573,6 @@ var MATCH_LOOKUP = {
             </td>
             <td>
                 {% if match.team1 and match.team2 %}
-                {% if match.status == 'pending' %}
-                {% if match.t1_status or match.t2_status %}
-                <span style="font-size:0.8rem; color:#d97706;" title="En spiller er optaget eller i hvile">⚠ Optaget</span>
-                {% else %}
-                <form method="post" action="{% url 'match_start' match.pk %}" style="display:inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-secondary btn-sm">▶ Start</button>
-                </form>
-                {% endif %}
-                {% endif %}
-                {% if match.status == 'in_progress' or match.status == 'pending' %}
-                <a href="{% url 'match_record_result' match.pk %}" class="btn btn-primary btn-sm" style="margin-left:0.25rem;">Registrer resultat</a>
-                <a href="{% url 'match_walkover' match.pk %}" class="btn btn-secondary btn-sm" style="margin-left:0.25rem;">WO</a>
-                {% endif %}
                 {% if match.status == 'completed' %}
                 <a href="{% url 'match_record_result' match.pk %}" class="btn btn-secondary btn-sm">Ret resultat</a>
                 {% endif %}
