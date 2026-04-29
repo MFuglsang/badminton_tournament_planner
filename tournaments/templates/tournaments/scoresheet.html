@@ -191,10 +191,14 @@
       margin: 0;
     }
     .screen-header { display: none; }
-    .print-logo-bar { display: flex !important; }
     .sheet-grid {
       max-width: 100%;
       gap: 8mm;
+      grid-auto-rows: 112mm;
+    }
+    .score-card {
+      height: 112mm;
+      overflow: hidden;
     }
     /* Force page break after every 4th card */
     .score-card:nth-child(4n) {
@@ -211,12 +215,7 @@
   <a href="{% url 'tournament_detail' tournament.pk %}" class="btn btn-secondary">← Tilbage</a>
 </div>
 
-{% if tournament.logo %}
-<div class="print-logo-bar" style="display:none; max-width:820px; margin:0 auto 6mm; align-items:center; gap:1rem; border-bottom:1px solid #aaa; padding-bottom:4mm; margin-bottom:6mm;">
-  <img src="{{ tournament.logo.url }}" alt="Logo" style="max-height:50px; max-width:120px; object-fit:contain;">
-  <span style="font-size:1rem; font-weight:700;">{{ tournament.name }}{% if title_suffix %} – {{ title_suffix }}{% endif %}</span>
-</div>
-{% endif %}
+
 
 {% if matches %}
 <div class="sheet-grid">
