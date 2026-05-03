@@ -179,7 +179,7 @@ def get_participants_form(division, data=None, owner=None):
 class MatchResultForm(forms.ModelForm):
     class Meta:
         model = Match
-        fields = ['score', 'winner', 'status']
+        fields = ['score', 'winner']
         widgets = {
             'score': forms.TextInput(attrs={'placeholder': '21-15, 18-21, 21-18'}),
         }
@@ -194,12 +194,10 @@ class MatchResultForm(forms.ModelForm):
             self.fields['winner'].queryset = (
                 type(match.team1).objects.filter(pk__in=pks)
             )
-        self.fields['status'].initial = 'completed'
 
     def clean_score(self):
         score = (self.cleaned_data.get('score') or '').strip()
-        status = self.data.get('status')
-        if status != 'completed' or not score:
+        if not score:
             return score
 
         # 1. Parse
@@ -244,9 +242,8 @@ class MatchResultForm(forms.ModelForm):
         cleaned = super().clean()
         score = (cleaned.get('score') or '').strip()
         winner = cleaned.get('winner')
-        status = cleaned.get('status')
 
-        if status != 'completed' or not score or not winner:
+        if not score or not winner:
             return cleaned
 
         match = self.instance
@@ -270,6 +267,8 @@ class MatchResultForm(forms.ModelForm):
                 f"{expected_winner.name} ({t1_sets}–{t2_sets} sæt), "
                 f"men du valgte {winner.name} som vinder."
             )
+        # Auto-complete the match when score + winner are valid
+        cleaned['status'] = 'completed'
         return cleaned
 
 

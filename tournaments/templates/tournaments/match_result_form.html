@@ -65,13 +65,6 @@
             </div>
             {% endif %}
 
-            {# Status #}
-            <div class="form-group">
-                <label for="{{ form.status.id_for_label }}">{{ form.status.label }}</label>
-                {{ form.status }}
-                {% if form.status.errors %}<ul class="errorlist">{% for e in form.status.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-            </div>
-
             {# Hidden score field – assembled by JS before submit #}
             {{ form.score.as_hidden }}
             {% if form.score.errors %}

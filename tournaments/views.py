@@ -661,7 +661,9 @@ def match_record_result(request, pk):
     if request.method == 'POST':
         form = MatchResultForm(request.POST, instance=match)
         if form.is_valid():
-            form.save()
+            m = form.save(commit=False)
+            m.status = form.cleaned_data['status']
+            m.save()
             match.refresh_from_db()
             if match.status == 'completed':
                 set_player_rest(match)

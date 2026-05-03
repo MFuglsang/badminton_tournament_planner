@@ -641,8 +641,10 @@ class MatchResultViewTest(TestCase):
         self.assertEqual(self.match.winner, self.t1)
 
     def test_match_result_post_invalid_stays_on_page(self):
+        # Posting nonsense score stays on the form page
         response = self.client.post(
-            reverse("match_record_result", args=[self.match.pk]), {}
+            reverse("match_record_result", args=[self.match.pk]),
+            {'score': 'abc-xyz', 'winner': self.t1.pk},
         )
         self.assertEqual(response.status_code, 200)
 
@@ -762,18 +764,10 @@ class MatchResultFormValidationTest(TestCase):
         form = self._post('15-21, 10-21', winner=self.t2)
         self.assertTrue(form.is_valid(), form.errors)
 
-    def test_no_validation_when_status_not_completed(self):
-        # Status in_progress → score not validated
+    def test_no_validation_when_score_empty(self):
+        # Empty score with a winner is allowed (partial save)
         form = MatchResultForm(
-            data={'score': 'nonsense', 'winner': self.t1.pk, 'status': 'in_progress'},
-            instance=self.match,
-        )
-        self.assertTrue(form.is_valid(), form.errors)
-
-    def test_empty_score_not_validated_when_completed(self):
-        # Blank score with status=completed is still allowed (no score yet)
-        form = MatchResultForm(
-            data={'score': '', 'winner': self.t1.pk, 'status': 'completed'},
+            data={'score': '', 'winner': self.t1.pk},
             instance=self.match,
         )
         self.assertTrue(form.is_valid(), form.errors)
