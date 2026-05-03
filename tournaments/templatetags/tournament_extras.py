@@ -4,6 +4,14 @@ register = template.Library()
 
 
 @register.filter
+def split(value, sep):
+    """Split a string by *sep* and return a list."""
+    if value:
+        return value.split(sep)
+    return [value]
+
+
+@register.filter
 def dict_get(d, key):
     """Look up *key* in dict *d*. Returns '' if not found."""
     if isinstance(d, dict):

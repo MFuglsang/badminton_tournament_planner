@@ -14,7 +14,7 @@ class Tournament(models.Model):
     division_model = models.CharField(max_length=10, choices=DIVISION_MODEL_CHOICES, verbose_name=_("Divisionsmodel"))
     SCORING_MODEL_CHOICES = [
         ('best_of_3_21', _('Bedst af 3 sæt til 21')),
-        ('best_of_5_15', _('Bedst af 5 sæt til 15')),
+        ('best_of_5_15', _('Bedst af 3 sæt til 15')),
     ]
     scoring_model = models.CharField(
         max_length=20,

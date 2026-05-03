@@ -675,7 +675,11 @@ def match_record_result(request, pk):
     return render(request, 'tournaments/match_result_form.html', {'form': form, 'match': match, 'next_url': next_url})
 
 
-WALKOVER_SCORE = '21-0, 21-0'
+def _walkover_score(match):
+    scoring = match.division.tournament.scoring_model
+    if scoring == 'best_of_5_15':
+        return '15-0, 15-0'
+    return '21-0, 21-0'
 
 
 @login_required
@@ -703,7 +707,7 @@ def match_walkover(request, pk):
         form = WalkoverForm(request.POST, match=match)
         if form.is_valid():
             match.winner = form.cleaned_data['winner']
-            match.score = WALKOVER_SCORE
+            match.score = _walkover_score(match)
             match.status = 'completed'
             match.walkover = True
             match.save()
