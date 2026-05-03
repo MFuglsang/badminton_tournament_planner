@@ -627,7 +627,6 @@ class MatchResultViewTest(TestCase):
         data = {
             "score": "21-15, 21-10",
             "winner": self.t1.pk,
-            "status": "completed",
         }
         response = self.client.post(
             reverse("match_record_result", args=[self.match.pk]), data
@@ -639,6 +638,16 @@ class MatchResultViewTest(TestCase):
         self.assertEqual(self.match.score, "21-15, 21-10")
         self.assertEqual(self.match.status, "completed")
         self.assertEqual(self.match.winner, self.t1)
+
+    def test_match_result_auto_sets_completed(self):
+        """Valid score + winner should automatically mark match as completed."""
+        self.assertEqual(self.match.status, 'pending')
+        self.client.post(
+            reverse("match_record_result", args=[self.match.pk]),
+            {"score": "21-15, 21-10", "winner": self.t1.pk},
+        )
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.status, 'completed')
 
     def test_match_result_post_invalid_stays_on_page(self):
         # Posting nonsense score stays on the form page
@@ -669,11 +678,11 @@ class MatchResultFormValidationTest(TestCase):
             division=self.division, team1=self.t1, team2=self.t2
         )
 
-    def _post(self, score, winner=None, status='completed'):
-        return MatchResultForm(
-            data={'score': score, 'winner': (winner or self.t1).pk, 'status': status},
-            instance=self.match,
-        )
+    def _post(self, score, winner=None, status=None):
+        data = {'score': score, 'winner': (winner or self.t1).pk}
+        if status is not None:
+            data['status'] = status
+        return MatchResultForm(data=data, instance=self.match)
 
     # ── _parse_score helper ────────────────────────────────────────────────
     def test_parse_score_single_set(self):
