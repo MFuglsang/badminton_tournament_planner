@@ -26,6 +26,8 @@
     color: var(--text);
     font-family: 'Segoe UI', Arial, sans-serif;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
 
   /* ── Top bar ─── */
@@ -76,7 +78,7 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    height: calc(100vh - 82px);   /* full height minus topbar */
+    height: calc(100vh - 82px - 34px);   /* full height minus topbar and footer */
     padding: 1.5rem 2.5rem;
     gap: 1rem;
   }
@@ -121,9 +123,10 @@
     text-transform: uppercase;
   }
   .match-no {
-    font-size: 0.75rem;
-    color: rgba(255,255,255,0.55);
+    font-size: 1rem;
+    color: #ffffff;
     margin-top: 0.2rem;
+    font-weight: 700;
   }
 
   /* Centre: teams */
@@ -166,13 +169,13 @@
   }
   .division-name {
     font-size: 1rem;
-    color: var(--muted);
+    color: #ffffff;
     font-weight: 600;
     letter-spacing: 0.04em;
   }
   .discipline-label {
     font-size: 0.8rem;
-    color: rgba(122,154,200,0.6);
+    color: rgba(255,255,255,0.7);
     margin-top: 0.2rem;
   }
 
@@ -284,6 +287,11 @@
   // ── Auto-refresh page every 60 seconds ─────────────────────────────────
   setTimeout(() => location.reload(), 60000);
 </script>
+
+<footer style="text-align:center; padding:0.6rem 1rem; font-size:0.75rem; color:rgba(255,255,255,0.35); letter-spacing:0.03em; position:fixed; bottom:0; left:0; right:0;">
+  &copy; 2026 Badminton Tournament Planner &mdash; By Morten Fuglsang &mdash;
+  <a href="https://github.com/mortenfuglsang" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.45); text-decoration:none;">GitHub</a>
+</footer>
 
 </body>
 </html>
