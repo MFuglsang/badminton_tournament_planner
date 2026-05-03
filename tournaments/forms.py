@@ -65,12 +65,15 @@ class TournamentForm(forms.ModelForm):
 class DivisionForm(forms.ModelForm):
     class Meta:
         model = Division
-        fields = ['name', 'discipline', 'tournament_type', 'group_count', 'advance_count', 'schedule_priority']
+        fields = ['name', 'discipline', 'tournament_type', 'group_count', 'advance_count', 'schedule_priority', 'gold_count', 'silver_count', 'bronze_count']
         widgets = {
             'name': forms.TextInput(attrs={'placeholder': 'f.eks. Herresingle A, Damedouble B …'}),
             'group_count': forms.NumberInput(attrs={'min': 2, 'max': 16}),
             'advance_count': forms.NumberInput(attrs={'min': 1, 'max': 8}),
             'schedule_priority': forms.NumberInput(attrs={'min': 1, 'max': 10, 'style': 'width:4rem;'}),
+            'gold_count': forms.NumberInput(attrs={'min': 0, 'max': 4, 'style': 'width:4rem;'}),
+            'silver_count': forms.NumberInput(attrs={'min': 0, 'max': 4, 'style': 'width:4rem;'}),
+            'bronze_count': forms.NumberInput(attrs={'min': 0, 'max': 4, 'style': 'width:4rem;'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -81,6 +84,12 @@ class DivisionForm(forms.ModelForm):
         self.fields['advance_count'].initial = 2
         self.fields['schedule_priority'].required = False
         self.fields['schedule_priority'].initial = 5
+        self.fields['gold_count'].required = False
+        self.fields['gold_count'].initial = 1
+        self.fields['silver_count'].required = False
+        self.fields['silver_count'].initial = 1
+        self.fields['bronze_count'].required = False
+        self.fields['bronze_count'].initial = 0
 
     def clean_group_count(self):
         val = self.cleaned_data.get('group_count')
@@ -95,6 +104,18 @@ class DivisionForm(forms.ModelForm):
         if val is None:
             return 5
         return max(1, min(10, int(val)))
+
+    def clean_gold_count(self):
+        val = self.cleaned_data.get('gold_count')
+        return val if val is not None else 1
+
+    def clean_silver_count(self):
+        val = self.cleaned_data.get('silver_count')
+        return val if val is not None else 1
+
+    def clean_bronze_count(self):
+        val = self.cleaned_data.get('bronze_count')
+        return val if val is not None else 0
 
 
 class DivisionPlayersForm(forms.Form):

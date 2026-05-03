@@ -5,11 +5,9 @@ Configuration (not exposed in the GUI):
   win_points    – competition points awarded for a match victory (default: 2)
   loss_points   – competition points awarded for a match loss   (default: 0)
   tiebreakers   – ordered list of methods applied when teams are level on points:
-                    'head_to_head'   first tiebreaker: points in matches among
-                                     the tied teams only (mini-league table)
-                    'points_scored'  second tiebreaker: net individual points
-                                     (points won minus points conceded across
-                                     all sets in all matches)
+                    'sets_diff'   first tiebreaker: net sets won (sets_won - sets_lost)
+                    'score_diff'  second tiebreaker: net points (score_for - score_against)
+                    'score_for'   third tiebreaker: total points won
 """
 
 import re
@@ -17,7 +15,7 @@ import re
 STANDINGS_CONFIG = {
     'win_points': 2,
     'loss_points': 0,
-    'tiebreakers': ['head_to_head', 'points_scored'],
+    'tiebreakers': ['sets_diff', 'score_diff', 'score_for'],
 }
 
 
@@ -220,6 +218,10 @@ def _h2h_points(team_pk, group_pks, h2h):
     return total
 
 
+def _sets_diff(row):
+    return row['sets_won'] - row['sets_lost']
+
+
 def _score_diff(row):
     return row['score_for'] - row['score_against']
 
@@ -227,12 +229,12 @@ def _score_diff(row):
 def _apply_tiebreakers(rows, h2h):
     """
     Walk through groups of rows tied on competition points and apply
-    the tiebreakers from STANDINGS_CONFIG in order.
+    tiebreakers:
+      - Exactly 2 tied: head-to-head (direct match result).
+      - 3 or more tied: sets_diff → score_diff → score_for.
     """
-    tiebreakers = STANDINGS_CONFIG['tiebreakers']
     result = []
 
-    # Split into equal-points groups
     groups = _group_by(rows, key=lambda r: r['points'])
 
     for group in groups:
@@ -240,19 +242,23 @@ def _apply_tiebreakers(rows, h2h):
             result.extend(group)
             continue
 
-        group_pks = {r['team'].pk for r in group}
-
-        # Build the composite sort key for each row in this group
-        def sort_key(row):
-            key = []
-            for tb in tiebreakers:
-                if tb == 'head_to_head':
-                    key.append(-_h2h_points(row['team'].pk, group_pks, h2h))
-                elif tb == 'points_scored':
-                    key.append(-_score_diff(row))
-            return key
-
-        result.extend(sorted(group, key=sort_key))
+        if len(group) == 2:
+            # Head-to-head: the one who won their mutual match comes first
+            a, b = group[0], group[1]
+            key = (min(a['team'].pk, b['team'].pk), max(a['team'].pk, b['team'].pk))
+            winner_pk = h2h.get(key)
+            if winner_pk == b['team'].pk:
+                group = [b, a]
+            result.extend(group)
+        else:
+            # 3 or more tied: sæt-diff → point-diff → vundne point
+            def sort_key(row):
+                return (
+                    -_sets_diff(row),
+                    -_score_diff(row),
+                    -row['score_for'],
+                )
+            result.extend(sorted(group, key=sort_key))
 
     return result
 

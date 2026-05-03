@@ -106,6 +106,19 @@
             {{ division_form.schedule_priority }}
             <span style="font-size:0.75rem; color:#94a3b8;">1 = tidligst færdig</span>
         </div>
+        <div style="display:flex; gap:1rem; align-items:center; flex-wrap:wrap; margin-bottom:0.75rem; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:0.6rem 0.75rem;">
+            <span style="font-size:0.82rem; font-weight:600; color:#374151;">🥇 Medaljer:</span>
+            <div style="display:flex; gap:0.4rem; align-items:center;">
+                <label style="font-size:0.82rem;">🥇</label>{{ division_form.gold_count }}
+            </div>
+            <div style="display:flex; gap:0.4rem; align-items:center;">
+                <label style="font-size:0.82rem;">🥈</label>{{ division_form.silver_count }}
+            </div>
+            <div style="display:flex; gap:0.4rem; align-items:center;">
+                <label style="font-size:0.82rem;">🥉</label>{{ division_form.bronze_count }}
+                <span style="font-size:0.72rem; color:#94a3b8;">(0, 1 eller 2)</span>
+            </div>
+        </div>
         <button type="submit" class="btn btn-primary">+ Opret række</button>
     </form>
     <script>
@@ -346,9 +359,11 @@ var MATCH_LOOKUP = {
         {% for row in standings %}
         <tr>
             <td>
-                {% if forloop.counter == 1 %}<span class="rank-1">🥇</span>
-                {% elif forloop.counter == 2 %}<span class="rank-2">🥈</span>
-                {% elif forloop.counter == 3 %}<span class="rank-3">🥉</span>
+                {% if division.tournament_type == 'group' %}
+                    {% if forloop.counter == 1 %}<span class="rank-1">🥇</span>
+                    {% elif forloop.counter == 2 %}<span class="rank-2">🥈</span>
+                    {% elif forloop.counter == 3 %}<span class="rank-3">🥉</span>
+                    {% else %}{{ forloop.counter }}{% endif %}
                 {% else %}{{ forloop.counter }}{% endif %}
             </td>
             <td><strong>{{ row.team.name }}</strong>{{ seeds_dict|dict_get:row.team.pk }}{% if row.status == 'playing' %} <span title="Spiller i gang">🏸</span>{% elif row.status == 'resting' %} <span class="status-badge-rest" style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ row.rest_until|unix_ts }}"></span></span>{% endif %}</td>
@@ -378,10 +393,7 @@ var MATCH_LOOKUP = {
             {% for row in g_rows %}
             <tr {% if forloop.counter <= division.advance_count %}style="background:#f0fdf4;"{% endif %}>
                 <td>
-                    {% if forloop.counter == 1 %}<span class="rank-1">🥇</span>
-                    {% elif forloop.counter == 2 %}<span class="rank-2">🥈</span>
-                    {% elif forloop.counter == 3 %}<span class="rank-3">🥉</span>
-                    {% else %}{{ forloop.counter }}{% endif %}
+                    {{ forloop.counter }}
                     {% if forloop.counter <= division.advance_count %}<span style="font-size:0.7rem; color:#16a34a; margin-left:0.3rem;">↑ videre</span>{% endif %}
                 </td>
                 <td><strong>{{ row.team.name }}</strong>{{ seeds_dict|dict_get:row.team.pk }}{% if row.status == 'playing' %} <span title="Spiller i gang">🏸</span>{% elif row.status == 'resting' %} <span class="status-badge-rest" style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ row.rest_until|unix_ts }}"></span></span>{% endif %}</td>

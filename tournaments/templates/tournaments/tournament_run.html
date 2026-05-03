@@ -94,6 +94,13 @@
 .pill-progress   { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
 .pill-done       { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
 .pill-complete   { background: #1d4ed8; color: #fff; border: 1px solid #1d4ed8; font-weight: 700; }
+.btn-medal {
+  margin-left: auto; font-size: 0.78rem; font-weight: 600; color: #92400e;
+  background: #fffbeb; border: 1px solid #fde68a; border-radius: 14px;
+  padding: 0.15rem 0.7rem; text-decoration: none;
+  white-space: nowrap; cursor: pointer;
+}
+.btn-medal:hover { background: #fef3c7; }
 
 /* ── Tabs inside division ─── */
 .run-tabs {
@@ -241,6 +248,9 @@
           {% if dd.completed_count %}<span class="pill pill-done">{{ dd.completed_count }} færdige</span>{% endif %}
           {% if dd.match_count and dd.completed_count == dd.match_count %}<span class="pill pill-complete">✓ Færdig</span>{% endif %}
         </span>
+        {% if division.gold_count or division.silver_count or division.bronze_count %}
+        <a href="{% url 'division_medals' division.pk %}" class="btn-medal" title="Medaljer for {{ division.name }}" onclick="event.stopPropagation();">🏅 Medaljer</a>
+        {% endif %}
       </div>
 
       <div class="rd-body" style="padding:0; display:none;">
@@ -433,6 +443,13 @@
                       {% else %}
                       <div class="bracket-team bye">TBD</div>
                       {% endif %}
+                    {% endif %}
+                    {% if slot.match.status == 'pending' %}
+                    <div style="margin-top:3px; text-align:right;">
+                      <a href="{% url 'match_bracket_override' slot.match.pk %}?next={% url 'tournament_run' tournament.pk %}"
+                         style="font-size:0.68rem; color:#64748b; text-decoration:none; border:1px solid #e2e8f0; border-radius:3px; padding:1px 5px;"
+                         title="Skift hold manuelt">✏ Skift</a>
+                    </div>
                     {% endif %}
                   </div>
                   {% else %}

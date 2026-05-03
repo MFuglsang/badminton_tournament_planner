@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<title>Medaljer – {{ division.name }}</title>
+<style>
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f4f7fb;
+    margin: 0; padding: 1.5rem;
+    color: #111;
+  }
+  .screen-header {
+    max-width: 640px; margin: 0 auto 1.5rem;
+    display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  }
+  .screen-header h1 { margin: 0; font-size: 1.4rem; flex: 1; }
+  .btn {
+    display: inline-block; padding: 0.5rem 1.2rem; border-radius: 4px;
+    text-decoration: none; font-size: 0.9rem; cursor: pointer; border: none;
+  }
+  .btn-primary   { background: #16692c; color: #fff; }
+  .btn-secondary { background: #e9ecef; color: #333; }
+
+  .medal-card {
+    max-width: 640px; margin: 0 auto 1.5rem;
+    background: #fff; border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    overflow: hidden;
+  }
+  .medal-header {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.9rem 1.25rem;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .medal-icon { font-size: 2rem; line-height: 1; }
+  .medal-title { font-size: 1rem; font-weight: 700; }
+  .medal-subtitle { font-size: 0.78rem; color: #64748b; }
+
+  .medal-row {
+    padding: 0.7rem 1.25rem 0.7rem 1.5rem;
+    border-bottom: 1px solid #f8fafc;
+    font-size: 0.95rem; font-weight: 600;
+    display: flex; align-items: center; gap: 0.6rem;
+  }
+  .medal-row:last-child { border-bottom: none; }
+  .medal-num {
+    width: 1.4rem; text-align: right;
+    font-size: 0.72rem; color: #94a3b8; font-weight: 400;
+  }
+
+  .not-done-banner {
+    max-width: 640px; margin: 0 auto 1.25rem;
+    background: #fffbeb; border: 1px solid #fde68a;
+    border-radius: 6px; padding: 0.75rem 1rem;
+    font-size: 0.875rem; color: #92400e;
+  }
+
+  .empty-note {
+    max-width: 640px; margin: 0 auto;
+    color: #94a3b8; font-style: italic; text-align: center;
+    padding: 1rem;
+  }
+
+  @media print {
+    @page { size: A4 portrait; margin: 15mm; }
+    body { background: none; padding: 0; }
+    .screen-header { display: none; }
+    .not-done-banner { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="screen-header">
+  <h1>🏅 Medaljer – {{ division.name }}</h1>
+  <button class="btn btn-primary" onclick="window.print()">🖨 Udskriv</button>
+  <a href="{% url 'division_medals_edit' division.pk %}" class="btn btn-secondary">✏️ Rediger</a>
+  <a href="{% url 'tournament_run' division.tournament.pk %}" class="btn btn-secondary">← Tilbage</a>
+</div>
+
+{% if has_override %}
+<div style="max-width:640px; margin: 0 auto 1rem; background:#fffbeb; border:1px solid #fde68a; border-radius:6px; padding:0.6rem 0.9rem; font-size:0.82rem; color:#92400e;">
+  ✏️ Viser manuelle overrides. <a href="{% url 'division_medals_edit' division.pk %}" style="color:#92400e;">Rediger</a> eller <a href="{% url 'division_medals_reset' division.pk %}" style="color:#92400e;" onclick="return confirm('Nulstil til automatisk beregning?')">nulstil til automatisk</a>.
+</div>
+{% endif %}
+
+{% if not all_done %}
+<div class="not-done-banner">
+  ⚠ Ikke alle kampe er afsluttet endnu – medaljeoversigten kan være ufuldstændig.
+</div>
+{% endif %}
+
+{% if gold %}
+<div class="medal-card">
+  <div class="medal-header">
+    <div class="medal-icon">🥇</div>
+    <div>
+      <div class="medal-title">Guld</div>
+      <div class="medal-subtitle">{{ division.gold_count }} medalje{% if division.gold_count != 1 %}r{% endif %}</div>
+    </div>
+  </div>
+  {% for team in gold %}
+  <div class="medal-row">
+    <span class="medal-num">{{ forloop.counter }}.</span>
+    {{ team.name }}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if silver %}
+<div class="medal-card">
+  <div class="medal-header">
+    <div class="medal-icon">🥈</div>
+    <div>
+      <div class="medal-title">Sølv</div>
+      <div class="medal-subtitle">{{ division.silver_count }} medalje{% if division.silver_count != 1 %}r{% endif %}</div>
+    </div>
+  </div>
+  {% for team in silver %}
+  <div class="medal-row">
+    <span class="medal-num">{{ forloop.counter }}.</span>
+    {{ team.name }}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if bronze %}
+<div class="medal-card">
+  <div class="medal-header">
+    <div class="medal-icon">🥉</div>
+    <div>
+      <div class="medal-title">Bronce</div>
+      <div class="medal-subtitle">{{ division.bronze_count }} medalje{% if division.bronze_count != 1 %}r{% endif %}</div>
+    </div>
+  </div>
+  {% for team in bronze %}
+  <div class="medal-row">
+    <span class="medal-num">{{ forloop.counter }}.</span>
+    {{ team.name }}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if not gold and not silver and not bronze %}
+<div class="empty-note">
+  {% if all_done %}
+  Ingen medaljekonfiguration for denne række (guld/sølv/bronce er alle sat til 0).
+  {% else %}
+  Ingen kampe er afsluttet endnu.
+  {% endif %}
+</div>
+{% endif %}
+
+</body>
+</html>
