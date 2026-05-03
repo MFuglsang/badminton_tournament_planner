@@ -166,6 +166,32 @@
 @keyframes pulse {
   0%, 100% { opacity: 1; } 50% { opacity: 0.4; }
 }
+
+/* ── Match search ─── */
+.match-search-wrap {
+  display: flex; align-items: center; gap: 0.5rem;
+  background: white; border: 1px solid #e2e8f0; border-radius: 8px;
+  padding: 0.5rem 0.75rem; margin-bottom: 1rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,.05);
+}
+.match-search-wrap input {
+  border: none; outline: none; flex: 1; font-size: 0.9rem; color: #1e293b;
+  background: transparent;
+}
+.match-search-wrap input::placeholder { color: #94a3b8; }
+.match-search-clear {
+  cursor: pointer; color: #94a3b8; font-size: 1.1rem; line-height: 1;
+  background: none; border: none; padding: 0 0.1rem;
+  display: none;
+}
+.match-search-clear:hover { color: #374151; }
+.match-search-count { font-size: 0.75rem; color: #64748b; white-space: nowrap; }
+
+.match-highlight {
+  background: #fef9c3 !important;
+  outline: 2px solid #fbbf24;
+  border-radius: 4px;
+}
 </style>
 {% endblock %}
 
@@ -197,6 +223,12 @@
 
   {# ── Main column: divisions ─── #}
   <div class="run-main">
+    <div class="match-search-wrap">
+      <span style="color:#94a3b8;">🔍</span>
+      <input type="search" id="matchSearch" placeholder="Søg kampnummer eller spillernavn…" autocomplete="off">
+      <button class="match-search-clear" id="matchSearchClear" title="Ryd søgning">✕</button>
+      <span class="match-search-count" id="matchSearchCount"></span>
+    </div>
     {% for dd in division_data %}
     {% with division=dd.division %}
     <div class="division-block">
@@ -232,7 +264,7 @@
           {% with in_prog=dd.matches|dictsort:"match_number" %}
           {% for match in dd.matches %}
           {% if match.status == 'in_progress' or match.status == 'pending' %}
-          <div class="run-match-row {% if match.status == 'in_progress' %}row-in-progress{% endif %}">
+          <div class="run-match-row {% if match.status == 'in_progress' %}row-in-progress{% endif %}" data-searchtext="#{{ match.match_number }} {% if match.team1 %}{{ match.team1.name }}{% endif %} {% if match.team2 %}{{ match.team2.name }}{% endif %} {% if match.bracket_label %}{{ match.bracket_label }}{% endif %}">
             <span class="run-match-no">#{{ match.match_number }}</span>
             <span class="run-match-time">
               {% if match.scheduled_time %}{{ match.scheduled_time|time:"H:i" }}{% else %}–{% endif %}
@@ -247,7 +279,6 @@
               {% elif match.bracket_label %}
               <span style="color:#888; font-style:italic;">{{ match.bracket_label }}</span>
               {% endif %}
-              {% if match.court %}<span style="font-size:0.72rem; color:#64748b; margin-left:0.3rem;">Bane {{ match.court }}</span>{% endif %}
             </span>
             <span></span>{# spacer #}
             <span class="run-match-actions">
@@ -282,7 +313,7 @@
             <div class="rd-mini-body" style="display:none;">
             {% for match in dd.matches %}
             {% if match.status == 'completed' %}
-            <div class="run-match-row row-completed">
+            <div class="run-match-row row-completed" data-searchtext="#{{ match.match_number }} {% if match.team1 %}{{ match.team1.name }}{% endif %} {% if match.team2 %}{{ match.team2.name }}{% endif %}">
               <span class="run-match-no">#{{ match.match_number }}</span>
               <span class="run-match-time">
                 {% if match.scheduled_time %}{{ match.scheduled_time|time:"H:i" }}{% else %}–{% endif %}
@@ -551,5 +582,100 @@ document.querySelectorAll('details').forEach(function(d) {
     arrow.style.transform = d.open ? 'rotate(90deg)' : '';
   });
 });
+
+// ── Match search ──────────────────────────────────────────────────────────
+(function () {
+  var input = document.getElementById('matchSearch');
+  var clearBtn = document.getElementById('matchSearchClear');
+  var countEl = document.getElementById('matchSearchCount');
+  if (!input) return;
+
+  function openDivision(row) {
+    // Open the enclosing rd-body
+    var block = row.closest('.division-block');
+    if (!block) return;
+    var header = block.querySelector('.rd-header');
+    var body = block.querySelector('.rd-body');
+    if (body && body.style.display === 'none') {
+      body.style.display = 'block';
+      if (header) header.classList.add('rd-open');
+    }
+    // Switch to the Kampe tab
+    var divPk = block.querySelector('[data-div]') ? block.querySelector('[data-div]').dataset.div : null;
+    if (divPk) {
+      block.querySelectorAll('.run-tab').forEach(function(t) { t.classList.remove('active'); });
+      block.querySelectorAll('[data-panel]').forEach(function(p) { p.classList.remove('active'); });
+      var matchTab = block.querySelector('.run-tab[data-tab="matches"]');
+      var matchPanel = block.querySelector('[data-panel="matches"]');
+      if (matchTab) matchTab.classList.add('active');
+      if (matchPanel) matchPanel.classList.add('active');
+    }
+    // If row is inside a collapsed mini-body (completed section), open that too
+    var miniBody = row.closest('.rd-mini-body');
+    if (miniBody && miniBody.style.display === 'none') {
+      miniBody.style.display = 'block';
+      var miniHeader = miniBody.previousElementSibling;
+      if (miniHeader) miniHeader.classList.add('rd-open');
+    }
+  }
+
+  function doSearch() {
+    var q = input.value.trim().toLowerCase();
+    clearBtn.style.display = q ? 'inline' : 'none';
+
+    // Remove previous highlights
+    document.querySelectorAll('.run-match-row.match-highlight').forEach(function(r) {
+      r.classList.remove('match-highlight');
+    });
+
+    if (!q) {
+      countEl.textContent = '';
+      // Fold all divisions back together
+      document.querySelectorAll('.rd-body').forEach(function(body) {
+        body.style.display = 'none';
+      });
+      document.querySelectorAll('.rd-header').forEach(function(header) {
+        header.classList.remove('rd-open');
+      });
+      document.querySelectorAll('.rd-mini-body').forEach(function(body) {
+        body.style.display = 'none';
+      });
+      document.querySelectorAll('.rd-mini-header').forEach(function(header) {
+        header.classList.remove('rd-open');
+      });
+      return;
+    }
+
+    var allRows = document.querySelectorAll('.run-match-row[data-searchtext]');
+    var hits = [];
+    allRows.forEach(function(row) {
+      var txt = (row.dataset.searchtext || '').toLowerCase();
+      if (txt.indexOf(q) !== -1) {
+        hits.push(row);
+        row.classList.add('match-highlight');
+        openDivision(row);
+      }
+    });
+
+    countEl.textContent = hits.length ? hits.length + ' fundet' : 'Ingen kampe fundet';
+
+    // Scroll to the first hit
+    if (hits.length) {
+      hits[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
+  var debounce;
+  input.addEventListener('input', function() {
+    clearTimeout(debounce);
+    debounce = setTimeout(doSearch, 200);
+  });
+
+  clearBtn.addEventListener('click', function() {
+    input.value = '';
+    doSearch();
+    input.focus();
+  });
+})();
 </script>
 {% endblock %}
