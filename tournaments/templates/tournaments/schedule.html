@@ -49,6 +49,8 @@
 <div id="schedule-spinner-overlay" role="status" aria-live="polite">
     <div class="spinner-ring"></div>
     <div class="spinner-label">Optimerer spilleplan…</div>
+    <div id="spinner-countdown" style="color:#fff; font-size:2rem; font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:0.05em;">2:00</div>
+    <div style="color:rgba(255,255,255,0.6); font-size:0.8rem;">Op til 2 minutter</div>
 </div>
 
 <style>
@@ -90,6 +92,17 @@
     form.addEventListener('submit', function () {
         document.getElementById('schedule-spinner-overlay').classList.add('active');
         document.getElementById('generate-schedule-btn').disabled = true;
+
+        // Countdown from 2:00
+        var totalSeconds = 120;
+        var countdownEl = document.getElementById('spinner-countdown');
+        var interval = setInterval(function () {
+            totalSeconds--;
+            if (totalSeconds <= 0) { clearInterval(interval); totalSeconds = 0; }
+            var m = Math.floor(totalSeconds / 60);
+            var s = totalSeconds % 60;
+            countdownEl.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+        }, 1000);
     });
 })();
 </script>
