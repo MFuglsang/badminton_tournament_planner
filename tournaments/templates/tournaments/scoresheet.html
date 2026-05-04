@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="da">
+<html lang="en">
 {% load tournament_extras %}
+{% load i18n %}
 <head>
 <meta charset="UTF-8">
-<title>Scoresedler – {{ tournament.name }}{% if title_suffix %} – {{ title_suffix }}{% endif %}</title>
+<title>{% trans "Score sheets" %} – {{ tournament.name }}{% if title_suffix %} – {{ title_suffix }}{% endif %}</title>
 <style>
   body {
     font-family: Arial, Helvetica, sans-serif;
@@ -175,9 +176,9 @@
 <body>
 
 <div class="screen-header">
-  <h1>Scoresedler – {{ tournament.name }}{% if title_suffix %} – {{ title_suffix }}{% endif %}</h1>
-  <button class="btn btn-primary" onclick="window.print()">🖨 Udskriv / Gem PDF</button>
-  <a href="{% url 'tournament_detail' tournament.pk %}" class="btn btn-secondary">← Tilbage</a>
+  <h1>{% trans "Score sheets" %} – {{ tournament.name }}{% if title_suffix %} – {{ title_suffix }}{% endif %}</h1>
+  <button class="btn btn-primary" onclick="window.print()">&#128424; {% trans "Print / Save PDF" %}</button>
+  <a href="{% url 'tournament_detail' tournament.pk %}" class="btn btn-secondary">← {% trans "Back" %}</a>
 </div>
 
 {% if matches %}
@@ -186,15 +187,15 @@
 <div class="score-card">
 
   <div class="card-header">
-    <span class="match-no">Kamp #{{ match.match_number }}</span>
+    <span class="match-no">{% trans "Match" %} #{{ match.match_number }}</span>
     <span class="division-label">{{ match.division.name }}</span>
   </div>
 
   <div class="score-table">
     <div></div>
-    <div class="col-header">Sæt 1</div>
-    <div class="col-header">Sæt 2</div>
-    <div class="col-header">Sæt 3</div>
+    <div class="col-header">{% trans "Set 1" %}</div>
+    <div class="col-header">{% trans "Set 2" %}</div>
+    <div class="col-header">{% trans "Set 3" %}</div>
 
     {% if match.team1 %}
     <div class="team-cell">
@@ -216,12 +217,12 @@
   </div>
 
   <div class="winner-row">
-    <span class="winner-label">Vinder:</span>
+    <span class="winner-label">{% trans "Winner:" %}</span>
     <div class="winner-option">
       <div class="winner-circle"></div>
       <span class="winner-name">{% if match.team1 %}{% with parts=match.team1.name|split:" & " %}{% for p in parts %}{{ p }}{% if not forloop.last %} / {% endif %}{% endfor %}{% endwith %}{% endif %}</span>
     </div>
-    <span class="winner-or">eller</span>
+    <span class="winner-or">{% trans "or" %}</span>
     <div class="winner-option">
       <div class="winner-circle"></div>
       <span class="winner-name">{% if match.team2 %}{% with parts=match.team2.name|split:" & " %}{% for p in parts %}{{ p }}{% if not forloop.last %} / {% endif %}{% endfor %}{% endwith %}{% endif %}</span>
@@ -234,7 +235,7 @@
 
 {% else %}
 <div class="no-matches">
-  <p>Ingen kampe med kampnumre endnu. Generer kampprogram for en række først.</p>
+  <p>{% trans "No matches with match numbers yet. Generate the match programme for a division first." %}</p>
 </div>
 {% endif %}
 

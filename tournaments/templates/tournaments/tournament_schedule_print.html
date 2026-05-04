@@ -1,6 +1,6 @@
 <!DOCTYPE html>
-{% load tournament_extras %}
-<html lang="da">
+{% load tournament_extras i18n %}
+<html lang="{{ LANGUAGE_CODE|default:'en' }}">
 <head>
 <meta charset="UTF-8">
 <title>Spilleplan – {{ tournament.name }}</title>
@@ -194,9 +194,9 @@
   <thead>
     <tr>
       <th>#</th>
-      <th class="col-time-header">Tidspunkt</th>
-      <th>Kamp</th>
-      <th>Række</th>
+      <th class="col-time-header">{% trans "Time" %}</th>
+      <th>{% trans "Match" %}</th>
+      <th>{% trans "Division" %}</th>
     </tr>
   </thead>
   <tbody>

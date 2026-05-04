@@ -36,8 +36,8 @@ class PlayerModelTest(TestCase):
     def test_gender_choices(self):
         m = make_player(name="Bob", gender="M")
         k = make_player(name="Alice", gender="K")
-        self.assertEqual(m.get_gender_display(), "Mand")
-        self.assertEqual(k.get_gender_display(), "Kvinde")
+        self.assertEqual(m.get_gender_display(), "Male")
+        self.assertEqual(k.get_gender_display(), "Female")
 
     def test_valid_division_choices(self):
         valid_divisions = ["U9", "U11", "U13", "U15", "U17", "U19", "A", "B", "C"]

@@ -1,8 +1,9 @@
-<!DOCTYPE html>
-<html lang="da">
+﻿<!DOCTYPE html>
+{% load i18n %}
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Rediger medaljer – {{ division.name }}</title>
+<title>{% trans "Edit medals" %} â€“ {{ division.name }}</title>
 <style>
   body { font-family: Arial, Helvetica, sans-serif; background: #f4f7fb; margin: 0; padding: 1.5rem; color: #111; }
   .page { max-width: 560px; margin: 0 auto; }
@@ -33,12 +34,12 @@
 </head>
 <body>
 <div class="page">
-  <h1>✏️ Rediger medaljer</h1>
-  <div class="sub">{{ division.name }} · {{ division.tournament.name }}</div>
+  <h1>âœï¸ {% trans "Edit medals" %}</h1>
+  <div class="sub">{{ division.name }} Â· {{ division.tournament.name }}</div>
 
   {% if has_override %}
   <div class="override-notice">
-    ⚠ Der er aktive manuelle overrides for denne række. Gem for at opdatere, eller klik "Nulstil til automatisk".
+    âš  {% trans "There are active manual overrides for this division. Save to update, or click \"Reset to automatic\"." %}
   </div>
   {% endif %}
 
@@ -48,14 +49,14 @@
     {% if division.gold_count %}
     <div class="medal-section">
       <div class="medal-header">
-        <div class="medal-icon">🥇</div>
-        <div class="medal-title">Guld</div>
+        <div class="medal-icon">ðŸ¥‡</div>
+        <div class="medal-title">{% trans "Gold" %}</div>
       </div>
       {% for slot in gold_slots %}
       <div class="slot-row">
         <span class="slot-label">{{ forloop.counter }}.</span>
         <select name="{{ slot.field }}">
-          <option value="">— Ingen —</option>
+          <option value="">â€” Ingen â€”</option>
           {% for team in all_teams %}
           <option value="{{ team.pk }}"{% if slot.selected and slot.selected.pk == team.pk %} selected{% endif %}>{{ team.name }}</option>
           {% endfor %}
@@ -68,14 +69,14 @@
     {% if division.silver_count %}
     <div class="medal-section">
       <div class="medal-header">
-        <div class="medal-icon">🥈</div>
-        <div class="medal-title">Sølv</div>
+        <div class="medal-icon">ðŸ¥ˆ</div>
+        <div class="medal-title">{% trans "Silver" %}</div>
       </div>
       {% for slot in silver_slots %}
       <div class="slot-row">
         <span class="slot-label">{{ forloop.counter }}.</span>
         <select name="{{ slot.field }}">
-          <option value="">— Ingen —</option>
+          <option value="">â€” Ingen â€”</option>
           {% for team in all_teams %}
           <option value="{{ team.pk }}"{% if slot.selected and slot.selected.pk == team.pk %} selected{% endif %}>{{ team.name }}</option>
           {% endfor %}
@@ -88,14 +89,14 @@
     {% if division.bronze_count %}
     <div class="medal-section">
       <div class="medal-header">
-        <div class="medal-icon">🥉</div>
-        <div class="medal-title">Bronce</div>
+        <div class="medal-icon">ðŸ¥‰</div>
+        <div class="medal-title">{% trans "Bronze" %}</div>
       </div>
       {% for slot in bronze_slots %}
       <div class="slot-row">
         <span class="slot-label">{{ forloop.counter }}.</span>
         <select name="{{ slot.field }}">
-          <option value="">— Ingen —</option>
+          <option value="">â€” Ingen â€”</option>
           {% for team in all_teams %}
           <option value="{{ team.pk }}"{% if slot.selected and slot.selected.pk == team.pk %} selected{% endif %}>{{ team.name }}</option>
           {% endfor %}
@@ -106,15 +107,15 @@
     {% endif %}
 
     <div class="actions">
-      <button type="submit" class="btn btn-primary">💾 Gem overrides</button>
-      <a href="{% url 'division_medals' division.pk %}" class="btn btn-secondary">← Annuller</a>
+      <button type="submit" class="btn btn-primary">ðŸ’¾ {% trans "Save overrides" %}</button>
+      <a href="{% url 'division_medals' division.pk %}" class="btn btn-secondary">â† {% trans "Cancel" %}</a>
     </div>
   </form>
 
   {% if has_override %}
   <form method="post" action="{% url 'division_medals_reset' division.pk %}" style="margin-top:0.75rem;">
     {% csrf_token %}
-    <button type="submit" class="btn btn-danger">↺ Nulstil til automatisk</button>
+    <button type="submit" class="btn btn-danger">â†º {% trans "Reset to automatic" %}</button>
   </form>
   {% endif %}
 </div>

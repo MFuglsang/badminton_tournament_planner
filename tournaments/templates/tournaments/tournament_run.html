@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
-{% load tournament_extras %}
-{% block title %}Afvikling – {{ tournament.name }}{% endblock %}
+{% load tournament_extras i18n %}
+{% block title %}{% trans "Tournament run" %} – {{ tournament.name }}{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -206,20 +206,20 @@
 <div class="page-actions">
   <div>
     <h1>{{ tournament.name }}</h1>
-    <p style="color:#64748b; font-size:0.82rem; margin:0.2rem 0 0;">Afvikling · {{ tournament.date }}</p>
+    <p style="color:#64748b; font-size:0.82rem; margin:0.2rem 0 0;">{% trans "Tournament run" %} · {{ tournament.date }}</p>
   </div>
   <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-    <a href="{% url 'tournament_bigscreen' tournament.pk %}" class="btn btn-secondary" target="_blank">📺 Storskærm</a>
-    <a href="{% url 'tournament_detail' tournament.pk %}" class="btn btn-secondary">⚙ Planlægning</a>
+    <a href="{% url 'tournament_bigscreen' tournament.pk %}" class="btn btn-secondary" target="_blank">📺 {% trans "Big screen" %}</a>
+    <a href="{% url 'tournament_detail' tournament.pk %}" class="btn btn-secondary">⚙ {% trans "Planning" %}</a>
   </div>
 </div>
 
 {# ── Progress bar ─── #}
 {% if total_matches %}
 <div style="margin-bottom:0.4rem; display:flex; justify-content:space-between; font-size:0.78rem; color:#64748b;">
-  <span>{{ completed_matches }} / {{ total_matches }} kampe afviklet</span>
-  {% if in_progress_matches %}<span style="color:#1d4ed8;">{{ in_progress_matches }} i gang</span>{% endif %}
-  {% if completed_matches == total_matches %}<span style="color:#16692c; font-weight:700;">✓ Alle kampe afviklet</span>{% endif %}
+  <span>{{ completed_matches }} / {{ total_matches }} {% trans "matches completed" %}</span>
+  {% if in_progress_matches %}<span style="color:#1d4ed8;">{{ in_progress_matches }} {% trans "in progress" %}</span>{% endif %}
+  {% if completed_matches == total_matches %}<span style="color:#16692c; font-weight:700;">✓ {% trans "All matches completed" %}</span>{% endif %}
 </div>
 <div class="progress-bar-wrap">
   <div class="progress-bar-fill" style="width:{% widthratio completed_matches total_matches 100 %}%;"></div>
@@ -232,8 +232,8 @@
   <div class="run-main">
     <div class="match-search-wrap">
       <span style="color:#94a3b8;">🔍</span>
-      <input type="search" id="matchSearch" placeholder="Søg kampnummer eller spillernavn…" autocomplete="off">
-      <button class="match-search-clear" id="matchSearchClear" title="Ryd søgning">✕</button>
+      <input type="search" id="matchSearch" placeholder="{% trans 'Search match number or player name…' %}" autocomplete="off">
+      <button class="match-search-clear" id="matchSearchClear" title="{% trans 'Clear search' %}">✕</button>
       <span class="match-search-count" id="matchSearchCount"></span>
     </div>
     {% for dd in division_data %}
@@ -243,10 +243,10 @@
         <span class="run-div-title">{{ division.name }}</span>
         <span class="run-div-meta">{{ division.get_discipline_display }}</span>
         <span class="run-div-pills">
-          {% if dd.in_progress_count %}<span class="pill pill-progress">{{ dd.in_progress_count }} i gang</span>{% endif %}
-          {% if dd.pending_count %}<span class="pill pill-pending">{{ dd.pending_count }} venter</span>{% endif %}
-          {% if dd.completed_count %}<span class="pill pill-done">{{ dd.completed_count }} færdige</span>{% endif %}
-          {% if dd.match_count and dd.completed_count == dd.match_count %}<span class="pill pill-complete">✓ Færdig</span>{% endif %}
+          {% if dd.in_progress_count %}<span class="pill pill-progress">{{ dd.in_progress_count }} {% trans "in progress" %}</span>{% endif %}
+          {% if dd.pending_count %}<span class="pill pill-pending">{{ dd.pending_count }} {% trans "pending" %}</span>{% endif %}
+          {% if dd.completed_count %}<span class="pill pill-done">{{ dd.completed_count }} {% trans "done" %}</span>{% endif %}
+          {% if dd.match_count and dd.completed_count == dd.match_count %}<span class="pill pill-complete">✓ {% trans "Done" %}</span>{% endif %}
         </span>
         {% if division.gold_count or division.silver_count or division.bronze_count %}
         <a href="{% url 'division_medals' division.pk %}" class="btn-medal" title="Medaljer for {{ division.name }}" onclick="event.stopPropagation();">🏅 Medaljer</a>
@@ -256,13 +256,13 @@
       <div class="rd-body" style="padding:0; display:none;">
         {# Tabs #}
         <div class="run-tabs" data-div="{{ division.pk }}">
-          <button class="run-tab active" data-tab="matches">Kampe</button>
+          <button class="run-tab active" data-tab="matches">{% trans "Matches" %}</button>
           {% if dd.standings or dd.group_standings %}
-          <button class="run-tab" data-tab="standings">Stilling</button>
+          <button class="run-tab" data-tab="standings">{% trans "Standings" %}</button>
           {% endif %}
           {% if dd.bracket_data %}
           <button class="run-tab" data-tab="bracket">
-            {% if division.tournament_type == 'playoff' %}Slutspil{% else %}Spilletræ{% endif %}
+            {% if division.tournament_type == 'playoff' %}{% trans "Playoff" %}{% else %}{% trans "Bracket" %}{% endif %}
           </button>
           {% endif %}
         </div>
@@ -294,7 +294,7 @@
             <span class="run-match-actions">
               {% if match.status == 'pending' and match.team1 and match.team2 %}
               {% if match.t1_status or match.t2_status %}
-              <span style="font-size:0.8rem; color:#d97706; white-space:nowrap;" title="En spiller er optaget eller i hvile">⚠ Optaget</span>
+              <span style="font-size:0.8rem; color:#d97706; white-space:nowrap;" title="{% trans 'A player is busy or resting' %}">⚠ {% trans "Busy" %}</span>
               {% else %}
               <form method="post" action="{% url 'match_start' match.pk %}?next={% url 'tournament_run' tournament.pk %}" style="display:inline;">
                 {% csrf_token %}
@@ -305,7 +305,7 @@
               {% endif %}
               {% if match.status == 'in_progress' %}
               {% if match.team1 and match.team2 %}
-              <a href="{% url 'match_record_result' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="btn btn-secondary btn-sm">Resultat</a>
+              <a href="{% url 'match_record_result' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="btn btn-secondary btn-sm">{% trans "Result" %}</a>
               <a href="{% url 'match_walkover' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="btn btn-secondary btn-sm" style="color:#d97706; border-color:#fde68a;">WO</a>
               {% endif %}
               {% endif %}
@@ -319,7 +319,7 @@
           {% with done_count=dd.completed_count %}
           {% if done_count %}
           <div>
-            <div class="rd-mini-header" onclick="rdToggleMini(this)">Afsluttede kampe ({{ done_count }})</div>
+            <div class="rd-mini-header" onclick="rdToggleMini(this)">{% trans "Completed matches" %} ({{ done_count }})</div>
             <div class="rd-mini-body" style="display:none;">
             {% for match in dd.matches %}
             {% if match.status == 'completed' %}
@@ -342,7 +342,7 @@
                 {% if match.winner %}<strong style="color:#16692c; margin-left:0.3rem;">→ {{ match.winner.name }}</strong>{% endif %}
               </span>
               <span class="run-match-actions">
-                <a href="{% url 'match_record_result' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="btn btn-secondary btn-sm">Ret</a>
+                <a href="{% url 'match_record_result' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="btn btn-secondary btn-sm">{% trans "Edit" %}</a>
               </span>
             </div>
             {% endif %}
@@ -353,7 +353,7 @@
           {% endwith %}
 
           {% if not dd.matches %}
-          <p style="padding:1rem; color:#94a3b8; font-style:italic; font-size:0.85rem; margin:0;">Ingen kampe genereret endnu.</p>
+          <p style="padding:1rem; color:#94a3b8; font-style:italic; font-size:0.85rem; margin:0;">{% trans "No matches generated yet." %}</p>
           {% endif %}
         </div>{# /matches panel #}
 
@@ -363,9 +363,9 @@
           {% if dd.standings %}
           <table class="standings-compact">
             <thead><tr>
-              <th>#</th><th>Spiller / Par</th>
-              <th title="Spillede">S</th><th title="Vundet">V</th><th title="Tabt">T</th>
-              <th title="Point">Pt</th><th>Sæt</th><th>Score</th>
+              <th>#</th><th>{% trans "Player" %} / {% trans "Team" %}</th>
+              <th title="{% trans 'Matches played' %}">P</th><th title="{% trans 'Won' %}">W</th><th title="{% trans 'Lost' %}">L</th>
+              <th title="{% trans 'Points' %}">Pts</th><th>{% trans "Sets" %}</th><th>{% trans "Score" %}</th>
             </tr></thead>
             <tbody>
               {% for row in dd.standings %}
@@ -387,11 +387,11 @@
 
           {% if dd.group_standings %}
           {% for g_num, g_rows in dd.group_standings %}
-          <div class="group-label">Gruppe {{ g_num }}</div>
+          <div class="group-label">{% trans "Group" %} {{ g_num }}</div>
           <table class="standings-compact" style="margin-bottom:0.75rem;">
             <thead><tr>
-              <th>#</th><th>Spiller / Par</th>
-              <th>S</th><th>V</th><th>T</th><th>Pt</th><th>Sæt</th><th>Score</th>
+              <th>#</th><th>{% trans "Player" %} / {% trans "Team" %}</th>
+              <th>P</th><th>W</th><th>L</th><th>Pts</th><th>{% trans "Sets" %}</th><th>{% trans "Score" %}</th>
             </tr></thead>
             <tbody>
               {% for row in g_rows %}
@@ -439,7 +439,7 @@
                         {{ slot.match.team2.name }}{{ slot.match.t2_seed }}
                       </div>
                       {% elif slot.match.status == 'completed' %}
-                      <div class="bracket-team bye">Fri</div>
+                      <div class="bracket-team bye">{% trans "Bye" %}</div>
                       {% else %}
                       <div class="bracket-team bye">TBD</div>
                       {% endif %}
@@ -448,12 +448,12 @@
                     <div style="margin-top:3px; text-align:right;">
                       <a href="{% url 'match_bracket_override' slot.match.pk %}?next={% url 'tournament_run' tournament.pk %}"
                          style="font-size:0.68rem; color:#64748b; text-decoration:none; border:1px solid #e2e8f0; border-radius:3px; padding:1px 5px;"
-                         title="Skift hold manuelt">✏ Skift</a>
+                         title="{% trans 'Change team manually' %}">✏ {% trans "Change" %}</a>
                     </div>
                     {% endif %}
                   </div>
                   {% else %}
-                  <div class="bracket-card"><div class="bracket-tbd">Afventer…</div></div>
+                  <div class="bracket-card"><div class="bracket-tbd">{% trans "Pending…" %}</div></div>
                   {% endif %}
                 </div>
                 {% endfor %}
@@ -469,7 +469,7 @@
     {% endwith %}
     {% empty %}
     <div class="card" style="text-align:center; color:#94a3b8;">
-      <p>Ingen rækker fundet i denne turnering.</p>
+      <p>{% trans "No divisions found in this tournament." %}</p>
     </div>
     {% endfor %}
   </div>{# /run-main #}
@@ -482,7 +482,7 @@
     {% if active_matches %}
     <div class="next-panel" style="border-color:#bfdbfe;">
       <div class="next-panel-header" style="background:#1d4ed8;">
-        <span>⚡ I gang ({{ active_matches|length }})</span>
+        <span>⚡ {% trans "In progress" %} ({{ active_matches|length }})</span>
       </div>
       {% for match in active_matches %}
       <div class="next-match-row" style="background:#f0f6ff;">
@@ -494,7 +494,7 @@
           <span style="color:#94a3b8; font-size:0.75rem;">vs</span> {{ match.team2.name }}{{ match.t2_seed }}
         </div>
         <div style="margin-top:0.4rem;">
-          <a href="{% url 'match_record_result' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="btn btn-primary btn-sm">Resultat</a>
+          <a href="{% url 'match_record_result' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="btn btn-primary btn-sm">{% trans "Result" %}</a>
           <a href="{% url 'match_walkover' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="btn btn-secondary btn-sm" style="color:#d97706; border-color:#fde68a;">WO</a>
         </div>
       </div>
@@ -504,7 +504,7 @@
 
     <div class="next-panel">
       <div class="next-panel-header">
-        <span>🏸 Næste kampe</span>
+        <span>🏸 {% trans "Next matches" %}</span>
       </div>
       {% if next_matches %}
       {% for match in next_matches %}
@@ -532,10 +532,10 @@
       {% else %}
       <div class="next-empty">
         {% if total_matches and completed_matches == total_matches %}
-        🎉 Alle kampe er afviklet!
+        🎉 {% trans "All matches completed!" %}
         {% else %}
-        Ingen kommende kampe med tidspunkt.<br>
-        <span style="font-size:0.75rem;">Generer spilleplan for at se tidspunkter.</span>
+        {% trans "No upcoming matches with a time." %}<br>
+        <span style="font-size:0.75rem;">{% trans "Generate time schedule to see times." %}</span>
         {% endif %}
       </div>
       {% endif %}
@@ -543,12 +543,12 @@
 
     {# Quick links #}
     <div class="card" style="padding:0.85rem 1rem;">
-      <div class="section-label" style="margin-top:0;">Genveje</div>
+      <div class="section-label" style="margin-top:0;">{% trans "Quick links" %}</div>
       <div style="display:flex; flex-direction:column; gap:0.4rem;">
-        <a href="{% url 'tournament_schedule' tournament.pk %}" class="btn btn-secondary btn-sm">📅 Spilleplan</a>
-        <a href="{% url 'tournament_program_print' tournament.pk %}" class="btn btn-secondary btn-sm" target="_blank">📋 Kampprogram</a>
-        <a href="{% url 'tournament_wallchart' tournament.pk %}" class="btn btn-secondary btn-sm" target="_blank">📋 Resultattavle</a>
-        <a href="{% url 'tournament_scoresheet' tournament.pk %}" class="btn btn-secondary btn-sm" target="_blank">🖨 Scoresedler</a>
+        <a href="{% url 'tournament_schedule' tournament.pk %}" class="btn btn-secondary btn-sm">📅 {% trans "Time schedule" %}</a>
+        <a href="{% url 'tournament_program_print' tournament.pk %}" class="btn btn-secondary btn-sm" target="_blank">📋 {% trans "Match programme" %}</a>
+        <a href="{% url 'tournament_wallchart' tournament.pk %}" class="btn btn-secondary btn-sm" target="_blank">📋 {% trans "Result chart" %}</a>
+        <a href="{% url 'tournament_scoresheet' tournament.pk %}" class="btn btn-secondary btn-sm" target="_blank">🖨 {% trans "Score sheets" %}</a>
       </div>
     </div>
 

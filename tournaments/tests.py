@@ -766,7 +766,7 @@ class MatchResultFormValidationTest(TestCase):
         # t1 wins both sets but winner is set to t2
         form = self._post('21-15, 21-10', winner=self.t2)
         self.assertFalse(form.is_valid())
-        self.assertTrue(any('sæt' in e for e in form.non_field_errors()))
+        self.assertTrue(any('set' in e.lower() or 'winner' in e.lower() for e in form.non_field_errors()))
 
     def test_correct_winner_is_valid(self):
         # t2 wins both sets, winner is t2
@@ -1130,7 +1130,7 @@ class TimeScheduleEdgeCaseTest(TestCase):
         )
         self.assertRedirects(response, reverse('tournament_schedule', args=[self.tournament.pk]))
         messages_list = list(response.wsgi_request._messages)
-        self.assertTrue(any('låst' in str(m) for m in messages_list))
+        self.assertTrue(any('locked' in str(m).lower() for m in messages_list))
 
     def test_generate_with_no_matches_shows_warning(self):
         self.tournament.start_time = datetime.time(9, 0)
@@ -1194,7 +1194,7 @@ class GenerateSchedulePlayoffTest(TestCase):
         response = self.client.post(reverse('division_generate_schedule', args=[self.division.pk]))
         self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
         messages_list = list(response.wsgi_request._messages)
-        self.assertTrue(any('gruppe' in str(m).lower() for m in messages_list))
+        self.assertTrue(any('group' in str(m).lower() for m in messages_list))
 
 
 # ---------------------------------------------------------------------------
@@ -1428,7 +1428,7 @@ class TournamentImportTest(TestCase):
     def test_import_no_file_shows_error(self):
         response = self.client.post(reverse('tournament_import'), {})
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Ingen fil valgt')
+        self.assertContains(response, 'No file selected')
 
     def test_import_invalid_json_shows_error(self):
         from django.core.files.uploadedfile import SimpleUploadedFile

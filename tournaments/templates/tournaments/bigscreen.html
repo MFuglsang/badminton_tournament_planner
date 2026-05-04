@@ -1,6 +1,7 @@
 {% load tournament_extras %}
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="da">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -213,7 +214,7 @@
     {% endif %}
     <div>
       <div class="topbar-name">{{ tournament.name }}</div>
-      <div class="topbar-subtitle">Næste kampe</div>
+      <div class="topbar-subtitle">{% trans "Next matches" %}</div>
     </div>
   </div>
   <div class="topbar-clock" id="clock">––:––</div>
@@ -221,7 +222,7 @@
 
 <div class="main">
   {% if matches %}
-  <div class="upcoming-label">Kommende kampe</div>
+  <div class="upcoming-label">{% trans "Upcoming matches" %}</div>
   {% for match in matches %}
   <div class="match-card">
 
@@ -233,13 +234,13 @@
 
     <div class="match-teams">
       <div class="team">
-        {% if match.team1 %}{{ match.team1.name }}{% if match.t1_seed %}<span class="team-seed">{{ match.t1_seed }}</span>{% endif %}{% if match.t1_status == 'playing' %} <span title="Spiller i gang" style="margin-left:0.25rem;">🏸</span>{% elif match.t1_status == 'resting' %} <span style="font-size:0.85rem; color:#F5C400; white-space:nowrap; margin-left:0.25rem;">⏱ <span class="rest-timer" data-until="{{ match.t1_rest_until|unix_ts }}"></span></span>{% endif %}
+        {% if match.team1 %}{{ match.team1.name }}{% if match.t1_seed %}<span class="team-seed">{{ match.t1_seed }}</span>{% endif %}{% if match.t1_status == 'playing' %} <span title="{% trans "Match in progress" %}" style="margin-left:0.25rem;">🏸</span>{% elif match.t1_status == 'resting' %} <span style="font-size:0.85rem; color:#F5C400; white-space:nowrap; margin-left:0.25rem;">⏱ <span class="rest-timer" data-until="{{ match.t1_rest_until|unix_ts }}"></span></span>{% endif %}
         {% else %}<span style="color:var(--muted); font-style:italic;">{{ match.bracket_label }}</span>{% endif %}
       </div>
       <div class="vs">vs</div>
       <div class="team">
-        {% if match.team2 %}{{ match.team2.name }}{% if match.t2_seed %}<span class="team-seed">{{ match.t2_seed }}</span>{% endif %}{% if match.t2_status == 'playing' %} <span title="Spiller i gang" style="margin-left:0.25rem;">🏸</span>{% elif match.t2_status == 'resting' %} <span style="font-size:0.85rem; color:#F5C400; white-space:nowrap; margin-left:0.25rem;">⏱ <span class="rest-timer" data-until="{{ match.t2_rest_until|unix_ts }}"></span></span>{% endif %}
-        {% else %}<span style="color:var(--muted); font-style:italic;">Afventer</span>{% endif %}
+        {% if match.team2 %}{{ match.team2.name }}{% if match.t2_seed %}<span class="team-seed">{{ match.t2_seed }}</span>{% endif %}{% if match.t2_status == 'playing' %} <span title="{% trans "Match in progress" %}" style="margin-left:0.25rem;">🏸</span>{% elif match.t2_status == 'resting' %} <span style="font-size:0.85rem; color:#F5C400; white-space:nowrap; margin-left:0.25rem;">⏱ <span class="rest-timer" data-until="{{ match.t2_rest_until|unix_ts }}"></span></span>{% endif %}
+        {% else %}<span style="color:var(--muted); font-style:italic;">{% trans "Pending" %}</span>{% endif %}
       </div>
     </div>
 
@@ -254,8 +255,8 @@
   {% else %}
   <div class="empty-state">
     <div class="empty-icon">🏸</div>
-    <div class="empty-title">Ingen kommende kampe</div>
-    <div class="empty-sub">Alle planlagte kampe er afviklet eller i gang</div>
+    <div class="empty-title">{% trans "No upcoming matches" %}</div>
+    <div class="empty-sub">{% trans "All scheduled matches are completed or in progress" %}</div>
   </div>
   {% endif %}
 </div>

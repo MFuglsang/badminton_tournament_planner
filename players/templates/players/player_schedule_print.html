@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html lang="da">
+{% load i18n %}
+<html lang="{{ LANGUAGE_CODE|default:'en' }}">
 <head>
 <meta charset="UTF-8">
-<title>Program – {{ player.name }}</title>
+<title>{% blocktrans with name=player.name %}Schedule – {{ name }}{% endblocktrans %}</title>
 <style>
   body {
     font-family: Arial, Helvetica, sans-serif;
@@ -161,9 +162,9 @@
 <body>
 
 <div class="screen-header">
-  <h1>Program – {{ player.name }}</h1>
-  <button class="btn btn-primary" onclick="window.print()">🖨 Udskriv / Gem PDF</button>
-  <a href="{% url 'player_list' %}" class="btn btn-secondary">← Spillere</a>
+  <h1>{% blocktrans with name=player.name %}Schedule – {{ name }}{% endblocktrans %}</h1>
+  <button class="btn btn-primary" onclick="window.print()">🖨 {% trans "Print / Save PDF" %}</button>
+  <a href="{% url 'player_list' %}" class="btn btn-secondary">← {% trans "Players" %}</a>
 </div>
 
 <div class="player-card">
@@ -184,10 +185,10 @@
     <thead>
       <tr>
         <th>#</th>
-        <th>Tidspunkt</th>
-        <th>Modstander</th>
-        <th>Række / Runde</th>
-        <th>Status</th>
+        <th>{% trans "Time" %}</th>
+        <th>{% trans "Opponent" %}</th>
+        <th>{% trans "Division / Round" %}</th>
+        <th>{% trans "Status" %}</th>
       </tr>
     </thead>
     <tbody>
@@ -208,16 +209,16 @@
         </td>
         <td>
           <span>{{ match.division.name }}</span><br>
-          <span class="division-label">{{ match.division.get_discipline_display }} · Runde {{ match.match_round }}</span>
+          <span class="division-label">{{ match.division.get_discipline_display }} · {% trans "Round" %} {{ match.match_round }}</span>
         </td>
         <td>
           {% if match.status == 'completed' %}
-            <span class="status-done">✓ Afsluttet</span>
+            <span class="status-done">✓ {% trans "Completed" %}</span>
             {% if match.score %}<br><span style="font-size:0.78rem; color:#555;">{{ match.score }}</span>{% endif %}
           {% elif match.status == 'in_progress' %}
-            <span class="status-active">▶ I gang</span>
+            <span class="status-active">▶ {% trans "In progress" %}</span>
           {% else %}
-            <span class="status-pending">Kommende</span>
+            <span class="status-pending">{% trans "Upcoming" %}</span>
           {% endif %}
         </td>
       </tr>
@@ -228,8 +229,8 @@
 {% else %}
 <div class="no-matches">
   <div style="font-size:2rem; margin-bottom:0.5rem;">📅</div>
-  <p>Ingen kampe med tidspunkt fundet for {{ player.name }}.<br>
-  Sørg for at turneringen har en spilleplan genereret.</p>
+  <p>{% blocktrans with name=player.name %}No matches with a scheduled time found for {{ name }}.{% endblocktrans %}<br>
+  {% trans "Make sure the tournament has a time schedule generated." %}</p>
 </div>
 {% endif %}
 

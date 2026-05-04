@@ -1,22 +1,23 @@
 {% extends 'base.html' %}
-{% block title %}Forside – Badminton Tournament Planner{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Home" %} – Badminton Tournament Planner{% endblock %}
 {% block content %}
 <div style="text-align:center; padding:2rem 1rem 1rem;">
     <h1 style="font-size:2rem;">🏸 Badminton Tournament Planner</h1>
-    <p style="font-size:1.1rem; color:#555; margin-bottom:2rem;">Planlæg og administrer dine badmintonturneringer med lethed.</p>
+    <p style="font-size:1.1rem; color:#555; margin-bottom:2rem;">{% trans "Plan and manage your badminton tournaments with ease." %}</p>
     <div style="display:flex; gap:1rem; justify-content:center; flex-wrap:wrap;">
-        <a href="/tournaments/" class="btn btn-primary">Se alle turneringer</a>
-        <a href="/players/" class="btn btn-secondary">Spillere</a>
-        <a href="/players/teams/" class="btn btn-secondary">Hold</a>
+        <a href="/tournaments/" class="btn btn-primary">{% trans "View all tournaments" %}</a>
+        <a href="/players/" class="btn btn-secondary">{% trans "Players" %}</a>
+        <a href="/players/teams/" class="btn btn-secondary">{% trans "Teams" %}</a>
     </div>
 </div>
 
 <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-top:2.5rem;">
     <div class="card">
-        <h2 style="margin-top:0;">Kommende turneringer</h2>
+        <h2 style="margin-top:0;">{% trans "Upcoming tournaments" %}</h2>
         {% if upcoming %}
         <table>
-            <thead><tr><th>Navn</th><th>Dato</th><th>Type</th></tr></thead>
+            <thead><tr><th>{% trans "Name" %}</th><th>{% trans "Date" %}</th><th>{% trans "Type" %}</th></tr></thead>
             <tbody>
             {% for t in upcoming %}
             <tr>
@@ -28,15 +29,15 @@
             </tbody>
         </table>
         {% else %}
-        <p style="color:#888;">Ingen kommende turneringer.</p>
+        <p style="color:#888;">{% trans "No upcoming tournaments." %}</p>
         {% endif %}
-        <a href="/tournaments/" style="font-size:0.9rem;">Se alle →</a>
+        <a href="/tournaments/" style="font-size:0.9rem;">{% trans "View all" %} →</a>
     </div>
     <div class="card">
-        <h2 style="margin-top:0;">Seneste turneringer</h2>
+        <h2 style="margin-top:0;">{% trans "Recent tournaments" %}</h2>
         {% if recent %}
         <table>
-            <thead><tr><th>Navn</th><th>Dato</th><th>Type</th></tr></thead>
+            <thead><tr><th>{% trans "Name" %}</th><th>{% trans "Date" %}</th><th>{% trans "Type" %}</th></tr></thead>
             <tbody>
             {% for t in recent %}
             <tr>
@@ -48,9 +49,9 @@
             </tbody>
         </table>
         {% else %}
-        <p style="color:#888;">Ingen afholdte turneringer endnu.</p>
+        <p style="color:#888;">{% trans "No past tournaments yet." %}</p>
         {% endif %}
-        <a href="/tournaments/" style="font-size:0.9rem;">Se alle →</a>
+        <a href="/tournaments/" style="font-size:0.9rem;">{% trans "View all" %} →</a>
     </div>
 </div>
 

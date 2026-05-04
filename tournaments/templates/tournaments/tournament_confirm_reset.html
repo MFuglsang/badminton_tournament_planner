@@ -1,13 +1,14 @@
 {% extends 'base.html' %}
-{% block title %}Nulstil kampprogram{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Reset match programme" %}{% endblock %}
 {% block content %}
 <div style="max-width:500px; margin:0 auto;">
     <div class="card">
-        <h1 style="color:#B02A37;">Bekræft nulstilling</h1>
-        <p>Er du sikker på, at du vil nulstille kampprogrammet for <strong>{{ tournament.name }}</strong>?</p>
+        <h1 style="color:#B02A37;">{% trans "Confirm reset" %}</h1>
+        <p>{% blocktrans with name=tournament.name %}Are you sure you want to reset the match programme for <strong>{{ name }}</strong>?{% endblocktrans %}</p>
         <p style="color:#888; font-size:0.9rem;">
-            Dette sletter <strong>alle kampe</strong> i alle rækker og nulstiller kampnummer-tælleren til 0.<br>
-            Spillere, par og rækker bevares. Denne handling kan ikke fortrydes.
+            {% trans "This deletes <strong>all matches</strong> in all divisions and resets the match number counter to 0." %}<br>
+            {% trans "Players, pairs and divisions are preserved. This action cannot be undone." %}
         </p>
         <form method="post" style="margin-top:1.5rem;">
             {% csrf_token %}
@@ -17,15 +18,15 @@
             {% endfor %}
             {% endif %}
             <div class="form-group">
-                <label for="id_confirm" style="font-weight:600;">Skriv <code>NULSTIL KAMPPROGRAM</code> for at bekræfte:</label>
+                <label for="id_confirm" style="font-weight:600;">{% trans "Type" %} <code>RESET PROGRAMME</code> {% trans "to confirm:" %}</label>
                 <input type="text" id="id_confirm" name="confirm"
-                       placeholder="NULSTIL KAMPPROGRAM"
+                       placeholder="RESET PROGRAMME"
                        autocomplete="off"
                        style="width:100%; margin-top:0.4rem;">
             </div>
             <div class="btn-group" style="margin-top:1rem;">
-                <button type="submit" class="btn btn-danger">Nulstil kampprogram</button>
-                <a href="{% url 'tournament_detail' tournament.pk %}" class="btn btn-secondary">Annuller</a>
+                <button type="submit" class="btn btn-danger">{% trans "Reset match programme" %}</button>
+                <a href="{% url 'tournament_detail' tournament.pk %}" class="btn btn-secondary">{% trans "Cancel" %}</a>
             </div>
         </form>
     </div>

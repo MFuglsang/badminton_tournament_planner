@@ -1,20 +1,21 @@
 {% extends 'base.html' %}
-{% block title %}Skift bracket-hold{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Change bracket team" %}{% endblock %}
 {% block content %}
 <div style="max-width:560px; margin:0 auto;">
   <div class="card">
-    <h1 style="margin-top:0;">Skift hold i bracket</h1>
+    <h1 style="margin-top:0;">{% trans "Change team in bracket" %}</h1>
 
     <div style="background:#fff8e1; border-left:4px solid #f59e0b; padding:0.75rem 1rem; border-radius:4px; margin-bottom:1.5rem;">
-      <strong>{{ match.division.name }}</strong> – {{ match.bracket_label|default:"Slutspilskamp" }}<br>
+      <strong>{{ match.division.name }}</strong> – {{ match.bracket_label|default:"Playoff match" }}<br>
       <span style="color:#888; font-size:0.9rem;">
-        Runde {{ match.match_round }}
-        {% if match.match_number %} · Kamp #{{ match.match_number }}{% endif %}
+        {% trans "Round" %} {{ match.match_round }}
+        {% if match.match_number %} · {% trans "Match" %} #{{ match.match_number }}{% endif %}
       </span>
     </div>
 
     <p style="color:#555; margin-bottom:1.25rem;">
-      Vælg de hold der skal spille. Lad et felt stå tomt for at beholde det nuværende hold.
+      {% trans "Select the teams that should play. Leave a field empty to keep the current team." %}
     </p>
 
     <form method="post">
@@ -22,9 +23,9 @@
       {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
 
       <div class="form-group" style="margin-bottom:1rem;">
-        <label for="team1">Hold 1</label>
+        <label for="team1">{% trans "Team 1" %}</label>
         <select name="team1" id="team1" class="form-control">
-          <option value="">— behold nuværende ({{ match.team1.name|default:"TBD" }}) —</option>
+          <option value="">— {% blocktrans with name=match.team1.name|default:"TBD" %}keep current ({{ name }}){% endblocktrans %} —</option>
           {% for team in teams %}
           <option value="{{ team.pk }}"{% if match.team1_id == team.pk %} selected{% endif %}>
             {{ team.name }}
@@ -34,9 +35,9 @@
       </div>
 
       <div class="form-group" style="margin-bottom:1.5rem;">
-        <label for="team2">Hold 2</label>
+        <label for="team2">{% trans "Team 2" %}</label>
         <select name="team2" id="team2" class="form-control">
-          <option value="">— behold nuværende ({{ match.team2.name|default:"TBD" }}) —</option>
+          <option value="">— {% blocktrans with name=match.team2.name|default:"TBD" %}keep current ({{ name }}){% endblocktrans %} —</option>
           {% for team in teams %}
           <option value="{{ team.pk }}"{% if match.team2_id == team.pk %} selected{% endif %}>
             {{ team.name }}
@@ -46,9 +47,9 @@
       </div>
 
       <div class="btn-group">
-        <button type="submit" class="btn btn-primary">Gem ændring</button>
+        <button type="submit" class="btn btn-primary">{% trans "Save change" %}</button>
         <a href="{% if next_url %}{{ next_url }}{% else %}{% url 'tournament_run' match.division.tournament.pk %}{% endif %}"
-           class="btn btn-secondary">Annuller</a>
+           class="btn btn-secondary">{% trans "Cancel" %}</a>
       </div>
     </form>
   </div>

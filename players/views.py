@@ -2,6 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
+from django.utils.translation import gettext as _
 from .models import Player, Team, DivisionCategory, DEFAULT_DIVISION_CATEGORIES
 from .forms import PlayerForm, TeamForm
 from tournaments.player_status import get_busy_info, player_status as _player_status
@@ -54,10 +55,10 @@ def player_list(request):
         'sort': sort,
         'dir': direction,
         'col_defs': [
-            ('name',     'Navn'),
-            ('gender',   'Køn'),
-            ('age',      'Alder'),
-            ('division', 'Række'),
+            ('name',     _("Name")),
+            ('gender',   _("Gender")),
+            ('age',      _("Age")),
+            ('division', _("Division")),
             ('',         ''),
         ],
     })
@@ -70,7 +71,7 @@ def player_add(request):
             player = form.save(commit=False)
             player.owner = request.user
             player.save()
-            messages.success(request, f'Spiller "{player.name}" er oprettet.')
+            messages.success(request, _("Player \"%(name)s\" has been created.") % {'name': player.name})
             return redirect('player_list')
     else:
         form = PlayerForm(owner=request.user)
@@ -83,7 +84,7 @@ def player_edit(request, pk):
         form = PlayerForm(request.POST, instance=player, owner=request.user)
         if form.is_valid():
             form.save()
-            messages.success(request, f'Spiller "{player.name}" er opdateret.')
+            messages.success(request, _("Player \"%(name)s\" has been updated.") % {'name': player.name})
             return redirect('player_list')
     else:
         form = PlayerForm(instance=player, owner=request.user)
@@ -95,7 +96,7 @@ def player_delete(request, pk):
     if request.method == 'POST':
         name = player.name
         player.delete()
-        messages.success(request, f'Spiller "{name}" er slettet.')
+        messages.success(request, _("Player \"%(name)s\" has been deleted.") % {'name': name})
         return redirect('player_list')
     return render(request, 'players/player_confirm_delete.html', {'object': player, 'type': 'spiller'})
 
@@ -106,7 +107,7 @@ def player_clear_rest(request, pk):
         player = get_object_or_404(Player, pk=pk, owner=request.user)
         player.rest_until = None
         player.save(update_fields=['rest_until'])
-        messages.success(request, f'Hvileperiode for {player.name} er fjernet.')
+        messages.success(request, _("Rest period for %(name)s has been cleared.") % {'name': player.name})
     return redirect('player_list')
 
 @login_required
@@ -142,11 +143,11 @@ def team_list(request):
         teams = [t for t in teams if t.pair_type == filter_type]
 
     col_defs = [
-        ('name',      'Par'),
-        ('pair_type', 'Type'),
-        ('division',  'Række'),
-        ('',          'Spiller 1'),
-        ('',          'Spiller 2'),
+        ('name',      _("Team")),
+        ('pair_type', _("Type")),
+        ('division',  _("Division")),
+        ('',          _("Player 1")),
+        ('',          _("Player 2")),
         ('',          ''),
     ]
 
@@ -173,7 +174,7 @@ def team_add(request):
         form = TeamForm(request.POST, owner=request.user)
         if form.is_valid():
             team = form.save()
-            messages.success(request, f'Par "{team.name}" er oprettet.')
+            messages.success(request, _("Team \"%(name)s\" has been created.") % {'name': team.name})
             return redirect('team_list')
     else:
         form = TeamForm(owner=request.user)
@@ -190,7 +191,7 @@ def team_edit(request, pk):
         form = TeamForm(request.POST, instance=team, owner=request.user)
         if form.is_valid():
             form.save()
-            messages.success(request, f'Par "{team.name}" er opdateret.')
+            messages.success(request, _("Team \"%(name)s\" has been updated.") % {'name': team.name})
             return redirect('team_list')
     else:
         form = TeamForm(instance=team, owner=request.user)
@@ -206,7 +207,7 @@ def team_delete(request, pk):
     if request.method == 'POST':
         name = team.name
         team.delete()
-        messages.success(request, f'Par "{name}" er slettet.')
+        messages.success(request, _("Team \"%(name)s\" has been deleted.") % {'name': name})
         return redirect('team_list')
     return render(request, 'players/player_confirm_delete.html', {'object': team, 'type': 'par'})
 
@@ -258,7 +259,7 @@ def division_category_list(request):
         name = request.POST.get('name', '').strip()
         if name:
             DivisionCategory.objects.get_or_create(owner=request.user, name=name)
-            messages.success(request, f'Kategori "{name}" er tilføjet.')
+            messages.success(request, _("Category \"%(name)s\" has been added.") % {'name': name})
         return redirect('division_category_list')
 
     categories = DivisionCategory.objects.filter(owner=request.user)
@@ -274,7 +275,7 @@ def division_category_delete(request, pk):
     cat = get_object_or_404(DivisionCategory, pk=pk, owner=request.user)
     if request.method == 'POST':
         cat.delete()
-        messages.success(request, f'Kategori "{cat.name}" er slettet.')
+        messages.success(request, _("Category \"%(name)s\" has been deleted.") % {'name': cat.name})
     return redirect('division_category_list')
 
 
@@ -291,7 +292,7 @@ def division_category_seed_defaults(request):
             if was_created:
                 created += 1
         if created:
-            messages.success(request, f'{created} standardkategorier er tilføjet.')
+            messages.success(request, _("%(n)s default categories have been added.") % {'n': created})
         else:
-            messages.info(request, 'Alle standardkategorier findes allerede.')
+            messages.info(request, _("All default categories already exist."))
     return redirect('division_category_list')

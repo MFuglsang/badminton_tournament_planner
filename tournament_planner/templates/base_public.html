@@ -1,5 +1,5 @@
-{% load static %}<!DOCTYPE html>
-<html lang="da">
+{% load static %}{% load i18n %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -50,6 +50,19 @@
             <div class="logo-icon">🏸</div>
             <a href="/">Badminton Tournament Planner</a>
         </div>
+        {# Language switcher #}
+        <form action="{% url 'set_language' %}" method="post" style="display:inline; margin:0;">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <select name="language" onchange="this.form.submit()"
+                style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.25); color:rgba(255,255,255,0.85); font-size:0.8rem; padding:0.3rem 0.5rem; border-radius:6px; cursor:pointer; font-family:inherit;">
+                {% get_current_language as CURRENT_LANG %}
+                {% get_available_languages as LANGUAGES %}
+                {% for lang_code, lang_name in LANGUAGES %}
+                <option value="{{ lang_code }}"{% if lang_code == CURRENT_LANG %} selected{% endif %}>{{ lang_name }}</option>
+                {% endfor %}
+            </select>
+        </form>
     </header>
     <div class="container">
         {% block content %}{% endblock %}
