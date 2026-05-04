@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, timedelta
 
-from django.db.models import Max, Q
+from django.db.models import F, Max, Q
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -12,7 +12,7 @@ from .models import Tournament, Division, Match, DivisionSeed
 from .forms import MatchResultForm, DivisionForm, TournamentForm, get_participants_form, WalkoverForm
 from .standings import compute_standings, compute_group_standings
 from players.models import Team
-from .scheduler import generate_schedule, advance_bracket, get_bracket_data, regenerate_playoff_with_groups, _seeding_order, _bracket_placeholder_label
+from .scheduler import generate_schedule, advance_bracket, fill_playoff_bracket_from_group, get_bracket_data, regenerate_playoff_with_groups, _seeding_order, _bracket_placeholder_label
 from .schedule_planner import generate_time_schedule
 from .player_status import (
     get_busy_info, apply_status_to_matches, set_player_rest,
@@ -661,11 +661,15 @@ def match_record_result(request, pk):
     if request.method == 'POST':
         form = MatchResultForm(request.POST, instance=match)
         if form.is_valid():
-            form.save()
+            m = form.save(commit=False)
+            m.status = form.cleaned_data['status']
+            m.save()
             match.refresh_from_db()
             if match.status == 'completed':
                 set_player_rest(match)
             advance_bracket(match)
+            if match.division.tournament_type == 'playoff' and match.phase == 'group':
+                fill_playoff_bracket_from_group(match.division, match.group_number)
             messages.success(request, 'Resultat er gemt.')
             if next_url:
                 return redirect(next_url)
@@ -675,7 +679,11 @@ def match_record_result(request, pk):
     return render(request, 'tournaments/match_result_form.html', {'form': form, 'match': match, 'next_url': next_url})
 
 
-WALKOVER_SCORE = '21-0, 21-0'
+def _walkover_score(match):
+    scoring = match.division.tournament.scoring_model
+    if scoring == 'best_of_5_15':
+        return '15-0, 15-0'
+    return '21-0, 21-0'
 
 
 @login_required
@@ -703,12 +711,14 @@ def match_walkover(request, pk):
         form = WalkoverForm(request.POST, match=match)
         if form.is_valid():
             match.winner = form.cleaned_data['winner']
-            match.score = WALKOVER_SCORE
+            match.score = _walkover_score(match)
             match.status = 'completed'
             match.walkover = True
             match.save()
             set_player_rest(match)
             advance_bracket(match)
+            if match.division.tournament_type == 'playoff' and match.phase == 'group':
+                fill_playoff_bracket_from_group(match.division, match.group_number)
             messages.success(request, f'Walk-over registreret – {match.winner} vinder.')
             if next_url:
                 return redirect(next_url)
@@ -716,6 +726,46 @@ def match_walkover(request, pk):
     else:
         form = WalkoverForm(match=match)
     return render(request, 'tournaments/match_walkover_form.html', {'form': form, 'match': match, 'next_url': next_url})
+
+
+@login_required
+def match_bracket_override(request, pk):
+    """
+    Manually set team1 and/or team2 of a pending bracket match –
+    used when a player is injured and a different team must advance.
+    """
+    match = get_object_or_404(Match, pk=pk, division__tournament__owner=request.user)
+    division = match.division
+    next_url = request.GET.get('next') or request.POST.get('next') or ''
+
+    # All teams in the division are candidates
+    teams = list(division.teams.order_by('name'))
+
+    if request.method == 'POST':
+        team1_id = request.POST.get('team1') or None
+        team2_id = request.POST.get('team2') or None
+
+        if team1_id:
+            match.team1 = division.teams.filter(pk=team1_id).first()
+        if team2_id:
+            match.team2 = division.teams.filter(pk=team2_id).first()
+
+        # Clear placeholder label if both slots are now filled
+        if match.team1 and match.team2:
+            match.bracket_label = None
+
+        match.save(update_fields=['team1', 'team2', 'bracket_label'])
+        messages.success(request, f'Bracket-kamp opdateret: {match.team1} vs {match.team2}.')
+
+        if next_url:
+            return redirect(next_url)
+        return redirect('tournament_run', pk=division.tournament.pk)
+
+    return render(request, 'tournaments/match_bracket_override.html', {
+        'match': match,
+        'teams': teams,
+        'next_url': next_url,
+    })
 
 
 @login_required
@@ -983,6 +1033,132 @@ def division_scoresheet(request, pk):
     })
 
 
+def _compute_medals(division):
+    """Return (gold, silver, bronze) lists of Team objects from match results."""
+    gold, silver, bronze = [], [], []
+
+    if division.tournament_type == 'group':
+        from .standings import compute_standings
+        rows = compute_standings(division)
+        teams = [r['team'] for r in rows]
+        pos = 0
+        for _ in range(division.gold_count):
+            if pos < len(teams):
+                gold.append(teams[pos]); pos += 1
+        for _ in range(division.silver_count):
+            if pos < len(teams):
+                silver.append(teams[pos]); pos += 1
+        for _ in range(division.bronze_count):
+            if pos < len(teams):
+                bronze.append(teams[pos]); pos += 1
+    else:
+        phase_filter = {'phase': 'playoff'} if division.tournament_type == 'playoff' else {}
+        bracket_matches = list(
+            Match.objects
+            .filter(division=division, status='completed', **phase_filter)
+            .exclude(score='Bye')
+            .select_related('team1', 'team2', 'winner')
+            .order_by('-match_round', 'bracket_slot')
+        )
+        if bracket_matches:
+            final = bracket_matches[0]
+            if final.winner:
+                loser = final.team2 if final.winner == final.team1 else final.team1
+                for _ in range(division.gold_count):
+                    gold.append(final.winner)
+                for _ in range(division.silver_count):
+                    if loser:
+                        silver.append(loser)
+            if division.bronze_count > 0:
+                semi_round = final.match_round - 1
+                semis = [m for m in bracket_matches if m.match_round == semi_round]
+                for semi in semis[:division.bronze_count]:
+                    if semi.winner:
+                        loser = semi.team2 if semi.winner == semi.team1 else semi.team1
+                        if loser:
+                            bronze.append(loser)
+
+    return gold, silver, bronze
+
+
+@login_required
+def division_medals(request, pk):
+    """Printable medal overview for a single division."""
+    from .models import MedalOverride
+    division = get_object_or_404(Division, pk=pk, tournament__owner=request.user)
+    has_override = division.medal_overrides.exists()
+
+    if has_override:
+        gold   = [o.team for o in division.medal_overrides.filter(medal='gold').order_by('order')]
+        silver = [o.team for o in division.medal_overrides.filter(medal='silver').order_by('order')]
+        bronze = [o.team for o in division.medal_overrides.filter(medal='bronze').order_by('order')]
+    else:
+        gold, silver, bronze = _compute_medals(division)
+
+    return render(request, 'tournaments/division_medals.html', {
+        'division': division,
+        'gold': gold,
+        'silver': silver,
+        'bronze': bronze,
+        'all_done': not division.matches.filter(status__in=['pending', 'in_progress']).exists(),
+        'has_override': has_override,
+    })
+
+
+@login_required
+def division_medals_edit(request, pk):
+    """Manually override which teams receive each medal in a division."""
+    from .models import MedalOverride
+    division = get_object_or_404(Division, pk=pk, tournament__owner=request.user)
+    all_teams = list(division.teams.all().order_by('id'))
+
+    if request.method == 'POST':
+        division.medal_overrides.all().delete()
+        for medal, count in [('gold', division.gold_count), ('silver', division.silver_count), ('bronze', division.bronze_count)]:
+            for i in range(1, count + 1):
+                team_pk = request.POST.get(f'{medal}_{i}')
+                if team_pk:
+                    try:
+                        team = division.teams.get(pk=team_pk)
+                        MedalOverride.objects.create(division=division, medal=medal, team=team, order=i)
+                    except Exception:
+                        pass
+        return redirect('division_medals', pk=pk)
+
+    # Pre-populate form from existing overrides or computed values
+    if division.medal_overrides.exists():
+        pre_gold   = [o.team for o in division.medal_overrides.filter(medal='gold').order_by('order')]
+        pre_silver = [o.team for o in division.medal_overrides.filter(medal='silver').order_by('order')]
+        pre_bronze = [o.team for o in division.medal_overrides.filter(medal='bronze').order_by('order')]
+    else:
+        pre_gold, pre_silver, pre_bronze = _compute_medals(division)
+
+    def slots(medal_name, count, preselected):
+        return [
+            {'field': f'{medal_name}_{i}', 'selected': preselected[i - 1] if i <= len(preselected) else None}
+            for i in range(1, count + 1)
+        ]
+
+    return render(request, 'tournaments/division_medals_edit.html', {
+        'division': division,
+        'all_teams': all_teams,
+        'gold_slots':   slots('gold',   division.gold_count,   pre_gold),
+        'silver_slots': slots('silver', division.silver_count, pre_silver),
+        'bronze_slots': slots('bronze', division.bronze_count, pre_bronze),
+        'has_override': division.medal_overrides.exists(),
+    })
+
+
+@login_required
+def division_medals_reset(request, pk):
+    """Remove all manual medal overrides for a division."""
+    if request.method == 'POST':
+        from .models import MedalOverride
+        division = get_object_or_404(Division, pk=pk, tournament__owner=request.user)
+        division.medal_overrides.all().delete()
+    return redirect('division_medals', pk=pk)
+
+
 @login_required
 def tournament_bigscreen(request, pk):
     """Storskærmsvisning – viser de 5 næste ikke-startede kampe."""
@@ -1067,13 +1243,17 @@ def tournament_run(request, pk):
             'completed_count': sum(1 for m in all_matches if m.status == 'completed'),
         })
 
-    # Next 5 matches (same logic as bigscreen)
+    # Next 5 matches: scheduled matches first, then ready bracket matches (no scheduled time yet)
     next_matches = list(
         Match.objects
-        .filter(division__tournament=tournament, scheduled_time__isnull=False, status='pending')
-        .exclude(team1__isnull=True, team2__isnull=True, bracket_label__isnull=False)
+        .filter(division__tournament=tournament, status='pending',
+                team1__isnull=False, team2__isnull=False)
+        .filter(
+            Q(scheduled_time__isnull=False) |
+            Q(scheduled_time__isnull=True, bracket_slot__isnull=False)
+        )
         .select_related('division', 'team1', 'team2')
-        .order_by('scheduled_time', 'court')
+        .order_by(F('scheduled_time').asc(nulls_last=True), 'match_round', 'bracket_slot')
     )[:20]  # fetch extra so we can filter down to 5 after removing busy
     _apply_seed_labels(next_matches, seed_lookup)
     apply_status_to_matches(next_matches, playing_pks, resting)

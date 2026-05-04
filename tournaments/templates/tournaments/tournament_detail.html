@@ -1,53 +1,83 @@
 {% extends 'base.html' %}
 {% load tournament_extras %}
 {% block title %}{{ tournament.name }}{% endblock %}
-{% block extra_js %}
-<script>
-/* Bigscreen-style countdown also available on detail page */
-</script>
+{% block extra_head %}
+<style>
+.detail-tabs-bar {
+    display: flex; gap: 0; margin-bottom: 0;
+    border-bottom: 2px solid #e2e8f0;
+}
+.detail-tab {
+    padding: 0.45rem 1.1rem; font-size: 0.82rem; font-weight: 600;
+    border: none; background: none; cursor: pointer;
+    color: #64748b; border-bottom: 2px solid transparent;
+    margin-bottom: -2px; transition: color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}
+.detail-tab:hover { color: #16692c; }
+.detail-tab.active { color: #16692c; border-bottom-color: #16692c; }
+.detail-tab-danger.active { color: #b91c1c; border-bottom-color: #b91c1c; }
+.detail-tab-danger:hover { color: #b91c1c; }
+.detail-panel {
+    display: flex; flex-wrap: wrap; gap: 0.45rem;
+    padding: 0.65rem 0 0.5rem;
+    align-items: center;
+}
+</style>
 {% endblock %}
 {% block content %}
 <div class="page-actions">
     <h1>{{ tournament.name }}</h1>
-    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; justify-content:space-between;">
-        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-            <a href="{% url 'tournament_run' tournament.pk %}" class="btn btn-primary">🏸 Afvikling</a>
-            <a href="{% url 'tournament_edit' tournament.pk %}" class="btn btn-secondary">Rediger opsætning</a>
-            <a href="{% url 'tournament_schedule' tournament.pk %}" class="btn btn-secondary">📅 Spilleplan</a>
-            <a href="{% url 'tournament_program_print' tournament.pk %}" class="btn btn-secondary" target="_blank">📋 Udprint program</a>
-            <a href="{% url 'tournament_schedule_print' tournament.pk %}" class="btn btn-secondary" target="_blank">🖨 Udskriv spilleplan</a>
-            <a href="{% url 'tournament_scoresheet' tournament.pk %}" class="btn btn-secondary" target="_blank">🖨 Scoresedler</a>
-            <a href="{% url 'tournament_wallchart' tournament.pk %}" class="btn btn-secondary" target="_blank">📋 Resultattavle</a>
-            <a href="{% url 'tournament_court_signs' tournament.pk %}" class="btn btn-secondary" target="_blank">🏸 Baneskilte</a>
-            <a href="{% url 'tournament_export' tournament.pk %}" class="btn btn-secondary">💾 Eksporter backup</a>
-        </div>
-        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; border-left:2px solid #f5c6c6; padding-left:0.75rem;">
-            <a href="{% url 'tournament_reset_schedule' tournament.pk %}" class="btn btn-danger">🔄 Nulstil kampprogram</a>
-            <form method="post" action="{% url 'tournament_rebuild_playoff_labels' tournament.pk %}" style="display:inline;">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-danger"
-                        onclick="return confirm('Genopbyg slutspils-labels? Brug dette hvis labels er ødelagt (viser V-kamp #?).')">
-                    🔧 Genopbyg slutspilsnavne
-                </button>
-            </form>
-            <form method="post" action="{% url 'tournament_renumber_by_schedule' tournament.pk %}" style="display:inline;">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-danger"
-                        onclick="return confirm('Nummerer kampene efter spilleplanens rækkefølge? Kampe uden tidspunkt placeres sidst.')">
-                    📋 Nummerer efter program
-                </button>
-            </form>
-            <form method="post" action="{% url 'tournament_renumber_matches' tournament.pk %}" style="display:inline;">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-danger"
-                        onclick="return confirm('Genberegn kampnumre fra 1? Selve kampprogrammet ændres ikke.')">
-                    🔢 Genberegn kampnumre
-                </button>
-            </form>
-            <a href="{% url 'tournament_delete' tournament.pk %}" class="btn btn-danger">🗑 Slet turnering</a>
-        </div>
+    <div class="detail-tabs-bar">
+        <button class="detail-tab active" data-panel="panel-general">🏸 Generelt</button>
+        <button class="detail-tab" data-panel="panel-print">🖨 Udprint</button>
+        <button class="detail-tab detail-tab-danger" data-panel="panel-admin">⚙ Vedligehold</button>
+    </div>
+    <div class="detail-panel" id="panel-general">
+        <a href="{% url 'tournament_run' tournament.pk %}" class="btn btn-primary">🏸 Afvikling</a>
+        <a href="{% url 'tournament_edit' tournament.pk %}" class="btn btn-secondary">✏ Rediger opsætning</a>
+        <a href="{% url 'tournament_schedule' tournament.pk %}" class="btn btn-secondary">📅 Spilleplan</a>
+        <a href="{% url 'tournament_export' tournament.pk %}" class="btn btn-secondary">💾 Eksporter backup</a>
+    </div>
+    <div class="detail-panel" id="panel-print" style="display:none;">
+        <a href="{% url 'tournament_program_print' tournament.pk %}" class="btn btn-secondary" target="_blank">📋 Udprint program</a>
+        <a href="{% url 'tournament_schedule_print' tournament.pk %}" class="btn btn-secondary" target="_blank">🖨 Udskriv spilleplan</a>
+        <a href="{% url 'tournament_scoresheet' tournament.pk %}" class="btn btn-secondary" target="_blank">🖨 Scoresedler</a>
+        <a href="{% url 'tournament_wallchart' tournament.pk %}" class="btn btn-secondary" target="_blank">📋 Resultattavle</a>
+        <a href="{% url 'tournament_court_signs' tournament.pk %}" class="btn btn-secondary" target="_blank">🏸 Baneskilte</a>
+    </div>
+    <div class="detail-panel" id="panel-admin" style="display:none;">
+        <a href="{% url 'tournament_reset_schedule' tournament.pk %}" class="btn btn-danger">🔄 Nulstil kampprogram</a>
+        <form method="post" action="{% url 'tournament_rebuild_playoff_labels' tournament.pk %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger"
+                    onclick="return confirm('Genopbyg slutspils-labels? Brug dette hvis labels er ødelagt (viser V-kamp #?).')">
+                🔧 Genopbyg slutspilsnavne
+            </button>
+        </form>
+        <form method="post" action="{% url 'tournament_renumber_by_schedule' tournament.pk %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger"
+                    onclick="return confirm('Nummerer kampene efter spilleplanens rækkefølge? Kampe uden tidspunkt placeres sidst.')">
+                📋 Nummerer efter program
+            </button>
+        </form>
+        <a href="{% url 'tournament_delete' tournament.pk %}" class="btn btn-danger">🗑 Slet turnering</a>
     </div>
 </div>
+<script>
+(function () {
+    var tabs = document.querySelectorAll('.detail-tab');
+    tabs.forEach(function (tab) {
+        tab.addEventListener('click', function () {
+            tabs.forEach(function (t) { t.classList.remove('active'); });
+            tab.classList.add('active');
+            document.querySelectorAll('.detail-panel').forEach(function (p) { p.style.display = 'none'; });
+            document.getElementById(tab.dataset.panel).style.display = 'flex';
+        });
+    });
+}());
+</script>
 <p style="color:#64748b; font-size:0.85rem; margin: -0.75rem 0 1.5rem; display:flex; flex-wrap:wrap; gap:0.4rem 1.25rem; align-items:center;">
     <span><strong>Dato:</strong> {{ tournament.date }}</span>
     <span><strong>Scoring:</strong> {{ tournament.get_scoring_model_display }}</span>
@@ -105,6 +135,19 @@
             <label style="white-space:nowrap; font-size:0.85rem; font-weight:600;" title="1 = planlæg disse kampe tidligst · 10 = sidst">Spilleplansprioritet (1–10):</label>
             {{ division_form.schedule_priority }}
             <span style="font-size:0.75rem; color:#94a3b8;">1 = tidligst færdig</span>
+        </div>
+        <div style="display:flex; gap:1rem; align-items:center; flex-wrap:wrap; margin-bottom:0.75rem; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:0.6rem 0.75rem;">
+            <span style="font-size:0.82rem; font-weight:600; color:#374151;">🥇 Medaljer:</span>
+            <div style="display:flex; gap:0.4rem; align-items:center;">
+                <label style="font-size:0.82rem;">🥇</label>{{ division_form.gold_count }}
+            </div>
+            <div style="display:flex; gap:0.4rem; align-items:center;">
+                <label style="font-size:0.82rem;">🥈</label>{{ division_form.silver_count }}
+            </div>
+            <div style="display:flex; gap:0.4rem; align-items:center;">
+                <label style="font-size:0.82rem;">🥉</label>{{ division_form.bronze_count }}
+                <span style="font-size:0.72rem; color:#94a3b8;">(0, 1 eller 2)</span>
+            </div>
         </div>
         <button type="submit" class="btn btn-primary">+ Opret række</button>
     </form>
@@ -346,9 +389,11 @@ var MATCH_LOOKUP = {
         {% for row in standings %}
         <tr>
             <td>
-                {% if forloop.counter == 1 %}<span class="rank-1">🥇</span>
-                {% elif forloop.counter == 2 %}<span class="rank-2">🥈</span>
-                {% elif forloop.counter == 3 %}<span class="rank-3">🥉</span>
+                {% if division.tournament_type == 'group' %}
+                    {% if forloop.counter == 1 %}<span class="rank-1">🥇</span>
+                    {% elif forloop.counter == 2 %}<span class="rank-2">🥈</span>
+                    {% elif forloop.counter == 3 %}<span class="rank-3">🥉</span>
+                    {% else %}{{ forloop.counter }}{% endif %}
                 {% else %}{{ forloop.counter }}{% endif %}
             </td>
             <td><strong>{{ row.team.name }}</strong>{{ seeds_dict|dict_get:row.team.pk }}{% if row.status == 'playing' %} <span title="Spiller i gang">🏸</span>{% elif row.status == 'resting' %} <span class="status-badge-rest" style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ row.rest_until|unix_ts }}"></span></span>{% endif %}</td>
@@ -378,10 +423,7 @@ var MATCH_LOOKUP = {
             {% for row in g_rows %}
             <tr {% if forloop.counter <= division.advance_count %}style="background:#f0fdf4;"{% endif %}>
                 <td>
-                    {% if forloop.counter == 1 %}<span class="rank-1">🥇</span>
-                    {% elif forloop.counter == 2 %}<span class="rank-2">🥈</span>
-                    {% elif forloop.counter == 3 %}<span class="rank-3">🥉</span>
-                    {% else %}{{ forloop.counter }}{% endif %}
+                    {{ forloop.counter }}
                     {% if forloop.counter <= division.advance_count %}<span style="font-size:0.7rem; color:#16a34a; margin-left:0.3rem;">↑ videre</span>{% endif %}
                 </td>
                 <td><strong>{{ row.team.name }}</strong>{{ seeds_dict|dict_get:row.team.pk }}{% if row.status == 'playing' %} <span title="Spiller i gang">🏸</span>{% elif row.status == 'resting' %} <span class="status-badge-rest" style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ row.rest_until|unix_ts }}"></span></span>{% endif %}</td>

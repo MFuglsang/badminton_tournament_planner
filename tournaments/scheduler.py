@@ -192,11 +192,16 @@ def _advance_bracket_inline(match):
     """
     Fill in a next-round placeholder after a bracket match completes.
     Used internally (during generation for byes, and after result recording).
+    Works for both 'tree' and 'playoff' (bracket-phase) divisions.
     """
     from .models import Match
 
     division = match.division
-    if division.tournament_type != 'tree':
+    if division.tournament_type not in ('tree', 'playoff'):
+        return
+    # Group-phase matches in a playoff division are handled by
+    # fill_playoff_bracket_from_group instead.
+    if division.tournament_type == 'playoff' and match.phase == 'group':
         return
     if not match.winner or match.bracket_slot is None:
         return
@@ -205,11 +210,15 @@ def _advance_bracket_inline(match):
     next_slot = math.ceil(match.bracket_slot / 2)
     is_odd = (match.bracket_slot % 2 == 1)
 
-    placeholder = Match.objects.filter(
+    qs = Match.objects.filter(
         division=division,
         match_round=next_round,
         bracket_slot=next_slot,
-    ).first()
+    )
+    if division.tournament_type == 'playoff':
+        qs = qs.filter(phase='playoff')
+
+    placeholder = qs.first()
 
     if not placeholder:
         return  # No further rounds (match was the final)
@@ -229,6 +238,79 @@ def _advance_bracket_inline(match):
 def advance_bracket(match):
     """Public entry point – called after a match result is saved."""
     _advance_bracket_inline(match)
+
+
+def fill_playoff_bracket_from_group(division, group_number):
+    """
+    Called after any group-stage match in a playoff division completes.
+    If all matches in *group_number* are now done, resolves the group
+    standings and fills the corresponding playoff-bracket slots with the
+    actual teams.  Also handles bye slots: sets winner and advances them.
+    """
+    from .models import Match
+    from .standings import compute_group_standings
+
+    if group_number is None:
+        return
+
+    # Only proceed if every group match is completed
+    pending = (
+        division.matches
+        .filter(phase='group', group_number=group_number)
+        .exclude(status='completed')
+        .count()
+    )
+    if pending > 0:
+        return
+
+    # Build {label → team} for this group
+    position_to_team = {}
+    for gnum, rows in compute_group_standings(division):
+        if gnum == group_number:
+            for pos, row in enumerate(rows, start=1):
+                position_to_team[f'Nr.{pos} gr.{group_number}'] = row['team']
+            break
+
+    if not position_to_team:
+        return
+
+    # Find playoff bracket matches that reference this group in their label
+    bracket_matches = list(
+        division.matches
+        .filter(phase='playoff', bracket_label__icontains=f'gr.{group_number}')
+        .select_related('team1', 'team2')
+    )
+
+    for match in bracket_matches:
+        label = match.bracket_label or ''
+
+        if '(fri)' in label:
+            # Bye slot: "Nr.X gr.Y (fri)"
+            seed_label = label.replace(' (fri)', '').strip()
+            team = position_to_team.get(seed_label)
+            if team and match.team1 is None:
+                match.team1 = team
+                match.winner = team
+                match.save(update_fields=['team1', 'winner'])
+                _advance_bracket_inline(match)
+        else:
+            # Regular slot: "Nr.X gr.Y vs Nr.A gr.B"
+            parts = label.split(' vs ', 1)
+            if len(parts) != 2:
+                continue
+            t1_label, t2_label = parts[0].strip(), parts[1].strip()
+            update_fields = []
+            if match.team1 is None and t1_label in position_to_team:
+                match.team1 = position_to_team[t1_label]
+                update_fields.append('team1')
+            if match.team2 is None and t2_label in position_to_team:
+                match.team2 = position_to_team[t2_label]
+                update_fields.append('team2')
+            if update_fields:
+                if match.team1 and match.team2:
+                    match.bracket_label = None
+                    update_fields.append('bracket_label')
+                match.save(update_fields=update_fields)
 
 
 def get_bracket_data(division):

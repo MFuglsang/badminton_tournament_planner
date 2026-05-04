@@ -14,7 +14,7 @@ class Tournament(models.Model):
     division_model = models.CharField(max_length=10, choices=DIVISION_MODEL_CHOICES, verbose_name=_("Divisionsmodel"))
     SCORING_MODEL_CHOICES = [
         ('best_of_3_21', _('Bedst af 3 sæt til 21')),
-        ('best_of_5_15', _('Bedst af 5 sæt til 15')),
+        ('best_of_5_15', _('Bedst af 3 sæt til 15')),
     ]
     scoring_model = models.CharField(
         max_length=20,
@@ -103,6 +103,18 @@ class Division(models.Model):
         verbose_name=_("Spilleplansprioritet"),
         help_text=_("1 = planlæg tidligst · 10 = planlæg sidst. Brug dette til at sikre at yngre rækker spiller færdigt først."),
     )
+    gold_count = models.IntegerField(
+        default=1, verbose_name=_("Antal guldmedaljer"),
+        help_text=_("Antal hold der tildeles guld (typisk 1)."),
+    )
+    silver_count = models.IntegerField(
+        default=1, verbose_name=_("Antal sølvmedaljer"),
+        help_text=_("Antal hold der tildeles sølv (typisk 1)."),
+    )
+    bronze_count = models.IntegerField(
+        default=0, verbose_name=_("Antal broncemedaljer"),
+        help_text=_("0, 1 eller 2. Brug 2 ved slutspil hvor begge tabere af semifinalerne får bronce."),
+    )
     teams = models.ManyToManyField('players.Team', related_name='divisions', blank=True, verbose_name=_("Deltagere"))
 
     def __str__(self):
@@ -152,3 +164,23 @@ class DivisionSeed(models.Model):
 
     def __str__(self):
         return f"Seed {self.seed_number}: {self.team.name} ({self.division.name})"
+
+
+class MedalOverride(models.Model):
+    """Manually assigned medal for a division, overriding the computed result."""
+    MEDAL_CHOICES = [
+        ('gold',   _('Guld')),
+        ('silver', _('Sølv')),
+        ('bronze', _('Bronce')),
+    ]
+    division = models.ForeignKey(Division, on_delete=models.CASCADE, related_name='medal_overrides')
+    medal = models.CharField(max_length=10, choices=MEDAL_CHOICES)
+    team = models.ForeignKey('players.Team', on_delete=models.CASCADE, related_name='medal_overrides')
+    order = models.PositiveSmallIntegerField(default=1)
+
+    class Meta:
+        unique_together = [('division', 'medal', 'order')]
+        ordering = ['medal', 'order']
+
+    def __str__(self):
+        return f"{self.get_medal_display()}: {self.team.name} ({self.division.name})"

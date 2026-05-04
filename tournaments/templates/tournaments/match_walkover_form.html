@@ -8,7 +8,8 @@
             <strong>{{ match.team1.name }}</strong> vs <strong>{{ match.team2.name|default:"Bye" }}</strong><br>
             <span style="color:#888; font-size:0.9rem;">{{ match.division.name }} – Runde {{ match.match_round }}</span>
         </div>
-        <p style="color:#555;">Vælg den spiller/det par som <strong>mødte op</strong> og tildeles walk-over-sejren (21-0, 21-0).</p>
+        <p style="color:#555;">Vælg den spiller/det par som <strong>mødte op</strong> og tildeles walk-over-sejren
+          ({% if match.division.tournament.scoring_model == 'best_of_5_15' %}15-0, 15-0{% else %}21-0, 21-0{% endif %}).</p>
         <form method="post">
             {% csrf_token %}
             {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
