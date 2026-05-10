@@ -1,96 +1,95 @@
-# Test Vejledning
+# Test Guide
 
-## Oversigt
-Projektet bruger **pytest** og **pytest-django** til afvikling af tests, samt **coverage** til måling af testdækning. Alle tests befinder sig i `tests.py` i de respektive apps.
+## Overview
+The project uses **pytest** and **pytest-django** to run tests, and **coverage** to measure test coverage. All tests live in `tests.py` within the relevant apps.
 
 ---
 
-## Krav
-Sørg for at dependencies er installeret:
+## Requirements
+Make sure the dependencies are installed:
 ```bash
 pip install -r requirements.txt
 ```
 
 ---
 
-## Afvikling af tests
+## Running Tests
 
-### Kør alle tests
+### Run all tests
 ```bash
-c:/github/badminton_tournament_planner/.venv/Scripts/pytest.exe
+python -m pytest
 ```
 
-### Kør tests med detaljeret output
+### Run tests with verbose output
 ```bash
-c:/github/badminton_tournament_planner/.venv/Scripts/pytest.exe -v
+python -m pytest -v
 ```
 
-### Kør tests for en specifik app
+### Run tests for a specific app
 ```bash
-c:/github/badminton_tournament_planner/.venv/Scripts/pytest.exe players/
-c:/github/badminton_tournament_planner/.venv/Scripts/pytest.exe tournaments/
+python -m pytest players/
+python -m pytest tournaments/
 ```
 
-### Kør en specifik test-klasse eller test
+### Run a specific test class or test
 ```bash
-# Kør én klasse
-c:/github/badminton_tournament_planner/.venv/Scripts/pytest.exe tournaments/tests.py::RoundRobinSchedulerTest
+# Run one class
+python -m pytest tournaments/tests.py::RoundRobinSchedulerTest
 
-# Kør én test
-c:/github/badminton_tournament_planner/.venv/Scripts/pytest.exe tournaments/tests.py::RoundRobinSchedulerTest::test_generates_correct_number_of_matches
+# Run one test
+python -m pytest tournaments/tests.py::RoundRobinSchedulerTest::test_generates_correct_number_of_matches
 ```
 
 ---
 
 ## Coverage
 
-### Kør tests med coverage-måling
+### Run tests with coverage
 ```bash
-c:/github/badminton_tournament_planner/.venv/Scripts/coverage.exe run -m pytest
+python -m coverage run -m pytest
 ```
 
-### Vis coverage rapport i terminalen
+### Show the coverage report in the terminal
 ```bash
-c:/github/badminton_tournament_planner/.venv/Scripts/coverage.exe report
+python -m coverage report
 ```
 
-### Generer HTML-rapport (åbn `htmlcov/index.html` i browseren)
+### Generate an HTML report (open `htmlcov/index.html` in a browser)
 ```bash
-c:/github/badminton_tournament_planner/.venv/Scripts/coverage.exe html
-start htmlcov/index.html
+python -m coverage html
 ```
 
-Coverage-konfigurationen findes i `.coveragerc` i projektets rodmappe.
+Coverage configuration is stored in `.coveragerc` in the project root.
 
 ---
 
-## Teststruktur
+## Test Structure
 
 ### `players/tests.py`
-| Klasse | Hvad testes |
-|--------|-------------|
-| `PlayerModelTest` | `__str__`, gyldige divisions-valg |
-| `TeamModelTest` | Auto-navn, brugerdefineret navn, `__str__` |
-| `PlayerViewTest` | Liste, tilføj (GET/POST), rediger (GET/POST/404) |
-| `TeamViewTest` | Liste, tilføj (GET/POST), rediger (GET/404) |
+| Class | What is tested |
+|--------|----------------|
+| `PlayerModelTest` | `__str__`, valid division choices |
+| `TeamModelTest` | Auto-name, custom name, `__str__` |
+| `PlayerViewTest` | List, add (GET/POST), edit (GET/POST/404) |
+| `TeamViewTest` | List, add (GET/POST), edit (GET/404) |
 
 ### `tournaments/tests.py`
-| Klasse | Hvad testes |
-|--------|-------------|
-| `TournamentModelTest` | `__str__`, alle turneringstyper |
-| `DivisionModelTest` | `__str__`, tilføjelse af hold |
+| Class | What is tested |
+|--------|----------------|
+| `TournamentModelTest` | `__str__`, all tournament types |
+| `DivisionModelTest` | `__str__`, adding teams |
 | `MatchModelTest` | `__str__`, default status |
-| `RoundRobinSchedulerTest` | Antal kampe, status, regenerering, tom division |
-| `BracketSchedulerTest` | Antal kampe i runde 1, round-nummer, tom division |
-| `GenerateScheduleRouterTest` | Korrekt scheduler vælges per turneringstype |
-| `TournamentViewTest` | Liste, detalje, 404, generer kampprogram |
-| `MatchResultViewTest` | GET, POST (gyldigt/ugyldigt), 404 |
+| `RoundRobinSchedulerTest` | Number of matches, status, regeneration, empty division |
+| `BracketSchedulerTest` | Number of matches in round 1, round numbering, empty division |
+| `GenerateScheduleRouterTest` | Correct scheduler selected per tournament type |
+| `TournamentViewTest` | List, detail, 404, generate match programme |
+| `MatchResultViewTest` | GET, POST (valid/invalid), 404 |
 
 ---
 
-## Nuværende Coverage (seneste kørsel)
+## Current Coverage (latest run)
 
-| Modul | Coverage |
+| Module | Coverage |
 |-------|----------|
 | `players/models.py` | 100% |
 | `players/forms.py` | 100% |
@@ -103,10 +102,10 @@ Coverage-konfigurationen findes i `.coveragerc` i projektets rodmappe.
 
 ---
 
-## Konventioner for nye tests
+## Conventions for New Tests
 
-- **Placering**: `tests.py` i den relevante app-mappe.
-- **Navngivning**: Klasser starter med `Test`, metoder starter med `test_`.
-- **Helper-funktioner**: Brug `make_*` hjælpefunktioner øverst i filen til at oprette testdata.
-- **Dæk altid**: Model `__str__`, view GET/POST, 404-håndtering, og forretningslogik (f.eks. scheduler).
-- **Isolering**: Brug `TestCase` — databasen nulstilles automatisk mellem tests.
+- **Location**: `tests.py` in the relevant app directory.
+- **Naming**: Classes start with `Test`, methods start with `test_`.
+- **Helper functions**: Use the `make_*` helper functions at the top of the file to create test data.
+- **Always cover**: Model `__str__`, view GET/POST, 404 handling, and business logic (for example the scheduler).
+- **Isolation**: Use `TestCase` — the database is reset automatically between tests.
