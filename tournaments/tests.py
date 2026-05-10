@@ -1598,9 +1598,11 @@ class PublicViewTest(TestCase):
         response = self.client.get(reverse('public_landing'))
         self.assertContains(response, self.tournament.name)
 
-    def test_public_landing_uses_normalized_green_button_styles(self):
+    def test_public_landing_applies_green_button_theme(self):
         response = self.client.get(reverse('public_landing'))
         content = response.content.decode('utf-8')
+        self.assertContains(response, 'class="btn btn-primary"', html=False)
+        self.assertContains(response, 'class="btn btn-secondary"', html=False)
         self.assertIn('.btn-secondary', content)
         self.assertIn('.btn-danger', content)
         self.assertIn('background: #16692c; color: white; border-color: #16692c;', content)
