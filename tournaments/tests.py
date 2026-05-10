@@ -1598,6 +1598,14 @@ class PublicViewTest(TestCase):
         response = self.client.get(reverse('public_landing'))
         self.assertContains(response, self.tournament.name)
 
+    def test_public_landing_applies_green_button_theme(self):
+        response = self.client.get(reverse('public_landing'))
+        content = response.content.decode('utf-8')
+        self.assertContains(response, 'class="btn btn-primary"', html=False)
+        self.assertContains(response, 'class="btn btn-secondary"', html=False)
+        self.assertIn('.btn-secondary', content)
+        self.assertIn('.btn-danger', content)
+
     def test_public_tournament_returns_200_without_login(self):
         response = self.client.get(reverse('public_tournament', args=[self.tournament.pk]))
         self.assertEqual(response.status_code, 200)
@@ -2832,4 +2840,3 @@ class PublicViewLanguageTest(TestCase):
     def test_public_schedule_activates_club_language_without_cookie(self):
         response = self.client.get(reverse('public_schedule', args=[self.tournament.pk]))
         self.assertEqual(response.status_code, 200)
-
