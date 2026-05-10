@@ -74,6 +74,7 @@ badminton_tournament_planner/
 - Create / edit / delete pairs (singles auto-created via division registration; doubles / mixed created manually)
 - `TeamForm.clean()` validates: doubles = same gender, mixed = opposite gender
 - Player status: `player_status.py` + `get_busy_info()` calculate who is playing or resting
+- The application retains the Danish `K` code for female players in the gender field
 - **Rest period:** `Player.rest_until` is set automatically after a match. It can be reset manually via the `✕ Rest` button on the player list
 - Status badges (🏸 playing, ⏱ resting with countdown) are shown on the schedule and big screen
 
@@ -158,8 +159,6 @@ Both methods respect:
 | `owner` | FK → User, nullable | Club user who owns the player |
 
 ### `players.Team`
-
-Note: the application retains the Danish `K` code for female players.
 | Field | Type | Description |
 |---|---|---|
 | `player1` | FK → Player | Always set |

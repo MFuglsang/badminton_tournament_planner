@@ -20,7 +20,7 @@ cd badminton_tournament_planner
 python -m venv .venv
 source .venv/bin/activate      # macOS / Linux
 call .venv\Scripts\activate.bat  # Windows Command Prompt
-. .venv\Scripts\Activate.ps1     # Windows PowerShell
+& .venv\Scripts\Activate.ps1     # Windows PowerShell
 ```
 
 ### 3. Install Dependencies
