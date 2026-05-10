@@ -36,9 +36,24 @@
         .container { max-width: 1220px; margin: 0 auto; padding: 2rem 1.5rem; flex: 1; width: 100%; }
         h1 { font-size: 1.65rem; font-weight: 700; color: #0d4f22; margin: 0 0 0.2rem; }
         .card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
-        .btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.45rem 1.1rem; border-radius: 7px; font-size: 0.875rem; font-weight: 600; border: none; cursor: pointer; text-decoration: none; }
-        .btn-primary { background: #16692c; color: white; }
-        .btn-primary:hover { background: #125824; color: white; }
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem;
+            padding: 0.48rem 1.05rem; border-radius: 7px;
+            font-size: 0.83rem; font-weight: 600; cursor: pointer;
+            border: 1.5px solid transparent; text-decoration: none;
+            transition: all 0.13s ease; line-height: 1.4; white-space: nowrap;
+            font-family: inherit;
+        }
+        .btn:hover { text-decoration: none; transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); box-shadow: none !important; }
+        .btn-primary {
+            background: #16692c; color: white; border-color: #16692c;
+            box-shadow: 0 1px 4px rgba(22,105,44,0.28), inset 0 1px 0 rgba(255,255,255,0.1);
+        }
+        .btn-primary:hover {
+            background: #125824; border-color: #125824; color: white;
+            box-shadow: 0 4px 12px rgba(22,105,44,0.32);
+        }
         label { display: block; font-weight: 600; font-size: 0.875rem; margin-bottom: 0.3rem; }
         input[type=text], input[type=password] {
             width: 100%; padding: 0.55rem 0.75rem;

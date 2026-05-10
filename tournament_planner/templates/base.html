@@ -131,24 +131,18 @@
         .btn:hover { text-decoration: none; transform: translateY(-1px); }
         .btn:active { transform: translateY(0); box-shadow: none !important; }
 
-        .btn-primary {
+        .btn-primary,
+        .btn-secondary,
+        .btn-danger {
             background: #16692c; color: white; border-color: #16692c;
             box-shadow: 0 1px 4px rgba(22,105,44,0.28), inset 0 1px 0 rgba(255,255,255,0.1);
         }
-        .btn-primary:hover {
+        .btn-primary:hover,
+        .btn-secondary:hover,
+        .btn-danger:hover {
             background: #125824; border-color: #125824; color: white;
             box-shadow: 0 4px 12px rgba(22,105,44,0.32);
         }
-        .btn-secondary {
-            background: white; color: #334155; border-color: #d1d9e6;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.06);
-        }
-        .btn-secondary:hover {
-            background: #f8fafc; border-color: #9ec8a4; color: #1e293b;
-            box-shadow: 0 2px 8px rgba(13,79,34,0.1);
-        }
-        .btn-danger { background: white; color: #b91c1c; border-color: #f5c6c6; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
-        .btn-danger:hover { background: #fef2f2; border-color: #f87171; box-shadow: 0 2px 8px rgba(185,28,28,0.12); }
 
         .btn-sm { padding: 0.27rem 0.65rem; font-size: 0.75rem; border-radius: 5px; }
         .btn-group { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; }
