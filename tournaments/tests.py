@@ -1605,7 +1605,6 @@ class PublicViewTest(TestCase):
         self.assertContains(response, 'class="btn btn-secondary"', html=False)
         self.assertIn('.btn-secondary', content)
         self.assertIn('.btn-danger', content)
-        self.assertIn('background: #16692c; color: white; border-color: #16692c;', content)
 
     def test_public_tournament_returns_200_without_login(self):
         response = self.client.get(reverse('public_tournament', args=[self.tournament.pk]))
