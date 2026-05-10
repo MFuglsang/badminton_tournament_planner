@@ -40,11 +40,7 @@ class TeamForm(forms.ModelForm):
             self.fields['division'].widget = forms.Select(choices=_division_choices(owner))
 
     def clean(self):
-        """Validate pair type and gender constraints for two-player teams.
-
-        Returns:
-            dict: Cleaned form data.
-        """
+        """Validate pair type and gender constraints for two-player teams."""
         cleaned = super().clean()
         p1 = cleaned.get('player1')
         p2 = cleaned.get('player2')
