@@ -9,6 +9,7 @@ from tournaments.player_status import get_busy_info, player_status as _player_st
 
 @login_required
 def player_list(request):
+    """Render the player list with filtering and sorting."""
     division = request.GET.get('division', '')
     gender = request.GET.get('gender', '')
     search = request.GET.get('search', '').strip()
@@ -65,6 +66,7 @@ def player_list(request):
 
 @login_required
 def player_add(request):
+    """Create a new player for the logged-in user."""
     if request.method == 'POST':
         form = PlayerForm(request.POST, owner=request.user)
         if form.is_valid():
@@ -79,6 +81,12 @@ def player_add(request):
 
 @login_required
 def player_edit(request, pk):
+    """Update an existing player.
+
+    Args:
+        request: Django HTTP request.
+        pk: Primary key of the player.
+    """
     player = get_object_or_404(Player, pk=pk, owner=request.user)
     if request.method == 'POST':
         form = PlayerForm(request.POST, instance=player, owner=request.user)
@@ -92,6 +100,7 @@ def player_edit(request, pk):
 
 @login_required
 def player_delete(request, pk):
+    """Delete a player after confirmation."""
     player = get_object_or_404(Player, pk=pk, owner=request.user)
     if request.method == 'POST':
         name = player.name
@@ -112,6 +121,7 @@ def player_clear_rest(request, pk):
 
 @login_required
 def team_list(request):
+    """Render the team list with filtering and sorting."""
     search = request.GET.get('search', '').strip()
     filter_division = request.GET.get('division', '')
     filter_type = request.GET.get('pair_type', '')
@@ -170,6 +180,7 @@ def team_list(request):
 
 @login_required
 def team_add(request):
+    """Create a new team for the logged-in user."""
     if request.method == 'POST':
         form = TeamForm(request.POST, owner=request.user)
         if form.is_valid():
@@ -186,6 +197,12 @@ def team_add(request):
 
 @login_required
 def team_edit(request, pk):
+    """Update an existing team.
+
+    Args:
+        request: Django HTTP request.
+        pk: Primary key of the team.
+    """
     team = get_object_or_404(Team, pk=pk, player1__owner=request.user)
     if request.method == 'POST':
         form = TeamForm(request.POST, instance=team, owner=request.user)
@@ -203,6 +220,7 @@ def team_edit(request, pk):
 
 @login_required
 def team_delete(request, pk):
+    """Delete a team after confirmation."""
     team = get_object_or_404(Team, pk=pk, player1__owner=request.user)
     if request.method == 'POST':
         name = team.name

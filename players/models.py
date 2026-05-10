@@ -26,10 +26,13 @@ class DivisionCategory(models.Model):
         ]
 
     def __str__(self):
+        """Return the category name."""
         return self.name
 
 
 class Player(models.Model):
+    """Represents a player participating in tournaments."""
+
     name = models.CharField(max_length=100, verbose_name=_("Name"))
     age = models.IntegerField(verbose_name=_("Age"), blank=True, null=True)
     GENDER_CHOICES = [
@@ -52,9 +55,12 @@ class Player(models.Model):
     )
 
     def __str__(self):
+        """Return a readable player representation."""
         return f"{self.name} ({self.get_gender_display()}, {self.division})"
 
 class Team(models.Model):
+    """Represents a team of one or two players."""
+
     PAIR_TYPE_CHOICES = [
         ('double', _("Doubles")),
         ('mixed', _("Mixed doubles")),
@@ -74,9 +80,11 @@ class Team(models.Model):
 
     @property
     def is_single(self):
+        """Return whether this team represents a single player."""
         return self.player2 is None
 
     def save(self, *args, **kwargs):
+        """Auto-generate team name when none is provided."""
         if not self.name:
             if self.player2:
                 self.name = f"{self.player1.name} & {self.player2.name}"
@@ -85,4 +93,5 @@ class Team(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
+        """Return the team name."""
         return self.name

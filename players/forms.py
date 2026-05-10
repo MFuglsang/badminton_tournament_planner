@@ -10,22 +10,40 @@ def _division_choices(owner):
 
 
 class PlayerForm(forms.ModelForm):
+    """Form for creating and editing a player."""
+
     class Meta:
         model = Player
         fields = ['name', 'age', 'gender', 'division']
 
     def __init__(self, *args, owner=None, **kwargs):
+        """Configure owner-specific division choices.
+
+        Args:
+            *args: Positional form arguments.
+            owner: User that owns available division categories.
+            **kwargs: Keyword form arguments.
+        """
         super().__init__(*args, **kwargs)
         if owner is not None:
             self.fields['division'].widget = forms.Select(choices=_division_choices(owner))
 
 
 class TeamForm(forms.ModelForm):
+    """Form for creating and editing a doubles or mixed team."""
+
     class Meta:
         model = Team
         fields = ['player1', 'player2', 'pair_type', 'division']
 
     def __init__(self, *args, owner=None, **kwargs):
+        """Limit selectable players and divisions to the owner.
+
+        Args:
+            *args: Positional form arguments.
+            owner: User that owns available players and divisions.
+            **kwargs: Keyword form arguments.
+        """
         super().__init__(*args, **kwargs)
         if owner is not None:
             qs = Player.objects.filter(owner=owner).order_by('name')
@@ -34,6 +52,11 @@ class TeamForm(forms.ModelForm):
             self.fields['division'].widget = forms.Select(choices=_division_choices(owner))
 
     def clean(self):
+        """Validate pair type and gender constraints for two-player teams.
+
+        Returns:
+            dict: Cleaned form data.
+        """
         cleaned = super().clean()
         p1 = cleaned.get('player1')
         p2 = cleaned.get('player2')

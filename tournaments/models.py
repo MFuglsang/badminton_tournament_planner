@@ -23,6 +23,7 @@ class UserProfile(models.Model):
     )
 
     def __str__(self):
+        """Return a readable profile label."""
         return f"{self.user.username} profile"
 
     class Meta:
@@ -33,6 +34,8 @@ class UserProfile(models.Model):
 # Create your models here.
 
 class Tournament(models.Model):
+    """Stores tournament metadata and scheduling configuration."""
+
     name = models.CharField(max_length=200, verbose_name=_("Name"))
     date = models.DateField(verbose_name=_("Date"))
     DIVISION_MODEL_CHOICES = [
@@ -95,9 +98,12 @@ class Tournament(models.Model):
     )
 
     def __str__(self):
+        """Return a readable tournament label."""
         return f"{self.name} ({self.scoring_model})"
 
 class Division(models.Model):
+    """Represents a playable division within a tournament."""
+
     DISCIPLINE_CHOICES = [
         ('single', _("Singles")),
         ('double', _("Doubles")),
@@ -146,9 +152,12 @@ class Division(models.Model):
     teams = models.ManyToManyField('players.Team', related_name='divisions', blank=True, verbose_name=_("Participants"))
 
     def __str__(self):
+        """Return a readable division label."""
         return f"{self.name} – {self.get_discipline_display()} ({self.tournament.name})"
 
 class Match(models.Model):
+    """Represents a scheduled or completed match in a division."""
+
     STATUS_CHOICES = [
         ('pending', _('Pending')),
         ('in_progress', _('In Progress')),
@@ -175,6 +184,7 @@ class Match(models.Model):
     )
 
     def __str__(self):
+        """Return a readable match label."""
         t1 = self.team1 or self.bracket_label or 'TBD'
         t2 = self.team2 or ('Bye' if not self.bracket_label else 'TBD')
         return f"R{self.match_round}: {t1} vs {t2} ({self.division.name})"
@@ -191,6 +201,7 @@ class DivisionSeed(models.Model):
         ordering = ['seed_number']
 
     def __str__(self):
+        """Return the seed display label."""
         return f"Seed {self.seed_number}: {self.team.name} ({self.division.name})"
 
 
@@ -211,4 +222,5 @@ class MedalOverride(models.Model):
         ordering = ['medal', 'order']
 
     def __str__(self):
+        """Return the medal override display label."""
         return f"{self.get_medal_display()}: {self.team.name} ({self.division.name})"

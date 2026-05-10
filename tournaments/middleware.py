@@ -15,9 +15,11 @@ class SetLanguageCookieMiddleware:
     COOKIE_SAMESITE = getattr(settings, 'LANGUAGE_COOKIE_SAMESITE', 'Lax')
 
     def __init__(self, get_response):
+        """Store the next middleware/callable in the chain."""
         self.get_response = get_response
 
     def __call__(self, request):
+        """Set the language cookie when a language switch was requested."""
         response = self.get_response(request)
         lang = getattr(request, '_set_language_cookie', None)
         if lang:

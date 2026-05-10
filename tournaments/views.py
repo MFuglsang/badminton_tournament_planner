@@ -53,12 +53,14 @@ def _seeds_dict_for_division(division, seed_lookup):
 
 @login_required
 def tournament_list(request):
+    """Render all tournaments owned by the current user."""
     tournaments = Tournament.objects.filter(owner=request.user).prefetch_related('divisions').order_by('-date')
     return render(request, 'tournaments/tournament_list.html', {'tournaments': tournaments})
 
 
 @login_required
 def tournament_create(request):
+    """Create a tournament for the current user."""
     if request.method == 'POST':
         form = TournamentForm(request.POST, request.FILES)
         if form.is_valid():
@@ -74,6 +76,7 @@ def tournament_create(request):
 
 @login_required
 def tournament_edit(request, pk):
+    """Edit an existing tournament."""
     tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
     if request.method == 'POST':
         form = TournamentForm(request.POST, request.FILES, instance=tournament)
@@ -88,6 +91,7 @@ def tournament_edit(request, pk):
 
 @login_required
 def tournament_delete(request, pk):
+    """Delete a tournament after confirmation phrase validation."""
     tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
     if request.method == 'POST':
         if request.POST.get('confirm', '').strip() != 'SLET TURNERING':
@@ -347,6 +351,7 @@ def tournament_import(request):
 
 @login_required
 def tournament_detail(request, pk):
+    """Render the main tournament management page."""
     tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
     divisions = tournament.divisions.prefetch_related('teams', 'matches__team1', 'matches__team2', 'matches__winner', 'seeds')
 
@@ -449,6 +454,7 @@ def tournament_detail(request, pk):
 
 @login_required
 def division_create(request, tournament_pk):
+    """Create a new division inside a tournament."""
     tournament = get_object_or_404(Tournament, pk=tournament_pk, owner=request.user)
     if request.method == 'POST':
         form = DivisionForm(request.POST)
@@ -462,6 +468,7 @@ def division_create(request, tournament_pk):
 
 @login_required
 def division_update_teams(request, pk):
+    """Update participants assigned to a division."""
     division = get_object_or_404(Division, pk=pk, tournament__owner=request.user)
     if request.method == 'POST':
         form = get_participants_form(division, request.POST, owner=request.user)
@@ -484,6 +491,7 @@ def division_update_teams(request, pk):
 
 @login_required
 def division_update_seeds(request, pk):
+    """Replace all manual seeds for a division from posted values."""
     division = get_object_or_404(Division, pk=pk, tournament__owner=request.user)
     if request.method == 'POST':
         DivisionSeed.objects.filter(division=division).delete()
@@ -568,6 +576,7 @@ def division_reassign_groups(request, pk):
 
 @login_required
 def division_delete(request, pk):
+    """Delete a division after confirmation."""
     division = get_object_or_404(Division, pk=pk, tournament__owner=request.user)
     tournament_pk = division.tournament.pk
     if request.method == 'POST':
@@ -597,6 +606,7 @@ def division_set_priority(request, pk):
 
 @login_required
 def division_generate_schedule(request, pk):
+    """Generate match schedules for one division."""
     division = get_object_or_404(Division, pk=pk, tournament__owner=request.user)
     if request.method == 'POST':
         if division.tournament.schedule_locked:
@@ -655,6 +665,7 @@ def division_generate_schedule(request, pk):
 
 @login_required
 def match_record_result(request, pk):
+    """Record score and winner for a match."""
     match = get_object_or_404(Match, pk=pk, division__tournament__owner=request.user)
     next_url = request.GET.get('next') or request.POST.get('next') or ''
     if request.method == 'POST':
@@ -679,6 +690,7 @@ def match_record_result(request, pk):
 
 
 def _walkover_score(match):
+    """Return default walkover score based on tournament scoring model."""
     scoring = match.division.tournament.scoring_model
     if scoring == 'best_of_5_15':
         return '15-0, 15-0'
@@ -687,6 +699,7 @@ def _walkover_score(match):
 
 @login_required
 def match_start(request, pk):
+    """Transition a pending match to in-progress when start checks pass."""
     match = get_object_or_404(Match, pk=pk, division__tournament__owner=request.user)
     next_url = request.POST.get('next') or ''
     if request.method == 'POST' and match.status == 'pending':
@@ -704,6 +717,7 @@ def match_start(request, pk):
 
 @login_required
 def match_walkover(request, pk):
+    """Record a walkover result for a match."""
     match = get_object_or_404(Match, pk=pk, division__tournament__owner=request.user)
     next_url = request.GET.get('next') or request.POST.get('next') or ''
     if request.method == 'POST':
@@ -769,6 +783,7 @@ def match_bracket_override(request, pk):
 
 @login_required
 def tournament_scoresheet(request, pk):
+    """Render tournament-wide printable score sheets."""
     tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
     matches = (
         Match.objects
@@ -1016,6 +1031,7 @@ def tournament_program_print(request, pk):
 
 @login_required
 def division_scoresheet(request, pk):
+    """Render printable score sheets for one division."""
     division = get_object_or_404(Division, pk=pk, tournament__owner=request.user)
     matches = (
         Match.objects
@@ -1286,6 +1302,7 @@ def tournament_run(request, pk):
 
 @login_required
 def tournament_schedule(request, pk):
+    """Render the generated time schedule for a tournament."""
     from django.utils import timezone
     tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
     matches = list(
@@ -1315,6 +1332,7 @@ def tournament_schedule(request, pk):
 
 @login_required
 def tournament_generate_time_schedule(request, pk):
+    """Generate scheduled times for all matches in the tournament."""
     tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
     if request.method == 'POST':
         if tournament.schedule_locked:
@@ -1332,6 +1350,7 @@ def tournament_generate_time_schedule(request, pk):
 
 @login_required
 def tournament_toggle_lock(request, pk):
+    """Toggle whether the tournament schedule is locked."""
     tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
     if request.method == 'POST':
         tournament.schedule_locked = not tournament.schedule_locked
@@ -1365,6 +1384,7 @@ def tournament_reset_schedule(request, pk):
 # ---------------------------------------------------------------------------
 
 def _match_duration_td(match, tournament):
+    """Return expected match duration as a timedelta."""
     minutes = (
         tournament.single_match_duration
         if match.division.discipline == 'single'

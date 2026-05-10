@@ -49,6 +49,8 @@ def _validate_set(a, b):
 
 
 class TournamentForm(forms.ModelForm):
+    """Form for creating and editing tournaments."""
+
     class Meta:
         model = Tournament
         fields = [
@@ -64,6 +66,8 @@ class TournamentForm(forms.ModelForm):
 
 
 class DivisionForm(forms.ModelForm):
+    """Form for creating and editing divisions."""
+
     class Meta:
         model = Division
         fields = ['name', 'discipline', 'tournament_type', 'group_count', 'advance_count', 'schedule_priority', 'gold_count', 'silver_count', 'bronze_count']
@@ -78,6 +82,7 @@ class DivisionForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        """Set optional defaults for bracket and medal fields."""
         super().__init__(*args, **kwargs)
         self.fields['group_count'].required = False
         self.fields['advance_count'].required = False
@@ -93,28 +98,34 @@ class DivisionForm(forms.ModelForm):
         self.fields['bronze_count'].initial = 0
 
     def clean_group_count(self):
+        """Return a default group count when omitted."""
         val = self.cleaned_data.get('group_count')
         return val if val is not None else 2
 
     def clean_advance_count(self):
+        """Return a default advance count when omitted."""
         val = self.cleaned_data.get('advance_count')
         return val if val is not None else 2
 
     def clean_schedule_priority(self):
+        """Clamp schedule priority to the supported range."""
         val = self.cleaned_data.get('schedule_priority')
         if val is None:
             return 5
         return max(1, min(10, int(val)))
 
     def clean_gold_count(self):
+        """Return default gold medal count when omitted."""
         val = self.cleaned_data.get('gold_count')
         return val if val is not None else 1
 
     def clean_silver_count(self):
+        """Return default silver medal count when omitted."""
         val = self.cleaned_data.get('silver_count')
         return val if val is not None else 1
 
     def clean_bronze_count(self):
+        """Return default bronze medal count when omitted."""
         val = self.cleaned_data.get('bronze_count')
         return val if val is not None else 0
 
@@ -129,6 +140,7 @@ class DivisionPlayersForm(forms.Form):
     )
 
     def __init__(self, *args, division=None, owner=None, **kwargs):
+        """Configure player choices and initial selections."""
         super().__init__(*args, **kwargs)
         qs = Player.objects.order_by('name')
         if owner is not None:
@@ -149,6 +161,7 @@ class DivisionPairsForm(forms.Form):
     )
 
     def __init__(self, *args, division=None, owner=None, **kwargs):
+        """Configure pair choices and initial selections."""
         super().__init__(*args, **kwargs)
         if division and division.discipline == 'mixed':
             # Mixed: one player of each gender
@@ -178,6 +191,8 @@ def get_participants_form(division, data=None, owner=None):
 
 
 class MatchResultForm(forms.ModelForm):
+    """Form for recording match score and winner."""
+
     class Meta:
         model = Match
         fields = ['score', 'winner']
@@ -186,6 +201,7 @@ class MatchResultForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        """Limit winner choices to teams participating in the match."""
         super().__init__(*args, **kwargs)
         match = kwargs.get('instance')
         if match:
@@ -197,6 +213,7 @@ class MatchResultForm(forms.ModelForm):
             )
 
     def clean_score(self):
+        """Validate badminton score format and set-level rules."""
         score = (self.cleaned_data.get('score') or '').strip()
         if not score:
             return score
@@ -240,6 +257,7 @@ class MatchResultForm(forms.ModelForm):
         return score
 
     def clean(self):
+        """Validate winner selection against parsed set results."""
         cleaned = super().clean()
         score = (cleaned.get('score') or '').strip()
         winner = cleaned.get('winner')
@@ -280,6 +298,7 @@ class WalkoverForm(forms.Form):
     )
 
     def __init__(self, *args, match=None, **kwargs):
+        """Limit walkover winner choices to teams in the match."""
         super().__init__(*args, **kwargs)
         if match:
             from players.models import Team
