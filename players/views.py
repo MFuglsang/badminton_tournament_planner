@@ -81,12 +81,7 @@ def player_add(request):
 
 @login_required
 def player_edit(request, pk):
-    """Update an existing player.
-
-    Args:
-        request: Django HTTP request.
-        pk: Primary key of the player.
-    """
+    """Update an existing player."""
     player = get_object_or_404(Player, pk=pk, owner=request.user)
     if request.method == 'POST':
         form = PlayerForm(request.POST, instance=player, owner=request.user)
@@ -197,12 +192,7 @@ def team_add(request):
 
 @login_required
 def team_edit(request, pk):
-    """Update an existing team.
-
-    Args:
-        request: Django HTTP request.
-        pk: Primary key of the team.
-    """
+    """Update an existing team."""
     team = get_object_or_404(Team, pk=pk, player1__owner=request.user)
     if request.method == 'POST':
         form = TeamForm(request.POST, instance=team, owner=request.user)

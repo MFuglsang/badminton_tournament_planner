@@ -17,13 +17,7 @@ class PlayerForm(forms.ModelForm):
         fields = ['name', 'age', 'gender', 'division']
 
     def __init__(self, *args, owner=None, **kwargs):
-        """Configure owner-specific division choices.
-
-        Args:
-            *args: Positional form arguments.
-            owner: User that owns available division categories.
-            **kwargs: Keyword form arguments.
-        """
+        """Configure owner-specific division choices."""
         super().__init__(*args, **kwargs)
         if owner is not None:
             self.fields['division'].widget = forms.Select(choices=_division_choices(owner))
@@ -37,13 +31,7 @@ class TeamForm(forms.ModelForm):
         fields = ['player1', 'player2', 'pair_type', 'division']
 
     def __init__(self, *args, owner=None, **kwargs):
-        """Limit selectable players and divisions to the owner.
-
-        Args:
-            *args: Positional form arguments.
-            owner: User that owns available players and divisions.
-            **kwargs: Keyword form arguments.
-        """
+        """Limit selectable players and divisions to the owner."""
         super().__init__(*args, **kwargs)
         if owner is not None:
             qs = Player.objects.filter(owner=owner).order_by('name')
