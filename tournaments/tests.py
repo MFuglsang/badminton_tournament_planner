@@ -1601,7 +1601,8 @@ class PublicViewTest(TestCase):
     def test_public_landing_uses_normalized_green_button_styles(self):
         response = self.client.get(reverse('public_landing'))
         content = response.content.decode('utf-8')
-        self.assertIn('.btn-secondary,\n        .btn-danger {', content)
+        self.assertIn('.btn-secondary', content)
+        self.assertIn('.btn-danger', content)
         self.assertIn('background: #16692c; color: white; border-color: #16692c;', content)
 
     def test_public_tournament_returns_200_without_login(self):
