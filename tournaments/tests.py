@@ -2177,3 +2177,659 @@ class DivisionMedalsViewTreeTest(TestCase):
         self.assertEqual(response.context['silver'], [])
         self.assertEqual(response.context['bronze'], [])
 
+
+# ---------------------------------------------------------------------------
+# Tournament delete – wrong confirm text
+# ---------------------------------------------------------------------------
+
+class TournamentDeleteWrongConfirmTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = make_user(username='delwrongclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
+
+    def test_wrong_confirm_shows_error_and_stays_on_page(self):
+        pk = self.tournament.pk
+        response = self.client.post(
+            reverse('tournament_delete', args=[pk]),
+            {'confirm': 'wrong text'},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Tournament.objects.filter(pk=pk).exists())
+        messages_list = list(response.wsgi_request._messages)
+        self.assertTrue(any('DELETE TOURNAMENT' in str(m) or 'SLET TURNERING' in str(m) for m in messages_list))
+
+    def test_correct_confirm_deletes(self):
+        pk = self.tournament.pk
+        response = self.client.post(
+            reverse('tournament_delete', args=[pk]),
+            {'confirm': 'SLET TURNERING'},
+        )
+        self.assertRedirects(response, reverse('tournament_list'))
+        self.assertFalse(Tournament.objects.filter(pk=pk).exists())
+
+
+# ---------------------------------------------------------------------------
+# Tournament edit view
+# ---------------------------------------------------------------------------
+
+class TournamentEditViewTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = make_user(username='editviewclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
+
+    def test_edit_get_returns_200(self):
+        response = self.client.get(reverse('tournament_edit', args=[self.tournament.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.tournament.name)
+
+    def test_edit_post_updates_tournament(self):
+        response = self.client.post(reverse('tournament_edit', args=[self.tournament.pk]), {
+            'name': 'Redigeret Turnering',
+            'date': '2026-09-01',
+            'division_model': 'mixed',
+            'scoring_model': 'best_of_3_21',
+            'court_count': 6,
+            'start_time': '08:30',
+            'single_match_duration': 30,
+            'double_match_duration': 40,
+            'player_break_time': 15,
+        })
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+        self.tournament.refresh_from_db()
+        self.assertEqual(self.tournament.name, 'Redigeret Turnering')
+
+    def test_edit_post_invalid_stays_on_page(self):
+        response = self.client.post(reverse('tournament_edit', args=[self.tournament.pk]), {
+            'name': '',  # Required field missing
+        })
+        self.assertEqual(response.status_code, 200)
+        self.tournament.refresh_from_db()
+        self.assertNotEqual(self.tournament.name, '')
+
+    def test_edit_other_owners_tournament_returns_404(self):
+        other = make_user(username='editother')
+        other_t = make_tournament(owner=other)
+        response = self.client.get(reverse('tournament_edit', args=[other_t.pk]))
+        self.assertEqual(response.status_code, 404)
+
+
+# ---------------------------------------------------------------------------
+# Tournament wallchart view
+# ---------------------------------------------------------------------------
+
+class TournamentWallchartTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = make_user(username='wallchartclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
+        self.division = make_division(tournament=self.tournament)
+        self.t1 = make_team(r1=1, r2=2)
+        self.t2 = make_team(r1=3, r2=4)
+        self.division.teams.add(self.t1, self.t2)
+
+    def test_wallchart_returns_200(self):
+        response = self.client.get(reverse('tournament_wallchart', args=[self.tournament.pk]))
+        self.assertEqual(response.status_code, 200)
+
+    def test_wallchart_contains_division_name(self):
+        response = self.client.get(reverse('tournament_wallchart', args=[self.tournament.pk]))
+        self.assertContains(response, self.division.name)
+
+    def test_wallchart_404_for_nonexistent(self):
+        response = self.client.get(reverse('tournament_wallchart', args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_wallchart_with_matches(self):
+        self.client.post(reverse('division_generate_schedule', args=[self.division.pk]))
+        response = self.client.get(reverse('tournament_wallchart', args=[self.tournament.pk]))
+        self.assertEqual(response.status_code, 200)
+
+
+# ---------------------------------------------------------------------------
+# Tournament reset schedule view
+# ---------------------------------------------------------------------------
+
+class TournamentResetScheduleTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = make_user(username='resetclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
+        self.division = make_division(tournament=self.tournament)
+        t1 = make_team(r1=1, r2=2)
+        t2 = make_team(r1=3, r2=4)
+        self.division.teams.add(t1, t2)
+        self.client.post(reverse('division_generate_schedule', args=[self.division.pk]))
+
+    def test_reset_get_shows_confirm_page(self):
+        response = self.client.get(reverse('tournament_reset_schedule', args=[self.tournament.pk]))
+        self.assertEqual(response.status_code, 200)
+
+    def test_reset_wrong_confirm_shows_error(self):
+        count_before = Match.objects.filter(division__tournament=self.tournament).count()
+        response = self.client.post(
+            reverse('tournament_reset_schedule', args=[self.tournament.pk]),
+            {'confirm': 'wrong'},
+        )
+        self.assertEqual(response.status_code, 200)
+        # Matches should not be deleted
+        self.assertEqual(Match.objects.filter(division__tournament=self.tournament).count(), count_before)
+
+    def test_reset_correct_confirm_deletes_matches(self):
+        self.assertGreater(Match.objects.filter(division__tournament=self.tournament).count(), 0)
+        response = self.client.post(
+            reverse('tournament_reset_schedule', args=[self.tournament.pk]),
+            {'confirm': 'NULSTIL KAMPPROGRAM'},
+        )
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+        self.assertEqual(Match.objects.filter(division__tournament=self.tournament).count(), 0)
+
+    def test_reset_also_unlocks_if_locked(self):
+        self.tournament.schedule_locked = True
+        self.tournament.save()
+        self.client.post(
+            reverse('tournament_reset_schedule', args=[self.tournament.pk]),
+            {'confirm': 'NULSTIL KAMPPROGRAM'},
+        )
+        self.tournament.refresh_from_db()
+        self.assertFalse(self.tournament.schedule_locked)
+
+    def test_reset_404_for_nonexistent(self):
+        response = self.client.get(reverse('tournament_reset_schedule', args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+
+# ---------------------------------------------------------------------------
+# Tournament run view
+# ---------------------------------------------------------------------------
+
+class TournamentRunViewTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = make_user(username='runclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
+        self.division = make_division(tournament=self.tournament)
+        self.t1 = make_team(r1=1, r2=2)
+        self.t2 = make_team(r1=3, r2=4)
+        self.division.teams.add(self.t1, self.t2)
+
+    def test_run_view_returns_200(self):
+        response = self.client.get(reverse('tournament_run', args=[self.tournament.pk]))
+        self.assertEqual(response.status_code, 200)
+
+    def test_run_view_contains_division(self):
+        response = self.client.get(reverse('tournament_run', args=[self.tournament.pk]))
+        self.assertContains(response, self.division.name)
+
+    def test_run_view_context_has_division_data(self):
+        response = self.client.get(reverse('tournament_run', args=[self.tournament.pk]))
+        self.assertIn('division_data', response.context)
+
+    def test_run_view_404_for_nonexistent(self):
+        response = self.client.get(reverse('tournament_run', args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_run_view_shows_in_progress_matches(self):
+        match = Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2,
+            status='in_progress', match_number=1,
+        )
+        response = self.client.get(reverse('tournament_run', args=[self.tournament.pk]))
+        self.assertEqual(response.context['in_progress_matches'], 1)
+
+
+# ---------------------------------------------------------------------------
+# Schedule editor view
+# ---------------------------------------------------------------------------
+
+class ScheduleEditorViewTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = make_user(username='editorclub')
+        self.client.force_login(self.user)
+        self.tournament = Tournament.objects.create(
+            name="Editor T", date=datetime.date(2026, 6, 1),
+            division_model='mixed', scoring_model='best_of_3_21',
+            start_time=datetime.time(9, 0), court_count=2,
+            owner=self.user,
+        )
+
+    def test_editor_returns_200(self):
+        response = self.client.get(reverse('schedule_editor', args=[self.tournament.pk]))
+        self.assertEqual(response.status_code, 200)
+
+    def test_editor_context_has_slots_and_courts(self):
+        response = self.client.get(reverse('schedule_editor', args=[self.tournament.pk]))
+        self.assertIn('slots', response.context)
+        self.assertIn('courts', response.context)
+
+    def test_editor_404_for_nonexistent(self):
+        response = self.client.get(reverse('schedule_editor', args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_editor_with_scheduled_matches_shows_grid(self):
+        from django.utils import timezone
+        division = make_division(tournament=self.tournament)
+        t1 = make_team(r1=1, r2=2)
+        t2 = make_team(r1=3, r2=4)
+        division.teams.add(t1, t2)
+        Match.objects.create(
+            division=division, team1=t1, team2=t2, match_number=1,
+            scheduled_time=timezone.make_aware(datetime.datetime(2026, 6, 1, 9, 0)),
+            court='1',
+        )
+        response = self.client.get(reverse('schedule_editor', args=[self.tournament.pk]))
+        self.assertEqual(response.status_code, 200)
+        grid = response.context['grid']
+        self.assertTrue(len(grid) > 0)
+
+
+# ---------------------------------------------------------------------------
+# Schedule JSON API: assign / unassign / clear
+# ---------------------------------------------------------------------------
+
+class ScheduleAPITest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = make_user(username='schedapiclub')
+        self.client.force_login(self.user)
+        self.tournament = Tournament.objects.create(
+            name="API T", date=datetime.date(2026, 6, 1),
+            division_model='mixed', scoring_model='best_of_3_21',
+            start_time=datetime.time(9, 0), court_count=2,
+            owner=self.user,
+        )
+        self.division = make_division(tournament=self.tournament)
+        self.t1 = make_team(r1=1, r2=2)
+        self.t2 = make_team(r1=3, r2=4)
+        self.division.teams.add(self.t1, self.t2)
+        self.client.post(reverse('division_generate_schedule', args=[self.division.pk]))
+        self.match = Match.objects.filter(division=self.division).first()
+
+    def _post_json(self, url, data):
+        import json as _json
+        return self.client.post(
+            url,
+            data=_json.dumps(data),
+            content_type='application/json',
+        )
+
+    def test_assign_sets_scheduled_time_and_court(self):
+        response = self._post_json(
+            reverse('schedule_assign', args=[self.tournament.pk]),
+            {'match_id': self.match.pk, 'time': '09:00', 'court': '1'},
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['ok'])
+        self.match.refresh_from_db()
+        self.assertIsNotNone(self.match.scheduled_time)
+        self.assertEqual(self.match.court, '1')
+
+    def test_assign_invalid_data_returns_400(self):
+        response = self._post_json(
+            reverse('schedule_assign', args=[self.tournament.pk]),
+            {'match_id': 'not-a-number'},
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_assign_when_locked_returns_403(self):
+        self.tournament.schedule_locked = True
+        self.tournament.save()
+        response = self._post_json(
+            reverse('schedule_assign', args=[self.tournament.pk]),
+            {'match_id': self.match.pk, 'time': '09:00', 'court': '1'},
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_unassign_clears_scheduled_time(self):
+        # First assign
+        self._post_json(
+            reverse('schedule_assign', args=[self.tournament.pk]),
+            {'match_id': self.match.pk, 'time': '09:00', 'court': '1'},
+        )
+        # Then unassign
+        response = self._post_json(
+            reverse('schedule_unassign', args=[self.tournament.pk]),
+            {'match_id': self.match.pk},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.match.refresh_from_db()
+        self.assertIsNone(self.match.scheduled_time)
+        self.assertIsNone(self.match.court)
+
+    def test_unassign_when_locked_returns_403(self):
+        self.tournament.schedule_locked = True
+        self.tournament.save()
+        response = self._post_json(
+            reverse('schedule_unassign', args=[self.tournament.pk]),
+            {'match_id': self.match.pk},
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_clear_removes_all_scheduled_times(self):
+        from django.utils import timezone
+        # Assign a time
+        self.match.scheduled_time = timezone.make_aware(datetime.datetime(2026, 6, 1, 9, 0))
+        self.match.court = '1'
+        self.match.save()
+        response = self._post_json(
+            reverse('schedule_clear', args=[self.tournament.pk]),
+            {},
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['ok'])
+        self.assertGreater(data['cleared'], 0)
+        self.match.refresh_from_db()
+        self.assertIsNone(self.match.scheduled_time)
+
+    def test_clear_when_locked_returns_403(self):
+        self.tournament.schedule_locked = True
+        self.tournament.save()
+        response = self._post_json(
+            reverse('schedule_clear', args=[self.tournament.pk]),
+            {},
+        )
+        self.assertEqual(response.status_code, 403)
+
+
+# ---------------------------------------------------------------------------
+# Tournament renumber matches
+# ---------------------------------------------------------------------------
+
+class TournamentRenumberTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = make_user(username='renumberclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
+        self.division = make_division(tournament=self.tournament)
+        for i in range(3):
+            t = make_team(r1=i * 2 + 1, r2=i * 2 + 2)
+            self.division.teams.add(t)
+        self.client.post(reverse('division_generate_schedule', args=[self.division.pk]))
+
+    def test_renumber_reassigns_sequential_numbers(self):
+        # Scramble existing numbers
+        matches = list(Match.objects.filter(division=self.division).order_by('pk'))
+        for i, m in enumerate(matches):
+            m.match_number = 100 + i
+            m.save()
+        # Renumber
+        response = self.client.post(reverse('tournament_renumber_matches', args=[self.tournament.pk]))
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+        numbers = sorted(
+            Match.objects.filter(division=self.division)
+            .exclude(match_number=None)
+            .values_list('match_number', flat=True)
+        )
+        self.assertEqual(numbers, list(range(1, len(numbers) + 1)))
+
+    def test_renumber_by_schedule_reorders_by_time(self):
+        from django.utils import timezone
+        matches = list(Match.objects.filter(division=self.division).order_by('pk'))
+        # Assign times in reverse order
+        for i, m in enumerate(reversed(matches)):
+            m.scheduled_time = timezone.make_aware(
+                datetime.datetime(2026, 6, 1, 9 + i, 0)
+            )
+            m.save()
+        response = self.client.post(
+            reverse('tournament_renumber_by_schedule', args=[self.tournament.pk])
+        )
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+        # Earliest scheduled match should get number 1
+        earliest = Match.objects.filter(division=self.division).order_by('scheduled_time').first()
+        self.assertEqual(earliest.match_number, 1)
+
+    def test_renumber_404_for_nonexistent(self):
+        response = self.client.post(reverse('tournament_renumber_matches', args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+
+# ---------------------------------------------------------------------------
+# Tournament rebuild playoff labels
+# ---------------------------------------------------------------------------
+
+class TournamentRebuildLabelsTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = make_user(username='rebuildclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
+        self.division = Division.objects.create(
+            tournament=self.tournament, name="Rebuild Playoff", discipline='double',
+            tournament_type='playoff', group_count=2, advance_count=1,
+        )
+        for i in range(4):
+            t = make_team(r1=i * 2 + 1, r2=i * 2 + 2)
+            self.division.teams.add(t)
+        self.client.post(reverse('division_generate_schedule', args=[self.division.pk]))
+
+    def test_rebuild_labels_returns_redirect(self):
+        response = self.client.post(
+            reverse('tournament_rebuild_playoff_labels', args=[self.tournament.pk])
+        )
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+
+    def test_rebuild_labels_404_for_nonexistent(self):
+        response = self.client.post(reverse('tournament_rebuild_playoff_labels', args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+
+# ---------------------------------------------------------------------------
+# Division medals edit and reset
+# ---------------------------------------------------------------------------
+
+class DivisionMedalsEditResetTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = make_user(username='medalseditclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
+        self.division = make_division(
+            tournament=self.tournament, tournament_type='tree'
+        )
+        self.division.gold_count = 1
+        self.division.silver_count = 1
+        self.division.bronze_count = 0
+        self.division.save()
+        self.t1 = make_team(r1=200, r2=201)
+        self.t2 = make_team(r1=202, r2=203)
+        self.division.teams.add(self.t1, self.t2)
+
+    def test_medals_edit_get_returns_200(self):
+        response = self.client.get(reverse('division_medals_edit', args=[self.division.pk]))
+        self.assertEqual(response.status_code, 200)
+
+    def test_medals_edit_post_creates_override(self):
+        from .models import MedalOverride
+        response = self.client.post(
+            reverse('division_medals_edit', args=[self.division.pk]),
+            {'gold_1': self.t1.pk, 'silver_1': self.t2.pk},
+        )
+        self.assertRedirects(response, reverse('division_medals', args=[self.division.pk]))
+        self.assertTrue(MedalOverride.objects.filter(division=self.division, medal='gold').exists())
+        self.assertTrue(MedalOverride.objects.filter(division=self.division, medal='silver').exists())
+
+    def test_medals_reset_removes_overrides(self):
+        from .models import MedalOverride
+        MedalOverride.objects.create(division=self.division, team=self.t1, medal='gold', order=1)
+        self.assertTrue(MedalOverride.objects.filter(division=self.division).exists())
+        response = self.client.post(reverse('division_medals_reset', args=[self.division.pk]))
+        self.assertRedirects(response, reverse('division_medals', args=[self.division.pk]))
+        self.assertFalse(MedalOverride.objects.filter(division=self.division).exists())
+
+    def test_medals_edit_404_for_nonexistent(self):
+        response = self.client.get(reverse('division_medals_edit', args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_medals_reset_get_redirects_to_medals(self):
+        # GET to reset endpoint just redirects (no auth bypass since it's GET)
+        response = self.client.get(reverse('division_medals_reset', args=[self.division.pk]))
+        self.assertRedirects(response, reverse('division_medals', args=[self.division.pk]))
+
+
+# ---------------------------------------------------------------------------
+# Division reassign groups
+# ---------------------------------------------------------------------------
+
+class DivisionReassignGroupsTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = make_user(username='reassignclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
+        self.division = Division.objects.create(
+            tournament=self.tournament, name="Reassign Playoff", discipline='double',
+            tournament_type='playoff', group_count=2, advance_count=1,
+        )
+        self.t1 = make_team(r1=1, r2=2)
+        self.t2 = make_team(r1=3, r2=4)
+        self.t3 = make_team(r1=5, r2=6)
+        self.t4 = make_team(r1=7, r2=8)
+        self.division.teams.add(self.t1, self.t2, self.t3, self.t4)
+        self.client.post(reverse('division_generate_schedule', args=[self.division.pk]))
+
+    def _reassign(self, groups_dict):
+        import json as _json
+        return self.client.post(
+            reverse('division_reassign_groups', args=[self.division.pk]),
+            {'groups': _json.dumps(groups_dict)},
+        )
+
+    def test_get_request_redirects(self):
+        response = self.client.get(reverse('division_reassign_groups', args=[self.division.pk]))
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+
+    def test_non_playoff_division_shows_error(self):
+        group_div = make_division(tournament=self.tournament, tournament_type='group')
+        t1 = make_team(r1=10, r2=11)
+        t2 = make_team(r1=12, r2=13)
+        group_div.teams.add(t1, t2)
+        import json as _json
+        response = self.client.post(
+            reverse('division_reassign_groups', args=[group_div.pk]),
+            {'groups': _json.dumps({'1': [t1.pk, t2.pk]})},
+        )
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+        messages_list = list(response.wsgi_request._messages)
+        self.assertTrue(any('group stage' in str(m).lower() or 'gruppefase' in str(m).lower() for m in messages_list))
+
+    def test_locked_tournament_shows_error(self):
+        self.tournament.schedule_locked = True
+        self.tournament.save()
+        response = self._reassign({'1': [self.t1.pk, self.t2.pk], '2': [self.t3.pk, self.t4.pk]})
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+        messages_list = list(response.wsgi_request._messages)
+        self.assertTrue(any('locked' in str(m).lower() for m in messages_list))
+
+    def test_completed_matches_blocks_reassign(self):
+        match = Match.objects.filter(division=self.division, phase='group').first()
+        match.status = 'completed'
+        match.winner = match.team1
+        match.score = '21-10, 21-10'
+        match.save()
+        response = self._reassign({'1': [self.t1.pk, self.t2.pk], '2': [self.t3.pk, self.t4.pk]})
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+        messages_list = list(response.wsgi_request._messages)
+        self.assertTrue(any('result' in str(m).lower() or 'recorded' in str(m).lower() or 'registreret' in str(m).lower() for m in messages_list))
+
+    def test_invalid_json_shows_error(self):
+        response = self.client.post(
+            reverse('division_reassign_groups', args=[self.division.pk]),
+            {'groups': 'not-valid-json'},
+        )
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+        messages_list = list(response.wsgi_request._messages)
+        self.assertTrue(any('invalid' in str(m).lower() or 'ugyldig' in str(m).lower() for m in messages_list))
+
+    def test_wrong_teams_shows_error(self):
+        # Submit only 3 of 4 teams
+        response = self._reassign({'1': [self.t1.pk, self.t2.pk, self.t3.pk]})
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+        messages_list = list(response.wsgi_request._messages)
+        self.assertTrue(any('team' in str(m).lower() or 'hold' in str(m).lower() for m in messages_list))
+
+    def test_valid_reassign_regenerates_matches(self):
+        old_count = Match.objects.filter(division=self.division).count()
+        response = self._reassign({
+            '1': [self.t1.pk, self.t2.pk],
+            '2': [self.t3.pk, self.t4.pk],
+        })
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+        # Should have matches
+        self.assertGreater(Match.objects.filter(division=self.division).count(), 0)
+
+
+# ---------------------------------------------------------------------------
+# Login signal: set_language_on_login
+# ---------------------------------------------------------------------------
+
+class LoginSignalLanguageTest(TestCase):
+    def setUp(self):
+        from tournaments.models import UserProfile
+        self.user = make_user(username='signaluserclub')
+        # Create a UserProfile with Danish language
+        UserProfile.objects.create(user=self.user, language='da')
+
+    def test_login_activates_club_language_without_cookie(self):
+        from django.utils import translation
+        from django.test import RequestFactory
+        from tournaments.signals import set_language_on_login
+        factory = RequestFactory()
+        request = factory.get('/')
+        request.COOKIES = {}  # No language cookie
+        set_language_on_login(sender=None, request=request, user=self.user)
+        # Language cookie should be scheduled to be set
+        self.assertEqual(getattr(request, '_set_language_cookie', None), 'da')
+
+    def test_login_does_not_override_existing_cookie(self):
+        from django.test import RequestFactory
+        from tournaments.signals import set_language_on_login
+        factory = RequestFactory()
+        request = factory.get('/')
+        request.COOKIES = {'django_language': 'en'}  # User has chosen English
+        set_language_on_login(sender=None, request=request, user=self.user)
+        # Should not override
+        self.assertIsNone(getattr(request, '_set_language_cookie', None))
+
+    def test_login_with_no_profile_is_silent(self):
+        from django.test import RequestFactory
+        from tournaments.signals import set_language_on_login
+        user_no_profile = make_user(username='noprofileclub')
+        factory = RequestFactory()
+        request = factory.get('/')
+        request.COOKIES = {}
+        # Should not raise
+        set_language_on_login(sender=None, request=request, user=user_no_profile)
+        self.assertIsNone(getattr(request, '_set_language_cookie', None))
+
+
+# ---------------------------------------------------------------------------
+# Public views – language activation via UserProfile
+# ---------------------------------------------------------------------------
+
+class PublicViewLanguageTest(TestCase):
+    def setUp(self):
+        from tournaments.models import UserProfile
+        self.user = make_user(username='langpublicclub')
+        UserProfile.objects.create(user=self.user, language='da')
+        self.tournament = make_tournament(owner=self.user)
+
+    def test_public_tournament_activates_club_language_without_cookie(self):
+        # Without a language cookie the club's language should be activated
+        response = self.client.get(reverse('public_tournament', args=[self.tournament.pk]))
+        self.assertEqual(response.status_code, 200)
+
+    def test_public_schedule_activates_club_language_without_cookie(self):
+        response = self.client.get(reverse('public_schedule', args=[self.tournament.pk]))
+        self.assertEqual(response.status_code, 200)
+
