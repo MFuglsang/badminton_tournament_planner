@@ -51,7 +51,7 @@ It is written in Markdown and can be exported to PDF.
 
 ---
 
-## 5. Create play schedule for the tournament
+## 5. Creating play schedule for the tournament
 
 1. Open **Time schedule** from the tournament page.
 2. Click **Generate time schedule**.
