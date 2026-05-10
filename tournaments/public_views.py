@@ -6,7 +6,8 @@ schedule and standings without any ability to edit data.
 """
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth import get_user_model
-from django.utils import timezone
+from django.utils import timezone, translation
+from django.conf import settings as django_settings
 
 from .models import Tournament, Match
 from .standings import compute_standings, compute_group_standings
@@ -18,6 +19,20 @@ from .player_status import get_busy_info, apply_status_to_matches
 from .player_status import team_status as _team_status
 
 User = get_user_model()
+
+LANGUAGE_COOKIE = getattr(django_settings, 'LANGUAGE_COOKIE_NAME', 'django_language')
+
+
+def _activate_club_language(request, tournament):
+    """If the visitor hasn't chosen a language via the switcher, use the club's default."""
+    if LANGUAGE_COOKIE in request.COOKIES:
+        return  # visitor has already chosen explicitly
+    try:
+        lang = tournament.owner.profile.language
+        if lang:
+            translation.activate(lang)
+    except Exception:
+        pass
 
 
 def public_landing(request):
@@ -31,15 +46,20 @@ def public_landing(request):
         .distinct()
         .order_by('username')
     )
+    today = timezone.localdate()
     tournaments = (
         Tournament.objects
         .filter(owner__isnull=False)
         .select_related('owner')
         .order_by('owner__username', '-date', 'name')
     )
+    upcoming = [t for t in tournaments if t.date >= today]
+    past = [t for t in tournaments if t.date < today]
     return render(request, 'tournaments/public/landing.html', {
         'clubs': clubs,
         'tournaments': tournaments,
+        'upcoming': upcoming,
+        'past': past,
     })
 
 
@@ -48,6 +68,7 @@ def public_tournament(request, pk):
     Read-only tournament overview: standings and match results per division.
     """
     tournament = get_object_or_404(Tournament, pk=pk)
+    _activate_club_language(request, tournament)
     divisions = tournament.divisions.prefetch_related(
         'teams', 'matches__team1', 'matches__team2', 'matches__winner', 'seeds',
     )
@@ -102,6 +123,7 @@ def public_schedule(request, pk):
     generate/lock controls.
     """
     tournament = get_object_or_404(Tournament, pk=pk)
+    _activate_club_language(request, tournament)
     matches = list(
         Match.objects
         .filter(division__tournament=tournament, scheduled_time__isnull=False)

@@ -1,31 +1,30 @@
 {% extends 'base.html' %}
-{% block title %}Spillere{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Players" %}{% endblock %}
 {% block content %}
 <div class="page-actions">
-    <h1>Spillere</h1>
+    <h1>{% trans "Players" %}</h1>
     <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-        <a href="{% url 'player_add' %}" class="btn btn-primary">+ Tilføj spiller</a>
-        <a href="{% url 'division_category_list' %}" class="btn btn-secondary" style="font-size:0.85rem;">&#9881; Rækker/kategorier</a>
+        <a href="{% url 'player_add' %}" class="btn btn-primary">+ {% trans "Add player" %}</a>
+        <a href="{% url 'division_category_list' %}" class="btn btn-secondary" style="font-size:0.85rem;">&#9881; {% trans "Divisions/categories" %}</a>
     </div>
 </div>
 
 {# ── Filterbar ─── #}
 <div class="filter-bar" style="flex-wrap:wrap; gap:0.5rem 0.75rem;">
     <form method="get" style="display:contents;">
-        {# Fritekstsøgning #}
-        <input type="text" name="search" value="{{ search }}" placeholder="Søg navn…" style="min-width:160px;">
+        <input type="text" name="search" value="{{ search }}" placeholder="{% trans 'Search name…' %}" style="min-width:160px;">
 
-        {# Division #}
         <select name="division" onchange="this.form.submit()">
-            <option value="">Alle rækker</option>
+            <option value="">{% trans "All divisions" %}</option>
             {% for value, label in division_choices %}
             <option value="{{ value }}" {% if value == selected_division %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
         </select>
 
-        {# Køn #}
+        {# Gender #}
         <select name="gender" onchange="this.form.submit()">
-            <option value="">Alle køn</option>
+            <option value="">{% trans "All genders" %}</option>
             {% for value, label in gender_choices %}
             <option value="{{ value }}" {% if value == selected_gender %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
@@ -35,12 +34,12 @@
         <input type="hidden" name="sort" value="{{ sort }}">
         <input type="hidden" name="dir" value="{{ dir }}">
 
-        <button type="submit" class="btn btn-secondary btn-sm">Søg</button>
+        <button type="submit" class="btn btn-secondary btn-sm">{% trans "Search" %}</button>
         {% if search or selected_division or selected_gender %}
-        <a href="{% url 'player_list' %}" class="btn btn-secondary btn-sm">✕ Ryd</a>
+        <a href="{% url 'player_list' %}" class="btn btn-secondary btn-sm">✕ {% trans "Clear" %}</a>
         {% endif %}
     </form>
-    <span style="color:#888; font-size:0.9rem; margin-left:auto;">{{ players|length }} spiller{{ players|length|pluralize:",e" }}</span>
+    <span style="color:#888; font-size:0.9rem; margin-left:auto;">{{ players|length }} {% trans "player(s)" %}</span>
 </div>
 
 {# ── Sorteringshjælper #}
@@ -80,10 +79,10 @@
             <td>
                 <strong>{{ player.name }}</strong>
                 {% if player.play_status == 'playing' %}
-                <span title="Spiller i gang" style="margin-left:0.3rem;">🏸</span>
+                <span title="{% trans 'Playing' %}" style="margin-left:0.3rem;">🏸</span>
                 {% elif player.play_status == 'resting' %}
-                <span class="status-badge-rest" title="Hvileperiode" style="margin-left:0.3rem; font-size:0.75rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ player.rest_until_ts }}"></span></span>
-                <form method="post" action="{% url 'player_clear_rest' player.pk %}" style="display:inline; margin-left:0.3rem;">{% csrf_token %}<button type="submit" class="btn btn-sm" style="padding:0.1rem 0.4rem; font-size:0.7rem; background:#fef3c7; color:#92400e; border:1px solid #fbbf24; border-radius:4px; cursor:pointer;" title="Fjern hvileperiode">✕ Hvile</button></form>
+                <span class="status-badge-rest" title="{% trans 'Rest period' %}" style="margin-left:0.3rem; font-size:0.75rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ player.rest_until_ts }}"></span></span>
+                <form method="post" action="{% url 'player_clear_rest' player.pk %}" style="display:inline; margin-left:0.3rem;">{% csrf_token %}<button type="submit" class="btn btn-sm" style="padding:0.1rem 0.4rem; font-size:0.7rem; background:#fef3c7; color:#92400e; border:1px solid #fbbf24; border-radius:4px; cursor:pointer;" title="{% trans 'Clear rest period' %}">✕ {% trans "Rest" %}</button></form>
                 {% endif %}
             </td>
             <td>{{ player.get_gender_display }}</td>
@@ -91,9 +90,9 @@
             <td><span class="badge badge-pending">{{ player.division }}</span></td>
             <td>
                 <div class="btn-group">
-                    <a href="{% url 'player_schedule_print' player.id %}" class="btn btn-secondary btn-sm" target="_blank">📋 Program</a>
-                    <a href="{% url 'player_edit' player.id %}" class="btn btn-secondary btn-sm">Rediger</a>
-                    <a href="{% url 'player_delete' player.id %}" class="btn btn-danger btn-sm">Slet</a>
+                    <a href="{% url 'player_schedule_print' player.id %}" class="btn btn-secondary btn-sm" target="_blank">📋 {% trans "Schedule" %}</a>
+                    <a href="{% url 'player_edit' player.id %}" class="btn btn-secondary btn-sm">{% trans "Edit" %}</a>
+                    <a href="{% url 'player_delete' player.id %}" class="btn btn-danger btn-sm">{% trans "Delete" %}</a>
                 </div>
             </td>
         </tr>
@@ -103,11 +102,11 @@
 {% else %}
 <div class="card" style="text-align:center; padding:3rem 2rem;">
     <div style="font-size:2rem; margin-bottom:0.5rem;">👤</div>
-    <p style="margin:0 0 1rem; color:#64748b;">Ingen spillere fundet.</p>
+    <p style="margin:0 0 1rem; color:#64748b;">{% trans "No players found." %}</p>
     {% if search or selected_division or selected_gender %}
-    <a href="{% url 'player_list' %}" class="btn btn-secondary">Ryd filter</a>
+    <a href="{% url 'player_list' %}" class="btn btn-secondary">{% trans "Clear filter" %}</a>
     {% else %}
-    <a href="{% url 'player_add' %}" class="btn btn-primary">Tilføj den første spiller</a>
+    <a href="{% url 'player_add' %}" class="btn btn-primary">{% trans "Add the first player" %}</a>
     {% endif %}
 </div>
 {% endif %}

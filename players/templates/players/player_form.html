@@ -1,8 +1,9 @@
 {% extends 'base.html' %}
-{% block title %}{% if form.instance.pk %}Rediger spiller{% else %}Tilføj spiller{% endif %}{% endblock %}
+{% load i18n %}
+{% block title %}{% if form.instance.pk %}{% trans "Edit player" %}{% else %}{% trans "Add player" %}{% endif %}{% endblock %}
 {% block content %}
 <div style="max-width:560px;">
-    <h1>{% if form.instance.pk %}Rediger {{ player.name }}{% else %}Tilføj spiller{% endif %}</h1>
+    <h1>{% if form.instance.pk %}{% blocktrans with name=player.name %}Edit {{ name }}{% endblocktrans %}{% else %}{% trans "Add player" %}{% endif %}</h1>
     <div class="card">
         <form method="post">
             {% csrf_token %}
@@ -14,8 +15,8 @@
             </div>
             {% endfor %}
             <div style="margin-top:1.5rem;" class="btn-group">
-                <button type="submit" class="btn btn-primary">Gem</button>
-                <a href="{% url 'player_list' %}" class="btn btn-secondary">Annuller</a>
+                <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
+                <a href="{% url 'player_list' %}" class="btn btn-secondary">{% trans "Cancel" %}</a>
             </div>
         </form>
     </div>

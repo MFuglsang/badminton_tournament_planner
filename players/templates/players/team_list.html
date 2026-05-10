@@ -1,25 +1,25 @@
 {% extends 'base.html' %}
-{% block title %}Par{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Teams" %}{% endblock %}
 {% block content %}
 <div class="page-actions">
-    <h1>Par</h1>
-    <a href="{% url 'team_add' %}" class="btn btn-primary">+ Tilføj par</a>
+    <h1>{% trans "Teams" %}</h1>
+    <a href="{% url 'team_add' %}" class="btn btn-primary">+ {% trans "Add team" %}</a>
 </div>
 
-{# ── Filterbar ─── #}
 <div class="filter-bar" style="flex-wrap:wrap; gap:0.5rem 0.75rem;">
     <form method="get" style="display:contents;">
-        <input type="text" name="search" value="{{ search }}" placeholder="Søg navn…" style="min-width:160px;">
+        <input type="text" name="search" value="{{ search }}" placeholder="{% trans 'Search name…' %}" style="min-width:160px;">
 
         <select name="division" onchange="this.form.submit()">
-            <option value="">Alle rækker</option>
+            <option value="">{% trans "All divisions" %}</option>
             {% for value, label in division_choices %}
             <option value="{{ value }}" {% if value == selected_division %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
         </select>
 
         <select name="pair_type" onchange="this.form.submit()">
-            <option value="">Alle typer</option>
+            <option value="">{% trans "All types" %}</option>
             {% for value, label in pair_type_choices %}
             <option value="{{ value }}" {% if value == selected_type %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
@@ -28,12 +28,12 @@
         <input type="hidden" name="sort" value="{{ sort }}">
         <input type="hidden" name="dir" value="{{ dir }}">
 
-        <button type="submit" class="btn btn-secondary btn-sm">Søg</button>
+        <button type="submit" class="btn btn-secondary btn-sm">{% trans "Search" %}</button>
         {% if search or selected_division or selected_type %}
-        <a href="{% url 'team_list' %}" class="btn btn-secondary btn-sm">✕ Ryd</a>
+        <a href="{% url 'team_list' %}" class="btn btn-secondary btn-sm">✕ {% trans "Clear" %}</a>
         {% endif %}
     </form>
-    <span style="color:#888; font-size:0.9rem; margin-left:auto;">{{ teams|length }} par</span>
+    <span style="color:#888; font-size:0.9rem; margin-left:auto;">{{ teams|length }} {% trans "team(s)" %}</span>
 </div>
 
 {% with base_url="?division="|add:selected_division|add:"&pair_type="|add:selected_type|add:"&search="|add:search %}
@@ -90,8 +90,8 @@
             <td>{% if team.player2 %}{{ team.player2.name }} <span class="badge badge-pending">{{ team.player2.division }}</span>{% endif %}</td>
             <td>
                 <div class="btn-group">
-                    <a href="{% url 'team_edit' team.id %}" class="btn btn-secondary btn-sm">Rediger</a>
-                    <a href="{% url 'team_delete' team.id %}" class="btn btn-danger btn-sm">Slet</a>
+                    <a href="{% url 'team_edit' team.id %}" class="btn btn-secondary btn-sm">{% trans "Edit" %}</a>
+                    <a href="{% url 'team_delete' team.id %}" class="btn btn-danger btn-sm">{% trans "Delete" %}</a>
                 </div>
             </td>
         </tr>
@@ -101,11 +101,11 @@
 {% else %}
 <div class="card" style="text-align:center; padding:3rem 2rem;">
     <div style="font-size:2rem; margin-bottom:0.5rem;">🤝</div>
-    <p style="margin:0 0 1rem; color:#64748b;">Ingen par fundet.</p>
+    <p style="margin:0 0 1rem; color:#64748b;">{% trans "No teams found." %}</p>
     {% if search or selected_division or selected_type %}
-    <a href="{% url 'team_list' %}" class="btn btn-secondary">Ryd filter</a>
+    <a href="{% url 'team_list' %}" class="btn btn-secondary">{% trans "Clear filter" %}</a>
     {% else %}
-    <a href="{% url 'team_add' %}" class="btn btn-primary">Tilføj det første par</a>
+    <a href="{% url 'team_add' %}" class="btn btn-primary">{% trans "Add the first team" %}</a>
     {% endif %}
 </div>
 {% endif %}

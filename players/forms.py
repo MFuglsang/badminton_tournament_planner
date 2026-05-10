@@ -1,11 +1,12 @@
 from django import forms
+from django.utils.translation import gettext_lazy as _
 from .models import Player, Team, DivisionCategory
 
 
 def _division_choices(owner):
     """Return a list of (value, label) tuples from the user's DivisionCategory list."""
     cats = DivisionCategory.objects.filter(owner=owner).values_list('name', flat=True)
-    return [('', '— Vælg række —')] + [(c, c) for c in cats]
+    return [('', _("— Select division —"))] + [(c, c) for c in cats]
 
 
 class PlayerForm(forms.ModelForm):
@@ -40,11 +41,11 @@ class TeamForm(forms.ModelForm):
 
         if p2:
             if not pair_type:
-                self.add_error('pair_type', 'Vælg par-type (double eller mixeddouble) når du tilføjer to spillere.')
+                self.add_error('pair_type', _("Select pair type (doubles or mixed doubles) when adding two players."))
             elif p1 and pair_type == 'double' and p1.gender != p2.gender:
-                self.add_error('pair_type', 'Double kræver to spillere af samme køn.')
+                self.add_error('pair_type', _("Doubles requires two players of the same gender."))
             elif p1 and pair_type == 'mixed' and p1.gender == p2.gender:
-                self.add_error('pair_type', 'Mixeddouble kræver én mand og én kvinde.')
+                self.add_error('pair_type', _("Mixed doubles requires one male and one female player."))
         else:
             # Singles don't need a pair_type
             cleaned['pair_type'] = None

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-{% load tournament_extras %}
-<html lang="da">
+{% load tournament_extras i18n %}
+<html lang="{{ LANGUAGE_CODE|default:'en' }}">
 <head>
 <meta charset="UTF-8">
-<title>Resultattavle – {{ tournament.name }}</title>
+<title>{% trans "Result chart" %} – {{ tournament.name }}</title>
 <style>
   /* ── Base ─── */
   body {
@@ -273,11 +273,11 @@
       <table class="match-table">
         <thead><tr>
           <th class="col-no">#</th>
-          <th class="time-th">Tid</th>
-          <th>Hold 1</th><th></th><th>Hold 2</th>
-          <th class="result-th">Sæt 1</th>
-          <th class="result-th">Sæt 2</th>
-          <th class="result-th">Sæt 3</th>
+          <th class="time-th">{% trans "Time" %}</th>
+          <th>{% trans "Team 1" %}</th><th></th><th>{% trans "Team 2" %}</th>
+          <th class="result-th">{% trans "Set 1" %}</th>
+          <th class="result-th">{% trans "Set 2" %}</th>
+          <th class="result-th">{% trans "Set 3" %}</th>
         </tr></thead>
         <tbody>
           {% for match in group.matches %}
@@ -285,7 +285,7 @@
             <td class="col-no">{{ match.match_number }}</td>
             <td class="col-time">{% if match.scheduled_time %}{{ match.scheduled_time|time:"H:i" }}{% else %}–{% endif %}</td>
             <td class="col-team">{{ match.team1.name }}{{ match.t1_seed }}</td>
-            <td class="col-vs">mod</td>
+            <td class="col-vs">{% trans "vs" %}</td>
             <td class="col-team">{{ match.team2.name }}{{ match.t2_seed }}</td>
             <td class="result-cell"><div class="set-boxes"><span class="set-box"></span><span class="set-sep">/</span><span class="set-box"></span></div></td>
             <td class="result-cell"><div class="set-boxes"><span class="set-box"></span><span class="set-sep">/</span><span class="set-box"></span></div></td>
@@ -300,16 +300,16 @@
 
     {# ── Slutspil ─── #}
     {% if dd.playoff_matches %}
-    <div class="phase-heading">Slutspil</div>
+    <div class="phase-heading">{% trans "Playoff" %}</div>
     <div style="padding: 0 0.85rem 0.35rem;">
     <table class="match-table">
       <thead><tr>
         <th class="col-no">#</th>
-        <th class="time-th">Tid</th>
-        <th>Hold 1</th><th></th><th>Hold 2</th>
-        <th class="result-th">Sæt 1</th>
-        <th class="result-th">Sæt 2</th>
-        <th class="result-th">Sæt 3</th>
+        <th class="time-th">{% trans "Time" %}</th>
+        <th>{% trans "Team 1" %}</th><th></th><th>{% trans "Team 2" %}</th>
+        <th class="result-th">{% trans "Set 1" %}</th>
+        <th class="result-th">{% trans "Set 2" %}</th>
+        <th class="result-th">{% trans "Set 3" %}</th>
       </tr></thead>
       <tbody>
         {% for match in dd.playoff_matches %}
@@ -318,13 +318,13 @@
           <td class="col-time">{% if match.scheduled_time %}{{ match.scheduled_time|time:"H:i" }}{% else %}–{% endif %}</td>
           <td class="col-team">
             {% if match.team1 %}{{ match.team1.name }}{{ match.t1_seed }}
-            {% elif match.feeder1_num %}V-kamp #{{ match.feeder1_num }}
+            {% elif match.feeder1_num %}{% trans "W-match" %} #{{ match.feeder1_num }}
             {% else %}TBD{% endif %}
           </td>
-          <td class="col-vs">mod</td>
+          <td class="col-vs">{% trans "vs" %}</td>
           <td class="col-team">
             {% if match.team2 %}{{ match.team2.name }}{{ match.t2_seed }}
-            {% elif match.feeder2_num %}V-kamp #{{ match.feeder2_num }}
+            {% elif match.feeder2_num %}{% trans "W-match" %} #{{ match.feeder2_num }}
             {% else %}TBD{% endif %}
           </td>
           <td class="result-cell"><div class="set-boxes"><span class="set-box"></span><span class="set-sep">/</span><span class="set-box"></span></div></td>
@@ -345,13 +345,13 @@
     <thead>
       <tr>
         <th class="col-no">#</th>
-        <th class="time-th">Tid</th>
-        <th>Hold 1</th>
+        <th class="time-th">{% trans "Time" %}</th>
+        <th>{% trans "Team 1" %}</th>
         <th></th>
-        <th>Hold 2</th>
-        <th class="result-th">Sæt 1</th>
-        <th class="result-th">Sæt 2</th>
-        <th class="result-th">Sæt 3</th>
+        <th>{% trans "Team 2" %}</th>
+        <th class="result-th">{% trans "Set 1" %}</th>
+        <th class="result-th">{% trans "Set 2" %}</th>
+        <th class="result-th">{% trans "Set 3" %}</th>
       </tr>
     </thead>
     <tbody>
@@ -359,7 +359,7 @@
       {% for match in dd.matches %}
         {# Phase separator #}
         {% if match.phase != prev_phase and match.phase == "playoff" %}
-        <tr class="phase-sep"><td colspan="8">— Slutspil —</td></tr>
+        <tr class="phase-sep"><td colspan="8">— {% trans "Playoff" %} —</td></tr>
         {% endif %}
         <tr>
           <td class="col-no">{{ match.match_number }}</td>
@@ -368,13 +368,13 @@
           </td>
           <td class="col-team">
             {% if match.team1 %}{{ match.team1.name }}{{ match.t1_seed }}
-            {% elif match.feeder1_num %}V-kamp #{{ match.feeder1_num }}
+            {% elif match.feeder1_num %}{% trans "W-match" %} #{{ match.feeder1_num }}
             {% else %}TBD{% endif %}
           </td>
-          <td class="col-vs">mod</td>
+          <td class="col-vs">{% trans "vs" %}</td>
           <td class="col-team">
             {% if match.team2 %}{{ match.team2.name }}{{ match.t2_seed }}
-            {% elif match.feeder2_num %}V-kamp #{{ match.feeder2_num }}
+            {% elif match.feeder2_num %}{% trans "W-match" %} #{{ match.feeder2_num }}
             {% else %}TBD{% endif %}
           </td>
           {# Three set-result boxes per match #}
@@ -395,7 +395,7 @@
     </tbody>
   </table>
   {% else %}
-  <p class="no-matches">Ingen kampe genereret endnu.</p>
+  <p class="no-matches">{% trans "No matches generated yet." %}</p>
   {% endif %}
 
   {% endif %}{# end playoff groups vs standard #}
@@ -406,7 +406,7 @@
 {% else %}
 <div style="max-width:960px; margin:2rem auto; text-align:center; color:#888; background:#fff; border-radius:8px; padding:3rem;">
   <div style="font-size:2rem; margin-bottom:.5rem;">📋</div>
-  <p>Ingen rækker fundet i denne turnering.</p>
+  <p>{% trans "No divisions found in this tournament." %}</p>
 </div>
 {% endif %}
 
@@ -414,7 +414,7 @@
 function toggleTimes() {
   var hidden = document.body.classList.toggle('hide-times');
   document.getElementById('toggle-times-btn').textContent =
-    hidden ? '⏰ Vis tidspunkter' : '⏰ Skjul tidspunkter';
+    hidden ? '⏰ {% trans "Show times" %}' : '⏰ {% trans "Hide times" %}';
 }
 </script>
 

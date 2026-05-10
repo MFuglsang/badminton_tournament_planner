@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
-{% block title %}Registrer resultat{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Register result" %}{% endblock %}
 {% block extra_head %}
 <style>
     .score-box::-webkit-outer-spin-button,
@@ -51,10 +52,10 @@
 {% block content %}
 <div style="max-width:540px; margin:0 auto;">
     <div class="card">
-        <h1 style="margin-top:0; font-size:1.3rem;">Registrer resultat</h1>
+        <h1 style="margin-top:0; font-size:1.3rem;">{% trans "Register result" %}</h1>
         <div style="background:#f0fdf4; border-left:4px solid #16692c; padding:0.65rem 1rem; border-radius:4px; margin-bottom:1.5rem; font-size:0.875rem;">
-            <strong>Kamp:</strong> {{ match.team1.name }} vs {{ match.team2.name|default:"Bye" }}<br>
-            <strong>Række:</strong> {{ match.division.name }} &nbsp;·&nbsp; <strong>Runde:</strong> {{ match.match_round }}
+            <strong>{% trans "Match:" %}</strong> {{ match.team1.name }} vs {{ match.team2.name|default:"Bye" }}<br>
+            <strong>{% trans "Division:" %}</strong> {{ match.division.name }} &nbsp;·&nbsp; <strong>{% trans "Round:" %}</strong> {{ match.match_round }}
         </div>
         <form method="post" id="result-form">
             {% csrf_token %}
@@ -75,12 +76,12 @@
 
             {# Score entry grid #}
             <div class="form-group">
-                <label>Sæt-resultater</label>
+                <label>{% trans "Set scores" %}</label>
                 <div class="score-grid">
                     <div></div>
-                    <div class="set-header">Sæt 1</div>
-                    <div class="set-header">Sæt 2</div>
-                    <div class="set-header set3-col set3-dimmed">Sæt 3</div>
+                    <div class="set-header">{% trans "Set 1" %}</div>
+                    <div class="set-header">{% trans "Set 2" %}</div>
+                    <div class="set-header set3-col set3-dimmed">{% trans "Set 3" %}</div>
 
                     <div class="team-name-cell" title="{{ match.team1.name }}">{{ match.team1.name }}</div>
                     <input class="score-box" data-team="1" data-set="1" type="number" min="0" max="30" placeholder="–"
@@ -109,8 +110,8 @@
             </div>
 
             <div style="margin-top:1.5rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
-                <button type="submit" class="btn btn-primary">Gem resultat</button>
-                <a href="{% if next_url %}{{ next_url }}{% else %}{% url 'tournament_detail' match.division.tournament.pk %}{% endif %}" class="btn btn-secondary">Annuller</a>
+                <button type="submit" class="btn btn-primary">{% trans "Save result" %}</button>
+                <a href="{% if next_url %}{{ next_url }}{% else %}{% url 'tournament_detail' match.division.tournament.pk %}{% endif %}" class="btn btn-secondary">{% trans "Cancel" %}</a>
             </div>
         </form>
     </div>

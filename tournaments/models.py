@@ -2,68 +2,96 @@ from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+
+class UserProfile(models.Model):
+    """Stores per-club preferences, e.g. default language."""
+    LANGUAGE_CHOICES = [
+        ('da', 'Dansk'),
+        ('en', 'English'),
+    ]
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='profile',
+        verbose_name=_("User"),
+    )
+    language = models.CharField(
+        max_length=10,
+        choices=LANGUAGE_CHOICES,
+        default='da',
+        verbose_name=_("Default language"),
+    )
+
+    def __str__(self):
+        return f"{self.user.username} profile"
+
+    class Meta:
+        verbose_name = _("User profile")
+        verbose_name_plural = _("User profiles")
+
+
 # Create your models here.
 
 class Tournament(models.Model):
-    name = models.CharField(max_length=200, verbose_name=_("Navn"))
-    date = models.DateField(verbose_name=_("Dato"))
+    name = models.CharField(max_length=200, verbose_name=_("Name"))
+    date = models.DateField(verbose_name=_("Date"))
     DIVISION_MODEL_CHOICES = [
-        ('youth', _('Ungdomsrækker (U9-U19)')),
-        ('mixed', _('Blandede rækker (A, B, C)')),
+        ('youth', _("Youth divisions (U9-U19)")),
+        ('mixed', _("Mixed divisions (A, B, C)")),
     ]
-    division_model = models.CharField(max_length=10, choices=DIVISION_MODEL_CHOICES, verbose_name=_("Divisionsmodel"))
+    division_model = models.CharField(max_length=10, choices=DIVISION_MODEL_CHOICES, verbose_name=_("Division model"))
     SCORING_MODEL_CHOICES = [
-        ('best_of_3_21', _('Bedst af 3 sæt til 21')),
-        ('best_of_5_15', _('Bedst af 3 sæt til 15')),
+        ('best_of_3_21', _("Best of 3 sets to 21")),
+        ('best_of_5_15', _("Best of 3 sets to 15")),
     ]
     scoring_model = models.CharField(
         max_length=20,
         choices=SCORING_MODEL_CHOICES,
         default='best_of_3_21',
-        verbose_name=_("Scoringsmodel")
+        verbose_name=_("Scoring model")
     )
     single_match_duration = models.IntegerField(
-        help_text=_("Varighed af en singlekamp i minutter"),
+        help_text=_("Duration of a singles match in minutes"),
         default=30,
-        verbose_name=_("Singlekamp varighed")
+        verbose_name=_("Singles match duration")
     )
     double_match_duration = models.IntegerField(
-        help_text=_("Varighed af en doublekamp i minutter"),
+        help_text=_("Duration of a doubles match in minutes"),
         default=40,
-        verbose_name=_("Doublekamp varighed")
+        verbose_name=_("Doubles match duration")
     )
     player_break_time = models.IntegerField(
-        help_text=_("Minimum hvileperiode for spillere mellem kampe i minutter"),
+        help_text=_("Minimum rest period for players between matches in minutes"),
         default=15,
-        verbose_name=_("Spillers pausetid")
+        verbose_name=_("Player break time")
     )
     court_count = models.IntegerField(
         default=4,
-        verbose_name=_("Antal baner"),
-        help_text=_("Antal tilgængelige baner under turneringen"),
+        verbose_name=_("Number of courts"),
+        help_text=_("Number of courts available during the tournament"),
     )
     start_time = models.TimeField(
         null=True, blank=True,
-        verbose_name=_("Starttidspunkt"),
-        help_text=_("Klokkeslæt for første kamp"),
+        verbose_name=_("Start time"),
+        help_text=_("Time of first match"),
     )
     schedule_locked = models.BooleanField(
         default=False,
-        verbose_name=_("Program låst"),
-        help_text=_("Når programmet er låst, kan kampprogram og spilleplan ikke ændres."),
+        verbose_name=_("Schedule locked"),
+        help_text=_("When locked, the match schedule cannot be changed."),
     )
     logo = models.ImageField(
         upload_to='tournament_logos/',
         null=True, blank=True,
         verbose_name=_("Logo"),
-        help_text=_("Logo vises på udprintede programmer og spilleplaner."),
+        help_text=_("Logo is shown on printed programmes and schedules."),
     )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True, blank=True,
         related_name='tournaments',
-        verbose_name=_("Klubbruger"),
+        verbose_name=_("Club user"),
     )
 
     def __str__(self):
@@ -71,51 +99,51 @@ class Tournament(models.Model):
 
 class Division(models.Model):
     DISCIPLINE_CHOICES = [
-        ('single', _('Single')),
-        ('double', _('Double')),
-        ('mixed', _('Mixeddouble')),
+        ('single', _("Singles")),
+        ('double', _("Doubles")),
+        ('mixed', _("Mixed doubles")),
     ]
     TOURNAMENT_TYPE_CHOICES = [
-        ('group', _('Gruppe (round-robin)')),
-        ('playoff', _('Gruppe med slutspil')),
-        ('tree', _('Enkeltelimination')),
+        ('group', _("Group (round-robin)")),
+        ('playoff', _("Group + playoff bracket")),
+        ('tree', _("Single elimination")),
     ]
     tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name='divisions')
-    name = models.CharField(max_length=100, verbose_name=_("Rækkenavn"))
+    name = models.CharField(max_length=100, verbose_name=_("Division name"))
     discipline = models.CharField(
         max_length=10, choices=DISCIPLINE_CHOICES, default='single',
-        verbose_name=_("Disciplin")
+        verbose_name=_("Discipline")
     )
     tournament_type = models.CharField(
         max_length=10, choices=TOURNAMENT_TYPE_CHOICES, default='group',
-        verbose_name=_("Turneringstype")
+        verbose_name=_("Tournament type")
     )
     group_count = models.IntegerField(
-        default=2, verbose_name=_("Antal grupper"),
-        help_text=_("Antal grupper i gruppespillet (kun ved 'Gruppe med slutspil')."),
+        default=2, verbose_name=_("Number of groups"),
+        help_text=_("Number of groups in the group stage (only for 'Group + playoff bracket')."),
     )
     advance_count = models.IntegerField(
-        default=2, verbose_name=_("Antal der går videre"),
-        help_text=_("Antal spillere/hold der går videre fra hver gruppe til slutspillet."),
+        default=2, verbose_name=_("Players advancing per group"),
+        help_text=_("Number of players/teams advancing from each group to the playoff bracket."),
     )
     schedule_priority = models.IntegerField(
         default=5,
-        verbose_name=_("Spilleplansprioritet"),
-        help_text=_("1 = planlæg tidligst · 10 = planlæg sidst. Brug dette til at sikre at yngre rækker spiller færdigt først."),
+        verbose_name=_("Schedule priority"),
+        help_text=_("1 = schedule earliest · 10 = schedule latest. Use this to ensure younger divisions finish first."),
     )
     gold_count = models.IntegerField(
-        default=1, verbose_name=_("Antal guldmedaljer"),
-        help_text=_("Antal hold der tildeles guld (typisk 1)."),
+        default=1, verbose_name=_("Gold medals"),
+        help_text=_("Number of teams awarded gold (typically 1)."),
     )
     silver_count = models.IntegerField(
-        default=1, verbose_name=_("Antal sølvmedaljer"),
-        help_text=_("Antal hold der tildeles sølv (typisk 1)."),
+        default=1, verbose_name=_("Silver medals"),
+        help_text=_("Number of teams awarded silver (typically 1)."),
     )
     bronze_count = models.IntegerField(
-        default=0, verbose_name=_("Antal broncemedaljer"),
-        help_text=_("0, 1 eller 2. Brug 2 ved slutspil hvor begge tabere af semifinalerne får bronce."),
+        default=0, verbose_name=_("Bronze medals"),
+        help_text=_("0, 1 or 2. Use 2 for bracket tournaments where both semi-final losers receive bronze."),
     )
-    teams = models.ManyToManyField('players.Team', related_name='divisions', blank=True, verbose_name=_("Deltagere"))
+    teams = models.ManyToManyField('players.Team', related_name='divisions', blank=True, verbose_name=_("Participants"))
 
     def __str__(self):
         return f"{self.name} – {self.get_discipline_display()} ({self.tournament.name})"
@@ -139,11 +167,11 @@ class Match(models.Model):
     walkover = models.BooleanField(default=False, verbose_name=_("Walk-over"))
     scheduled_time = models.DateTimeField(verbose_name=_("Scheduled Time"), null=True, blank=True)
     court = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Court"))
-    group_number = models.IntegerField(null=True, blank=True, verbose_name=_("Gruppe nr."))
+    group_number = models.IntegerField(null=True, blank=True, verbose_name=_("Group number"))
     phase = models.CharField(
         max_length=10, default='group',
-        choices=[('group', _('Gruppespil')), ('playoff', _('Slutspil'))],
-        verbose_name=_("Fase"),
+        choices=[('group', _("Group stage")), ('playoff', _("Playoff bracket"))],
+        verbose_name=_("Phase"),
     )
 
     def __str__(self):
@@ -156,7 +184,7 @@ class DivisionSeed(models.Model):
     """Records the seed number of a team within a division (optional seeding)."""
     division = models.ForeignKey(Division, on_delete=models.CASCADE, related_name='seeds')
     team = models.ForeignKey('players.Team', on_delete=models.CASCADE, related_name='division_seeds')
-    seed_number = models.PositiveIntegerField(verbose_name=_("Seedningsnummer"))
+    seed_number = models.PositiveIntegerField(verbose_name=_("Seed number"))
 
     class Meta:
         unique_together = [('division', 'team'), ('division', 'seed_number')]
@@ -169,9 +197,9 @@ class DivisionSeed(models.Model):
 class MedalOverride(models.Model):
     """Manually assigned medal for a division, overriding the computed result."""
     MEDAL_CHOICES = [
-        ('gold',   _('Guld')),
-        ('silver', _('Sølv')),
-        ('bronze', _('Bronce')),
+        ('gold',   _("Gold")),
+        ('silver', _("Silver")),
+        ('bronze', _("Bronze")),
     ]
     division = models.ForeignKey(Division, on_delete=models.CASCADE, related_name='medal_overrides')
     medal = models.CharField(max_length=10, choices=MEDAL_CHOICES)

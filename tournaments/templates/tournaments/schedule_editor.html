@@ -1,40 +1,41 @@
 {% extends 'base.html' %}
+{% load i18n %}
 {% load tournament_extras %}
-{% block title %}Manuel spilleplan – {{ tournament.name }}{% endblock %}
+{% block title %}{% trans "Manual time schedule" %} – {{ tournament.name }}{% endblock %}
 {% block content %}
 
 <div class="page-actions">
-  <h1>Manuel spilleplan – {{ tournament.name }}</h1>
+  <h1>{% trans "Manual time schedule" %} – {{ tournament.name }}</h1>
   <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
     {% if tournament.schedule_locked %}
-      <span class="badge" style="background:#fef3c7;color:#92400e;border:1px solid #fbbf24;padding:.35rem .75rem;font-size:.85rem;">🔒 Låst</span>
+      <span class="badge" style="background:#fef3c7;color:#92400e;border:1px solid #fbbf24;padding:.35rem .75rem;font-size:.85rem;">🔒 {% trans "Locked" %}</span>
     {% endif %}
-    <a href="{% url 'tournament_schedule' tournament.pk %}" class="btn btn-secondary">← Spilleplan</a>
-    <a href="{% url 'tournament_schedule_print' tournament.pk %}" class="btn btn-secondary" target="_blank">🖨 Udskriv</a>
+    <a href="{% url 'tournament_schedule' tournament.pk %}" class="btn btn-secondary">← {% trans "Time schedule" %}</a>
+    <a href="{% url 'tournament_schedule_print' tournament.pk %}" class="btn btn-secondary" target="_blank">🖸 {% trans "Print" %}</a>
     {% if not tournament.schedule_locked %}
     <button type="button" id="clear-schedule-btn" class="btn"
-            style="background:#b91c1c; color:#fff;">🗑 Nulstil tider</button>
+            style="background:#b91c1c; color:#fff;">🗑 {% trans "Reset times" %}</button>
     {% endif %}
   </div>
 </div>
 
 {% if not tournament.start_time %}
 <div class="flash flash-warning">
-  Sæt et starttidspunkt på turneringen for at bruge editoren.
+  {% trans "Set a start time for the tournament to use the editor." %}
 </div>
 {% else %}
 
 <div style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem; flex-wrap:wrap;">
   <form method="get" style="display:flex; gap:.5rem; align-items:center;">
-    <label style="font-weight:500; white-space:nowrap;">Slot-interval:</label>
+    <label style="font-weight:500; white-space:nowrap;">{% trans "Slot interval:" %}</label>
     <input type="number" name="interval" value="{{ slot_interval }}" min="5" max="120" step="5"
            style="width:5rem; padding:.3rem .5rem; border:1px solid #d1d5db; border-radius:6px; font-size:.9rem;">
     <span style="color:#64748b; font-size:.9rem;">min</span>
-    <button type="submit" class="btn btn-secondary" style="padding:.3rem .75rem;">Opdater</button>
+    <button type="submit" class="btn btn-secondary" style="padding:.3rem .75rem;">{% trans "Update" %}</button>
   </form>
   <span style="color:#64748b; font-size:.9rem;">
     <strong style="color:{% if unscheduled_count %}#b91c1c{% else %}#16a34a{% endif %};">{{ unscheduled_count }}</strong>
-    kamp{% if unscheduled_count != 1 %}e{% endif %} mangler tidspunkt
+    match{% if unscheduled_count != 1 %}es{% endif %} {% trans "missing a time slot" %}
   </span>
 </div>
 
@@ -42,10 +43,10 @@
 <table id="editor-grid" style="border-collapse:collapse; min-width:600px; width:100%;">
   <thead>
     <tr>
-      <th style="background:#0d4f22; color:#fff; padding:.5rem .75rem; text-align:left; white-space:nowrap; min-width:70px;">Tid</th>
+      <th style="background:#0d4f22; color:#fff; padding:.5rem .75rem; text-align:left; white-space:nowrap; min-width:70px;">{% trans "Time" %}</th>
       {% for court in courts %}
       <th style="background:#0d4f22; color:#fff; padding:.5rem .75rem; text-align:center; min-width:160px;">
-        Bane {{ court }}
+        {% trans "Court" %} {{ court }}
       </th>
       {% endfor %}
     </tr>
@@ -65,17 +66,17 @@
           <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:.25rem;">
             <div>
               <span style="font-size:.75rem; font-weight:600; color:#0d4f22; text-transform:uppercase; letter-spacing:.03em;">
-                {{ match.division.name }}{% if match.phase == 'playoff' %} · Slutspil{% endif %}
+                {{ match.division.name }}{% if match.phase == 'playoff' %} · {% trans "Playoff" %}{% endif %}
               </span>
               <div style="font-size:.85rem; font-weight:500; line-height:1.4;">
                 {{ match.team1.name|default:match.bracket_label|default:"TBD" }}
-                <span style="color:#94a3b8; font-weight:400;"> mod </span>
+                <span style="color:#94a3b8; font-weight:400;"> {% trans "vs" %} </span>
                 {{ match.team2.name|default:"TBD" }}
               </div>
               <div style="font-size:.75rem; color:#64748b;">#{{ match.match_number }} · R{{ match.match_round }}</div>
             </div>
             {% if not tournament.schedule_locked %}
-            <button class="unassign-btn" title="Frigør slot"
+            <button class="unassign-btn" title="{% trans "Free slot" %}"
                     style="flex-shrink:0; background:none; border:none; cursor:pointer; color:#94a3b8; font-size:1rem; padding:.1rem .25rem; line-height:1;"
                     data-match-id="{{ match.id }}">✕</button>
             {% endif %}
@@ -83,7 +84,7 @@
         </div>
         {% else %}
         {% if not tournament.schedule_locked %}
-        <button class="add-btn" title="Tildel kamp her"
+        <button class="add-btn" title="{% trans "Assign match here" %}"
                 style="width:100%; min-height:46px; background:#f0fdf4; border:1.5px dashed #86efac; border-radius:6px;
                        color:#16a34a; font-size:1.1rem; cursor:pointer; transition:background .15s;">
           +
@@ -108,16 +109,16 @@
     display:none; flex-direction:column; overflow:hidden;">
   <div style="background:#0d4f22; color:#fff; padding:1rem 1.25rem; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
     <div>
-      <div style="font-weight:600; font-size:1rem;" id="panel-title">Vælg kamp</div>
+      <div style="font-weight:600; font-size:1rem;" id="panel-title">{% trans "Select match" %}</div>
       <div style="font-size:.82rem; opacity:.8;" id="panel-subtitle"></div>
     </div>
     <button id="panel-close" style="background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;line-height:1;">✕</button>
   </div>
-  <div id="panel-loading" style="padding:2rem; text-align:center; color:#64748b;">Henter forslag…</div>
+  <div id="panel-loading" style="padding:2rem; text-align:center; color:#64748b;">{% trans "Loading suggestions…" %}</div>
   <div id="panel-empty" style="display:none; padding:2rem; text-align:center; color:#64748b;">
     <div style="font-size:2rem; margin-bottom:.5rem;">😴</div>
-    Ingen tilgængelige kampe til dette tidspunkt.<br>
-    <small>Alle uplanlagte kampe har enten spillerkonflikter eller banen er optaget.</small>
+    {% trans "No available matches for this time slot." %}<br>
+    <small>{% trans "All unscheduled matches have player conflicts or the court is occupied." %}</small>
   </div>
   <ul id="suggestion-list" style="list-style:none; margin:0; padding:.5rem; overflow-y:auto; flex:1;"></ul>
 </div>
@@ -125,13 +126,13 @@
 
 {# ── Bekræft frigør-dialog ───────────────────────────────────────────────── #}
 <dialog id="unassign-dialog" style="border:none; border-radius:10px; padding:0; box-shadow:0 8px 32px rgba(0,0,0,.25); max-width:380px; width:90%;">
-  <div style="background:#b91c1c; color:#fff; padding:1rem 1.5rem; border-radius:10px 10px 0 0; font-weight:600;">Frigør slot?</div>
+  <div style="background:#b91c1c; color:#fff; padding:1rem 1.5rem; border-radius:10px 10px 0 0; font-weight:600;">{% trans "Free slot?" %}</div>
   <div style="padding:1.25rem 1.5rem;">
-    <p style="margin:0 0 1rem; color:#374151;">Kamp <strong id="unassign-label"></strong> fjernes fra spilleplanen.</p>
+    <p style="margin:0 0 1rem; color:#374151;">{% trans "Match" %} <strong id="unassign-label"></strong> {% trans "will be removed from the schedule." %}</p>
     <div style="display:flex; justify-content:flex-end; gap:.75rem;">
-      <button type="button" class="btn btn-secondary" id="unassign-cancel">Annuller</button>
+      <button type="button" class="btn btn-secondary" id="unassign-cancel">{% trans "Cancel" %}</button>
       <button type="button" class="btn" id="unassign-confirm"
-              style="background:#b91c1c; color:#fff;">Frigør</button>
+              style="background:#b91c1c; color:#fff;">{% trans "Free" %}</button>
     </div>
   </div>
 </dialog>
@@ -140,12 +141,11 @@
 <dialog id="clear-dialog" style="border:none; border-radius:10px; padding:0; box-shadow:0 8px 32px rgba(0,0,0,.25); max-width:400px; width:90%;">
   <div style="background:#b91c1c; color:#fff; padding:1rem 1.5rem; border-radius:10px 10px 0 0; display:flex; align-items:center; gap:.6rem;">
     <span style="font-size:1.2rem;">⚠️</span>
-    <strong style="font-size:1.05rem;">Nulstil spilleplan?</strong>
+    <strong style="font-size:1.05rem;">{% trans "Reset time schedule?" %}</strong>
   </div>
   <div style="padding:1.25rem 1.5rem;">
     <p style="margin:0 0 1rem; color:#374151;">
-      Alle tider og baner fjernes fra <strong>alle kampe</strong> i turneringen.
-      Selve kampene og resultaterne bevares.
+      {% trans "All times and courts will be removed from <strong>all matches</strong> in the tournament. The matches and results are preserved." %}
     </p>
     <div style="display:flex; justify-content:flex-end; gap:.75rem;">
       <button type="button" class="btn btn-secondary" id="clear-cancel">Annuller</button>
@@ -204,8 +204,8 @@
   function openPanel(slot, court) {
     pendingSlot  = slot;
     pendingCourt = court;
-    document.getElementById('panel-title').textContent    = `Bane ${court} · ${slot}`;
-    document.getElementById('panel-subtitle').textContent = 'Kun kampe uden konflikter vises';
+    document.getElementById('panel-title').textContent    = `{% trans "Court" %} ${court} · ${slot}`;
+    document.getElementById('panel-subtitle').textContent = '{% trans "Only matches without conflicts are shown" %}';
     document.getElementById('panel-loading').style.display = 'block';
     document.getElementById('panel-empty').style.display   = 'none';
     document.getElementById('suggestion-list').innerHTML   = '';
@@ -231,17 +231,17 @@
               <span class="priority-badge" style="background:${pColor}22; color:${pColor}; margin-left:.4rem;">
                 P${m.priority}
               </span>
-              ${m.phase === 'playoff' ? '<span style="margin-left:.3rem; font-size:.7rem;">Slutspil</span>' : ''}
+              ${m.phase === 'playoff' ? '<span style="margin-left:.3rem; font-size:.7rem;">{% trans "Playoff" %}</span>' : ''}
             </div>
-            <div class="s-teams">${escHtml(m.team1)} <span style="color:#94a3b8;font-weight:400;"> mod </span> ${escHtml(m.team2)}</div>
-            <div class="s-meta">#${m.match_number} · Runde ${m.round} · ${m.discipline}</div>
+            <div class="s-teams">${escHtml(m.team1)} <span style="color:#94a3b8;font-weight:400;"> vs </span> ${escHtml(m.team2)}</div>
+            <div class="s-meta">#${m.match_number} · {% trans "Round" %} ${m.round} · ${m.discipline}</div>
           `;
           li.addEventListener('click', () => assignMatch(m.id, slot, court, li));
           list.appendChild(li);
         });
       })
       .catch(() => {
-        document.getElementById('panel-loading').textContent = 'Fejl ved hentning af forslag.';
+        document.getElementById('panel-loading').textContent = '{% trans "Error loading suggestions." %}';
       });
   }
 
@@ -272,13 +272,13 @@
         // Reload the page to refresh the grid
         window.location.reload();
       } else {
-        alert(data.error || 'Fejl ved tildeling af kamp.');
+        alert(data.error || '{% trans "Error assigning match." %}');
         listItem.style.opacity = '';
         listItem.style.pointerEvents = '';
       }
     })
     .catch(() => {
-      alert('Netværksfejl – prøv igen.');
+      alert('{% trans "Network error – please try again." %}');
       listItem.style.opacity = '';
       listItem.style.pointerEvents = '';
     });
@@ -310,12 +310,12 @@
       if (data.ok) {
         window.location.reload();
       } else {
-        alert(data.error || 'Fejl ved frigørelse.');
+        alert(data.error || '{% trans "Error freeing slot." %}');
         document.getElementById('unassign-confirm').disabled = false;
       }
     })
     .catch(() => {
-      alert('Netværksfejl – prøv igen.');
+      alert('{% trans "Network error – please try again." %}');
       document.getElementById('unassign-confirm').disabled = false;
     });
   });
@@ -345,12 +345,12 @@
       if (data.ok) {
         window.location.reload();
       } else {
-        alert(data.error || 'Fejl ved nulstilling.');
+        alert(data.error || '{% trans "Error resetting schedule." %}');
         document.getElementById('clear-confirm').disabled = false;
       }
     })
     .catch(() => {
-      alert('Netværksfejl – prøv igen.');
+      alert('{% trans "Network error – please try again." %}');
       document.getElementById('clear-confirm').disabled = false;
     });
   });

@@ -32,6 +32,7 @@ def home(request):
     return render(request, 'home.html', {'upcoming': upcoming, 'recent': recent})
 
 urlpatterns = [
+    path('i18n/', include('django.conf.urls.i18n')),
     path('', public_landing, name='home'),
     path('dashboard/', home, name='admin_home'),
     path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),

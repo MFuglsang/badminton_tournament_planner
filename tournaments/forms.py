@@ -2,6 +2,7 @@ import re
 
 from django import forms
 from django.db.models import F
+from django.utils.translation import gettext_lazy as _
 from .models import Match, Division, Tournament
 from players.models import Player, Team
 
@@ -19,23 +20,23 @@ def _parse_score(score_str):
         m = re.match(r'^(\d{1,2})-(\d{1,2})$', part)
         if not m:
             raise ValueError(
-                f"Ugyldigt format: '{part}'. Skriv hvert sæt som f.eks. 21-15"
+                _("Invalid format: '%(part)s'. Write each set as e.g. 21-15") % {'part': part}
             )
         sets.append((int(m.group(1)), int(m.group(2))))
     if not sets:
-        raise ValueError("Ingen sæt-score fundet")
+        raise ValueError(_("No set score found"))
     return sets
 
 
 def _validate_set(a, b):
     """Return an error string if (a, b) breaks BWF set-score rules, else ''."""
     if a == b:
-        return f"{a}-{b}: et sæt kan ikke slutte uafgjort"
+        return _("%(a)s-%(b)s: a set cannot end in a draw") % {'a': a, 'b': b}
     w, l = (a, b) if a > b else (b, a)
     if w < 21:
-        return f"{a}-{b}: vinderen skal have mindst 21 point"
+        return _("%(a)s-%(b)s: the winner must have at least 21 points") % {'a': a, 'b': b}
     if w > 30:
-        return f"{a}-{b}: maksimal score er 30-29"
+        return _("%(a)s-%(b)s: maximum score is 30-29") % {'a': a, 'b': b}
     if w == 21 and l <= 19:
         return ""   # normal win
     if w >= 22 and w - l == 2:
@@ -43,8 +44,8 @@ def _validate_set(a, b):
     if w == 30 and l == 29:
         return ""   # max deuce (already covered above, explicit for clarity)
     if w == 21 and l == 20:
-        return f"{a}-{b}: ved 20-20 fortsættes til 2 points forskel (f.eks. 22-20)"
-    return f"{a}-{b}: ugyldigt sæt-resultat (ved forlænget spil skal forskel være præcis 2 point)"
+        return _("%(a)s-%(b)s: at 20-20 play continues to 2 points difference (e.g. 22-20)") % {'a': a, 'b': b}
+    return _("%(a)s-%(b)s: invalid set result (in extended play the difference must be exactly 2 points)") % {'a': a, 'b': b}
 
 
 class TournamentForm(forms.ModelForm):
@@ -67,7 +68,7 @@ class DivisionForm(forms.ModelForm):
         model = Division
         fields = ['name', 'discipline', 'tournament_type', 'group_count', 'advance_count', 'schedule_priority', 'gold_count', 'silver_count', 'bronze_count']
         widgets = {
-            'name': forms.TextInput(attrs={'placeholder': 'f.eks. Herresingle A, Damedouble B …'}),
+            'name': forms.TextInput(attrs={'placeholder': _('e.g. Mens singles A, Womens doubles B …')}),
             'group_count': forms.NumberInput(attrs={'min': 2, 'max': 16}),
             'advance_count': forms.NumberInput(attrs={'min': 1, 'max': 8}),
             'schedule_priority': forms.NumberInput(attrs={'min': 1, 'max': 10, 'style': 'width:4rem;'}),
@@ -124,7 +125,7 @@ class DivisionPlayersForm(forms.Form):
         queryset=Player.objects.none(),
         widget=forms.CheckboxSelectMultiple,
         required=False,
-        label='Spillere',
+        label=_("Players"),
     )
 
     def __init__(self, *args, division=None, owner=None, **kwargs):
@@ -144,7 +145,7 @@ class DivisionPairsForm(forms.Form):
         queryset=Team.objects.none(),
         widget=forms.CheckboxSelectMultiple,
         required=False,
-        label='Par',
+        label=_("Teams"),
     )
 
     def __init__(self, *args, division=None, owner=None, **kwargs):
@@ -209,21 +210,21 @@ class MatchResultForm(forms.ModelForm):
         # 2. Number of sets: 2 or 3 (best of 3)
         if not (2 <= len(sets) <= 3):
             raise forms.ValidationError(
-                "En badminton-kamp spilles bedst af 3 sæt – angiv 2 eller 3 sæt."
+                _("A badminton match is best of 3 sets – provide 2 or 3 sets.")
             )
 
         # 3. Each set must be a legal BWF score
         for a, b in sets:
             err = _validate_set(a, b)
             if err:
-                raise forms.ValidationError(f"Ugyldigt sæt: {err}")
+                raise forms.ValidationError(_("Invalid set: %(err)s") % {'err': err})
 
         # 4. The eventual winner must have exactly 2 set-wins
         t1_sets = sum(1 for a, b in sets if a > b)
         t2_sets = sum(1 for a, b in sets if b > a)
         if max(t1_sets, t2_sets) != 2:
             raise forms.ValidationError(
-                f"Vinderen skal have præcis 2 sæt-sejre (nuværende tæller: {t1_sets}–{t2_sets})."
+                _("The winner must have exactly 2 set wins (current count: %(t1)s–%(t2)s).") % {'t1': t1_sets, 't2': t2_sets}
             )
 
         # 5. If 3 sets were played the first two cannot both go to the same team
@@ -233,7 +234,7 @@ class MatchResultForm(forms.ModelForm):
             t1_first2 = (a1 > b1) + (a2 > b2)
             if t1_first2 == 2 or t1_first2 == 0:
                 raise forms.ValidationError(
-                    "Tredje sæt er unødvendigt: én spiller vandt allerede de to første sæt."
+                    _("Third set is unnecessary: one player already won the first two sets.")
                 )
 
         return score
@@ -263,9 +264,7 @@ class MatchResultForm(forms.ModelForm):
         expected_winner = match.team1 if t1_sets > t2_sets else match.team2
         if winner.pk != expected_winner.pk:
             raise forms.ValidationError(
-                f"Vinder stemmer ikke overens med scoren: ifølge resultatet vandt "
-                f"{expected_winner.name} ({t1_sets}–{t2_sets} sæt), "
-                f"men du valgte {winner.name} som vinder."
+                _("Winner does not match the score: according to the result %(winner)s won (%(t1)s–%(t2)s sets), but you selected %(selected)s as winner.") % {'winner': expected_winner.name, 't1': t1_sets, 't2': t2_sets, 'selected': winner.name}
             )
         # Auto-complete the match when score + winner are valid
         cleaned['status'] = 'completed'
@@ -277,7 +276,7 @@ class WalkoverForm(forms.Form):
     winner = forms.ModelChoiceField(
         queryset=None,
         empty_label=None,
-        label='Vinder (spilleren der møder op)',
+        label=_("Winner (the player who shows up)"),
     )
 
     def __init__(self, *args, match=None, **kwargs):

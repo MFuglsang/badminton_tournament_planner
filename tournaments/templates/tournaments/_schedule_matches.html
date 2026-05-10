@@ -1,12 +1,12 @@
-{% load tournament_extras %}
+{% load tournament_extras i18n %}
 {# ── Legend + search ─── #}
 {% if matches %}
 <div style="display:flex; gap:1rem; align-items:center; flex-wrap:wrap; margin-bottom:1rem; font-size:0.85rem;">
-    <span><span class="sched-dot dot-done"></span> Afsluttet</span>
-    <span><span class="sched-dot dot-active"></span> I gang</span>
-    <span><span class="sched-dot dot-upcoming"></span> Kommende</span>
+    <span><span class="sched-dot dot-done"></span> {% trans "Completed" %}</span>
+    <span><span class="sched-dot dot-active"></span> {% trans "In progress" %}</span>
+    <span><span class="sched-dot dot-upcoming"></span> {% trans "Upcoming" %}</span>
     <div style="margin-left:auto; position:relative; flex-shrink:0;">
-        <input type="search" id="sched-search" placeholder="🔍 Søg spiller…"
+        <input type="search" id="sched-search" placeholder="🔍 {% trans 'Search player…' %}"
                style="padding:0.38rem 0.75rem; border:1.5px solid #d1d9e6; border-radius:20px;
                       font-size:0.83rem; font-family:inherit; width:180px; outline:none;
                       transition:border-color 0.15s, box-shadow 0.15s; background:#fff;"
@@ -16,7 +16,7 @@
     </div>
 </div>
 <div id="sched-no-results" style="display:none; color:#94a3b8; font-size:0.88rem; margin-bottom:1rem;">
-    Ingen kampe matcher søgningen.
+    {% trans "No matches match the search." %}
 </div>
 
 {# ── Match list ─── #}
@@ -41,16 +41,16 @@
                 <summary class="sched-card-summary">
                     <span class="sched-dot dot-done"></span>
                     <span class="sched-card-no">#{{ match.match_number }}</span>
-                    <span class="sched-card-teams">{{ match.team1.name }}{{ match.t1_seed }}{% if match.t1_status == 'playing' %} <span title="Spiller i gang">🏸</span>{% elif match.t1_status == 'resting' %} <span class="status-badge-rest" style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ match.t1_rest_until|unix_ts }}"></span></span>{% endif %} <span class="vs">vs</span> {{ match.team2.name }}{{ match.t2_seed }}{% if match.t2_status == 'playing' %} <span title="Spiller i gang">🏸</span>{% elif match.t2_status == 'resting' %} <span class="status-badge-rest" style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ match.t2_rest_until|unix_ts }}"></span></span>{% endif %}</span>
+                    <span class="sched-card-teams">{{ match.team1.name }}{{ match.t1_seed }}{% if match.t1_status == 'playing' %} <span title="{% trans 'Match in progress' %}">🏸</span>{% elif match.t1_status == 'resting' %} <span class="status-badge-rest" style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ match.t1_rest_until|unix_ts }}"></span></span>{% endif %} <span class="vs">vs</span> {{ match.team2.name }}{{ match.t2_seed }}{% if match.t2_status == 'playing' %} <span title="{% trans 'Match in progress' %}">🏸</span>{% elif match.t2_status == 'resting' %} <span class="status-badge-rest" style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ match.t2_rest_until|unix_ts }}"></span></span>{% endif %}</span>
                     <span class="sched-card-result">{{ match.score|default:"" }}</span>
                     {% if match.walkover %}<span class="badge badge-walkover" style="margin-left:0.5rem;">WO</span>{% endif %}
                     <span class="sched-card-winner">🏆 {{ match.winner.name|default:"" }}</span>
                 </summary>
                 <div class="sched-card-detail">
-                    <strong>Række:</strong> {{ match.division.name }} &nbsp;·&nbsp;
-                    <strong>Runde:</strong> {{ match.match_round }} &nbsp;·&nbsp;
-                    <strong>Score:</strong> {{ match.score|default:"–" }} &nbsp;·&nbsp;
-                    <strong>Vinder:</strong> {{ match.winner.name|default:"–" }}
+                    <strong>{% trans "Division" %}:</strong> {{ match.division.name }} &nbsp;·&nbsp;
+                    <strong>{% trans "Round" %}:</strong> {{ match.match_round }} &nbsp;·&nbsp;
+                    <strong>{% trans "Score" %}:</strong> {{ match.score|default:"–" }} &nbsp;·&nbsp;
+                    <strong>{% trans "Winner" %}:</strong> {{ match.winner.name|default:"–" }}
                     {% if match.walkover %}&nbsp;·&nbsp;<em>Walk-over</em>{% endif %}
                 </div>
             </details>
@@ -59,8 +59,8 @@
                  data-search="{{ match.team1.name|lower }} {{ match.team2.name|lower }}">
                 <span class="sched-dot dot-active"></span>
                 <span class="sched-card-no">#{{ match.match_number }}</span>
-                <span class="sched-card-teams">{{ match.team1.name }}{{ match.t1_seed }} <span title="Spiller i gang">🏸</span> <span class="vs">vs</span> {{ match.team2.name }}{{ match.t2_seed }} <span title="Spiller i gang">🏸</span></span>
-                <span class="sched-badge-active">I gang</span>
+                <span class="sched-card-teams">{{ match.team1.name }}{{ match.t1_seed }} <span title="{% trans 'Match in progress' %}">🏸</span> <span class="vs">vs</span> {{ match.team2.name }}{{ match.t2_seed }} <span title="{% trans 'Match in progress' %}">🏸</span></span>
+                <span class="sched-badge-active">{% trans "In progress" %}</span>
                 <span class="sched-card-div" style="margin-left:auto; font-size:0.8rem; color:#888;">{{ match.division.name }}</span>
             </div>
         {% else %}
@@ -68,7 +68,7 @@
                  data-search="{{ match.team1.name|lower }} {{ match.team2.name|lower }}">
                 <span class="sched-dot dot-upcoming"></span>
                 <span class="sched-card-no">#{{ match.match_number }}</span>
-                <span class="sched-card-teams">{{ match.team1.name }}{{ match.t1_seed }}{% if match.t1_status == 'playing' %} <span title="Spiller i gang">🏸</span>{% elif match.t1_status == 'resting' %} <span class="status-badge-rest" style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ match.t1_rest_until|unix_ts }}"></span></span>{% endif %} <span class="vs">vs</span> {{ match.team2.name }}{{ match.t2_seed }}{% if match.t2_status == 'playing' %} <span title="Spiller i gang">🏸</span>{% elif match.t2_status == 'resting' %} <span class="status-badge-rest" style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ match.t2_rest_until|unix_ts }}"></span></span>{% endif %}</span>
+                <span class="sched-card-teams">{{ match.team1.name }}{{ match.t1_seed }}{% if match.t1_status == 'playing' %} <span title="{% trans 'Match in progress' %}">🏸</span>{% elif match.t1_status == 'resting' %} <span class="status-badge-rest" style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ match.t1_rest_until|unix_ts }}"></span></span>{% endif %} <span class="vs">vs</span> {{ match.team2.name }}{{ match.t2_seed }}{% if match.t2_status == 'playing' %} <span title="{% trans 'Match in progress' %}">🏸</span>{% elif match.t2_status == 'resting' %} <span class="status-badge-rest" style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ match.t2_rest_until|unix_ts }}"></span></span>{% endif %}</span>
                 <span class="sched-card-div" style="margin-left:auto; font-size:0.8rem; color:#888;">{{ match.division.name }}</span>
             </div>
         {% endif %}
@@ -80,7 +80,7 @@
 {% else %}
 <div class="card" style="text-align:center; color:#94a3b8; padding:3rem 2rem;">
     <div style="font-size:2rem; margin-bottom:0.5rem;">📅</div>
-    <p style="margin:0 0 1rem; color:#64748b;">Ingen spilleplan endnu. Generer kampprogram for alle rækker, og tryk derefter "Generer spilleplan".</p>
+    <p style="margin:0 0 1rem; color:#64748b;">{% trans "No schedule yet. Generate match programmes for all divisions, then press \"Generate time schedule\"." %}</p>
 </div>
 {% endif %}
 

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="da">
+{% load i18n %}
+<html lang="{{ LANGUAGE_CODE }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -45,7 +46,7 @@
             width: 34px; height: 34px; display:flex; align-items:center; justify-content:center;
             font-size: 1.1rem;
         }
-        nav { display: flex; gap: 0.15rem; }
+        nav { display: flex; gap: 0.15rem; align-items: center; }
         nav a {
             color: rgba(255,255,255,0.78);
             text-decoration: none;
@@ -335,13 +336,28 @@
         </button>
         {% block nav %}
         <nav>
-            <a href="/tournaments/">Turneringer</a>
-            <a href="/players/">Spillere</a>
-            <a href="/players/teams/">Par</a>
+            <a href="/tournaments/">{% trans "Tournaments" %}</a>
+            <a href="/players/">{% trans "Players" %}</a>
+            <a href="/players/teams/">{% trans "Teams" %}</a>
             {% if user.is_staff %}<a href="/admin/">Admin</a>{% endif %}
             {% if user.is_authenticated %}
             <span style="color:rgba(255,255,255,0.5); font-size:0.82rem; padding:0.4rem 0.5rem; border-left:1px solid rgba(255,255,255,0.2); margin-left:0.3rem;">{{ user.username }}</span>
-            <form method="post" action="{% url 'logout' %}" style="display:inline; margin:0; padding:0;">{% csrf_token %}<button type="submit" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.25); color:rgba(255,255,255,0.78); font-size:0.82rem; font-weight:500; padding:0.35rem 0.75rem; border-radius:6px; cursor:pointer; font-family:inherit;">Log ud</button></form>
+            {% endif %}
+            {# Language switcher #}
+            <form action="{% url 'set_language' %}" method="post" style="display:inline; margin:0;">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.path }}">
+                <select name="language" onchange="this.form.submit()"
+                    style="background:#fff; border:1px solid rgba(255,255,255,0.4); color:#1a1a1a; font-size:0.8rem; padding:0.3rem 0.5rem; border-radius:6px; cursor:pointer; font-family:inherit;">
+                    {% get_current_language as CURRENT_LANG %}
+                    {% get_available_languages as LANGUAGES %}
+                    {% for lang_code, lang_name in LANGUAGES %}
+                    <option value="{{ lang_code }}"{% if lang_code == CURRENT_LANG %} selected{% endif %}>{{ lang_name }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+            {% if user.is_authenticated %}
+            <form method="post" action="{% url 'logout' %}" style="display:inline; margin:0 0 0 0.5rem; padding:0;">{% csrf_token %}<button type="submit" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.25); color:rgba(255,255,255,0.78); font-size:0.82rem; font-weight:500; padding:0.35rem 0.75rem; border-radius:6px; cursor:pointer; font-family:inherit;">{% trans "Log out" %}</button></form>
             {% endif %}
         </nav>
         {% endblock nav %}

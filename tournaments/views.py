@@ -7,6 +7,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 from .models import Tournament, Division, Match, DivisionSeed
 from .forms import MatchResultForm, DivisionForm, TournamentForm, get_participants_form, WalkoverForm
@@ -64,7 +65,7 @@ def tournament_create(request):
             tournament = form.save(commit=False)
             tournament.owner = request.user
             tournament.save()
-            messages.success(request, f'Turnering "{tournament.name}" er oprettet.')
+            messages.success(request, _("Tournament \"%(name)s\" has been created.") % {'name': tournament.name})
             return redirect('tournament_detail', pk=tournament.pk)
     else:
         form = TournamentForm()
@@ -78,7 +79,7 @@ def tournament_edit(request, pk):
         form = TournamentForm(request.POST, request.FILES, instance=tournament)
         if form.is_valid():
             form.save()
-            messages.success(request, f'Turnering "{tournament.name}" er opdateret.')
+            messages.success(request, _("Tournament \"%(name)s\" has been updated.") % {'name': tournament.name})
             return redirect('tournament_detail', pk=tournament.pk)
     else:
         form = TournamentForm(instance=tournament)
@@ -90,11 +91,11 @@ def tournament_delete(request, pk):
     tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
     if request.method == 'POST':
         if request.POST.get('confirm', '').strip() != 'SLET TURNERING':
-            messages.error(request, 'Du skal skrive SLET TURNERING for at bekræfte.')
+            messages.error(request, _("You must type DELETE TOURNAMENT to confirm."))
             return render(request, 'tournaments/tournament_confirm_delete.html', {'tournament': tournament})
         name = tournament.name
         tournament.delete()
-        messages.success(request, f'Turnering "{name}" er slettet.')
+        messages.success(request, _("Tournament \"%(name)s\" has been deleted.") % {'name': name})
         return redirect('tournament_list')
     return render(request, 'tournaments/tournament_confirm_delete.html', {'tournament': tournament})
 
@@ -226,18 +227,18 @@ def tournament_import(request):
 
     upload = request.FILES.get('backup_file')
     if not upload:
-        messages.error(request, 'Ingen fil valgt.')
+        messages.error(request, _("No file selected."))
         return render(request, 'tournaments/tournament_import.html')
 
     try:
         raw = upload.read().decode('utf-8-sig')  # handles BOM if present
         data = json.loads(raw)
     except Exception:
-        messages.error(request, 'Filen kunne ikke læses som JSON.')
+        messages.error(request, _("The file could not be read as JSON."))
         return render(request, 'tournaments/tournament_import.html')
 
     if data.get('version') != 1:
-        messages.error(request, 'Ukendt backup-format (version mangler eller er forkert).')
+        messages.error(request, _("Unknown backup format (version missing or incorrect)."))
         return render(request, 'tournaments/tournament_import.html')
 
     td = data['tournament']
@@ -258,7 +259,7 @@ def tournament_import(request):
     # Players: dedup by (name, gender, division) for this owner
     player_map = {}  # old_id → Player instance
     for pd in data.get('players', []):
-        player, _ = Player.objects.get_or_create(
+        player, _created = Player.objects.get_or_create(
             owner=request.user,
             name=pd['name'],
             gender=pd['gender'],
@@ -275,7 +276,7 @@ def tournament_import(request):
         if not p1:
             continue
         if p2:
-            team, _ = PlayerTeam.objects.get_or_create(
+            team, _created = PlayerTeam.objects.get_or_create(
                 player1=p1, player2=p2,
                 defaults={
                     'pair_type': ti.get('pair_type'),
@@ -284,7 +285,7 @@ def tournament_import(request):
                 },
             )
         else:
-            team, _ = PlayerTeam.objects.get_or_create(
+            team, _created = PlayerTeam.objects.get_or_create(
                 player1=p1, player2=None,
                 defaults={'name': p1.name},
             )
@@ -340,7 +341,7 @@ def tournament_import(request):
                 defaults={'seed_number': sd['seed_number']},
             )
 
-    messages.success(request, f'Turnering "{tournament.name}" er gendannet med {len(division_map)} rækker og {len(data.get("matches", []))} kampe.')
+    messages.success(request, _("Tournament \"%(name)s\" restored with %(divs)s divisions and %(matches)s matches.") % {'name': tournament.name, 'divs': len(division_map), 'matches': len(data.get('matches', []))})
     return redirect('tournament_detail', pk=tournament.pk)
 
 
@@ -455,7 +456,7 @@ def division_create(request, tournament_pk):
             division = form.save(commit=False)
             division.tournament = tournament
             division.save()
-            messages.success(request, f'Division "{division.name}" er oprettet.')
+            messages.success(request, _("Division \"%(name)s\" has been created.") % {'name': division.name})
     return redirect('tournament_detail', pk=tournament_pk)
 
 
@@ -468,16 +469,16 @@ def division_update_teams(request, pk):
             if division.discipline == 'single':
                 teams = []
                 for player in form.cleaned_data['players']:
-                    team, _ = Team.objects.get_or_create(
+                    team, _created = Team.objects.get_or_create(
                         player1=player, player2=None,
                         defaults={'name': player.name},
                     )
                     teams.append(team)
                 division.teams.set(teams)
-                messages.success(request, f'Spillere i "{division.name}" er opdateret.')
+                messages.success(request, _("Players in \"%(name)s\" have been updated.") % {'name': division.name})
             else:
                 division.teams.set(form.cleaned_data['pairs'])
-                messages.success(request, f'Par i "{division.name}" er opdateret.')
+                messages.success(request, _("Teams in \"%(name)s\" have been updated.") % {'name': division.name})
     return redirect('tournament_detail', pk=division.tournament.pk)
 
 
@@ -497,7 +498,7 @@ def division_update_seeds(request, pk):
                         seen.add(seed_num)
                 except ValueError:
                     pass
-        messages.success(request, f'Seedning for "{division.name}" er gemt.')
+        messages.success(request, _("Seeding for \"%(name)s\" has been saved.") % {'name': division.name})
     return redirect('tournament_detail', pk=division.tournament.pk)
 
 
@@ -515,15 +516,15 @@ def division_reassign_groups(request, pk):
         return redirect('tournament_detail', pk=division.tournament.pk)
 
     if division.tournament_type != 'playoff':
-        messages.error(request, 'Gruppeomfordeling er kun mulig for divisioner med gruppespil og slutspil.')
+        messages.error(request, _("Group reassignment is only possible for divisions with group stage and playoff bracket."))
         return redirect('tournament_detail', pk=division.tournament.pk)
 
     if division.tournament.schedule_locked:
-        messages.error(request, 'Spilleplanen er låst og kan ikke ændres.')
+        messages.error(request, _("The schedule is locked and cannot be changed."))
         return redirect('tournament_detail', pk=division.tournament.pk)
 
     if division.matches.filter(status='completed').exists():
-        messages.error(request, 'Kan ikke omfordele grupper – der er allerede registrerede resultater.')
+        messages.error(request, _("Cannot reassign groups – results have already been recorded."))
         return redirect('tournament_detail', pk=division.tournament.pk)
 
     try:
@@ -531,14 +532,14 @@ def division_reassign_groups(request, pk):
         # raw = {"1": [pk, pk, ...], "2": [pk, pk, ...], ...}
         groups_by_num = {int(k): [int(x) for x in v] for k, v in raw.items()}
     except (ValueError, TypeError, AttributeError):
-        messages.error(request, 'Ugyldig data.')
+        messages.error(request, _("Invalid data."))
         return redirect('tournament_detail', pk=division.tournament.pk)
 
     # Validate: every division team appears in exactly one group
     division_team_pks = set(division.teams.values_list('pk', flat=True))
     submitted_pks = {pk for pks in groups_by_num.values() for pk in pks}
     if submitted_pks != division_team_pks:
-        messages.error(request, 'Grupper indeholder ikke præcis de rigtige hold.')
+        messages.error(request, _("Groups do not contain exactly the right teams."))
         return redirect('tournament_detail', pk=division.tournament.pk)
 
     # Build ordered list of Team objects per group
@@ -558,9 +559,9 @@ def division_reassign_groups(request, pk):
         for i, match in enumerate(matches, start=current_max + 1):
             match.match_number = i
             match.save(update_fields=['match_number'])
-        messages.success(request, f'Gruppefordeling i "{division.name}" er gemt og kampprogram er regenereret.')
+        messages.success(request, _("Group assignment in \"%(name)s\" saved and match schedule regenerated.") % {'name': division.name})
     else:
-        messages.warning(request, 'Ingen kampe genereret.')
+        messages.warning(request, _("No matches generated."))
 
     return redirect('tournament_detail', pk=division.tournament.pk)
 
@@ -572,11 +573,11 @@ def division_delete(request, pk):
     if request.method == 'POST':
         name = division.name
         division.delete()
-        messages.success(request, f'Række "{name}" er slettet.')
+        messages.success(request, _("Division \"%(name)s\" has been deleted.") % {'name': name})
         return redirect('tournament_detail', pk=tournament_pk)
     return render(request, 'players/player_confirm_delete.html', {
         'object': division.name,
-        'type': 'række',
+        'type': _('division'),
     })
 
 
@@ -599,7 +600,7 @@ def division_generate_schedule(request, pk):
     division = get_object_or_404(Division, pk=pk, tournament__owner=request.user)
     if request.method == 'POST':
         if division.tournament.schedule_locked:
-            messages.error(request, 'Spilleplanen er låst og kan ikke ændres.')
+            messages.error(request, _("The schedule is locked and cannot be changed."))
             return redirect('tournament_detail', pk=division.tournament.pk)
         matches = generate_schedule(division)
         if matches:
@@ -640,17 +641,15 @@ def division_generate_schedule(request, pk):
         if division.tournament_type == 'playoff':
             messages.success(
                 request,
-                f'Kampprogram genereret: {group_count} gruppekampe fordelt i {division.group_count} grupper, '
-                f'+ {playoff_count} slutspilskampe (planlægges efter gruppespillet i spilleplanen).'
+                _("Schedule generated: %(group)s group matches in %(gc)s groups + %(playoff)s playoff matches (scheduled after group stage).") % {'group': group_count, 'gc': division.group_count, 'playoff': playoff_count}
             )
         elif placeholder_count:
             messages.success(
                 request,
-                f'Kampprogram genereret med {len(matches) - placeholder_count} kampe '
-                f'(+ {placeholder_count} finalekampe reserveret til bracket).'
+                _("Schedule generated with %(n)s matches (+ %(p)s bracket final matches reserved).") % {'n': len(matches) - placeholder_count, 'p': placeholder_count}
             )
         else:
-            messages.success(request, f'Kampprogram genereret med {len(matches)} kampe.')
+            messages.success(request, _("Schedule generated with %(n)s matches.") % {'n': len(matches)})
     return redirect('tournament_detail', pk=division.tournament.pk)
 
 
@@ -670,7 +669,7 @@ def match_record_result(request, pk):
             advance_bracket(match)
             if match.division.tournament_type == 'playoff' and match.phase == 'group':
                 fill_playoff_bracket_from_group(match.division, match.group_number)
-            messages.success(request, 'Resultat er gemt.')
+            messages.success(request, _("Result saved."))
             if next_url:
                 return redirect(next_url)
             return redirect('tournament_detail', pk=match.division.tournament.pk)
@@ -693,11 +692,11 @@ def match_start(request, pk):
     if request.method == 'POST' and match.status == 'pending':
         errors = check_match_startable(match)
         if errors:
-            messages.error(request, 'Kan ikke starte kamp: ' + ' · '.join(errors))
+            messages.error(request, _("Cannot start match: ") + ' · '.join(errors))
         else:
             match.status = 'in_progress'
             match.save(update_fields=['status'])
-            messages.success(request, f'Kamp #{match.match_number or match.pk} er nu i gang.')
+            messages.success(request, _("Match #%(n)s is now in progress.") % {'n': match.match_number or match.pk})
     if next_url:
         return redirect(next_url)
     return redirect('tournament_detail', pk=match.division.tournament.pk)
@@ -719,7 +718,7 @@ def match_walkover(request, pk):
             advance_bracket(match)
             if match.division.tournament_type == 'playoff' and match.phase == 'group':
                 fill_playoff_bracket_from_group(match.division, match.group_number)
-            messages.success(request, f'Walk-over registreret – {match.winner} vinder.')
+            messages.success(request, _("Walk-over recorded – %(winner)s wins.") % {'winner': match.winner})
             if next_url:
                 return redirect(next_url)
             return redirect('tournament_detail', pk=match.division.tournament.pk)
@@ -755,7 +754,7 @@ def match_bracket_override(request, pk):
             match.bracket_label = None
 
         match.save(update_fields=['team1', 'team2', 'bracket_label'])
-        messages.success(request, f'Bracket-kamp opdateret: {match.team1} vs {match.team2}.')
+        messages.success(request, _("Bracket match updated: %(t1)s vs %(t2)s.") % {'t1': match.team1, 't2': match.team2})
 
         if next_url:
             return redirect(next_url)
@@ -1319,15 +1318,15 @@ def tournament_generate_time_schedule(request, pk):
     tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
     if request.method == 'POST':
         if tournament.schedule_locked:
-            messages.error(request, 'Spilleplanen er låst og kan ikke ændres.')
+            messages.error(request, _("The schedule is locked and cannot be changed."))
         elif not tournament.start_time:
-            messages.error(request, 'Sæt et starttidspunkt på turneringen før du genererer spilleplanen.')
+            messages.error(request, _("Set a start time on the tournament before generating the time schedule."))
         else:
             count = generate_time_schedule(tournament)
             if count:
-                messages.success(request, f'Spilleplan genereret for {count} kampe.')
+                messages.success(request, _("Time schedule generated for %(n)s matches.") % {'n': count})
             else:
-                messages.warning(request, 'Ingen kampe at planlægge. Generer kampprogram for divisionerne først.')
+                messages.warning(request, _("No matches to schedule. Generate match programmes for divisions first."))
     return redirect('tournament_schedule', pk=pk)
 
 
@@ -1338,9 +1337,9 @@ def tournament_toggle_lock(request, pk):
         tournament.schedule_locked = not tournament.schedule_locked
         tournament.save(update_fields=['schedule_locked'])
         if tournament.schedule_locked:
-            messages.success(request, 'Spilleplanen er nu låst.')
+            messages.success(request, _("The schedule is now locked."))
         else:
-            messages.success(request, 'Spilleplanen er nu låst op.')
+            messages.success(request, _("The schedule is now unlocked."))
     return redirect('tournament_schedule', pk=pk)
 
 
@@ -1350,13 +1349,13 @@ def tournament_reset_schedule(request, pk):
     tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
     if request.method == 'POST':
         if request.POST.get('confirm', '').strip() != 'NULSTIL KAMPPROGRAM':
-            messages.error(request, 'Du skal skrive NULSTIL KAMPPROGRAM for at bekræfte.')
+            messages.error(request, _("You must type RESET SCHEDULE to confirm."))
             return render(request, 'tournaments/tournament_confirm_reset.html', {'tournament': tournament})
         Match.objects.filter(division__tournament=tournament).delete()
         if tournament.schedule_locked:
             tournament.schedule_locked = False
             tournament.save(update_fields=['schedule_locked'])
-        messages.success(request, 'Alle kampe er slettet og kampnummer-tæller er nulstillet.')
+        messages.success(request, _("All matches deleted and match number counter reset."))
         return redirect('tournament_detail', pk=pk)
     return render(request, 'tournaments/tournament_confirm_reset.html', {'tournament': tournament})
 
@@ -1556,7 +1555,7 @@ def schedule_assign(request, pk):
     """POST: assign a match to a time slot + court."""
     tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
     if tournament.schedule_locked:
-        return JsonResponse({'error': 'Spilleplanen er låst.'}, status=403)
+        return JsonResponse({'error': _('The schedule is locked.')}, status=403)
 
     try:
         data = json.loads(request.body)
@@ -1566,7 +1565,7 @@ def schedule_assign(request, pk):
         naive_dt = datetime.combine(tournament.date, datetime.strptime(time_str, "%H:%M").time())
         slot_dt = timezone.make_aware(naive_dt) if timezone.is_naive(naive_dt) else naive_dt
     except (KeyError, ValueError, TypeError):
-        return JsonResponse({'error': 'Ugyldige data.'}, status=400)
+        return JsonResponse({'error': _('Invalid data.')}, status=400)
 
     match = get_object_or_404(Match, pk=match_id, division__tournament=tournament)
     match.scheduled_time = slot_dt
@@ -1588,13 +1587,13 @@ def schedule_unassign(request, pk):
     """POST: remove a match from its time slot."""
     tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
     if tournament.schedule_locked:
-        return JsonResponse({'error': 'Spilleplanen er låst.'}, status=403)
+        return JsonResponse({'error': _('The schedule is locked.')}, status=403)
 
     try:
         data = json.loads(request.body)
         match_id = int(data['match_id'])
     except (KeyError, ValueError, TypeError):
-        return JsonResponse({'error': 'Ugyldige data.'}, status=400)
+        return JsonResponse({'error': _('Invalid data.')}, status=400)
 
     match = get_object_or_404(Match, pk=match_id, division__tournament=tournament)
     match.scheduled_time = None
@@ -1610,7 +1609,7 @@ def schedule_clear(request, pk):
     """POST: clear scheduled_time and court from all matches (keeps matches intact)."""
     tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
     if tournament.schedule_locked:
-        return JsonResponse({'error': 'Spilleplanen er låst.'}, status=403)
+        return JsonResponse({'error': _('The schedule is locked.')}, status=403)
 
     count = (
         Match.objects
@@ -1647,7 +1646,7 @@ def tournament_renumber_matches(request, pk):
         match.match_number = i
 
     Match.objects.bulk_update(matches, ['match_number'])
-    messages.success(request, f'Kampnumre genberegnet – {len(matches)} kampe nummereret fra 1.')
+    messages.success(request, _("Match numbers recalculated – %(n)s matches numbered from 1.") % {'n': len(matches)})
     return redirect('tournament_detail', pk=pk)
 
 
@@ -1737,7 +1736,7 @@ def tournament_rebuild_playoff_labels(request, pk):
                     match.save(update_fields=['bracket_label'])
                     updated += 1
 
-    messages.success(request, f'Bracket-labels genopbygget ({updated} kampe opdateret).')
+    messages.success(request, _("Bracket labels rebuilt (%(n)s matches updated).") % {'n': updated})
     return redirect('tournament_detail', pk=pk)
 
 
@@ -1813,9 +1812,8 @@ def tournament_renumber_by_schedule(request, pk):
 
     messages.success(
         request,
-        f'Kampnumre sorteret efter spilleplan – {len(ordered)} kampe nummereret fra 1'
-        f' ({len(unscheduled)} uden tidspunkt placeret sidst).'
+        _("Match numbers sorted by schedule – %(n)s matches numbered from 1 (%(u)s without time placed last).") % {'n': len(ordered), 'u': len(unscheduled)}
         if unscheduled else
-        f'Kampnumre sorteret efter spilleplan – {len(ordered)} kampe nummereret fra 1.'
+        _("Match numbers sorted by schedule – %(n)s matches numbered from 1.") % {'n': len(ordered)}
     )
     return redirect('tournament_detail', pk=pk)

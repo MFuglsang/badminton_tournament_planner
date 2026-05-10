@@ -10,13 +10,13 @@ DEFAULT_DIVISION_CATEGORIES = ['U9', 'U11', 'U13', 'U15', 'U17', 'U19', 'A', 'B'
 
 class DivisionCategory(models.Model):
     """User-defined division/age-group categories (e.g. U9, A, B, Begynder)."""
-    name = models.CharField(max_length=30, verbose_name=_("Navn"))
-    sort_order = models.IntegerField(default=0, verbose_name=_("Sortering"))
+    name = models.CharField(max_length=30, verbose_name=_("Name"))
+    sort_order = models.IntegerField(default=0, verbose_name=_("Sort order"))
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='division_categories',
-        verbose_name=_("Klubbruger"),
+        verbose_name=_("Club user"),
     )
 
     class Meta:
@@ -30,25 +30,25 @@ class DivisionCategory(models.Model):
 
 
 class Player(models.Model):
-    name = models.CharField(max_length=100, verbose_name=_("Navn"))
-    age = models.IntegerField(verbose_name=_("Alder"), blank=True, null=True)
+    name = models.CharField(max_length=100, verbose_name=_("Name"))
+    age = models.IntegerField(verbose_name=_("Age"), blank=True, null=True)
     GENDER_CHOICES = [
-        ('M', _('Mand')),
-        ('K', _('Kvinde')),
+        ('M', _("Male")),
+        ('K', _("Female")),
     ]
     division = models.CharField(max_length=30, blank=True, verbose_name=_("Division"))
-    gender = models.CharField(max_length=1, choices=GENDER_CHOICES, default='M', verbose_name=_("Køn"))
+    gender = models.CharField(max_length=1, choices=GENDER_CHOICES, default='M', verbose_name=_("Gender"))
     rest_until = models.DateTimeField(
         null=True, blank=True,
-        verbose_name=_("Hviler indtil"),
-        help_text=_("Spilleren er i hvileperiode og kan ikke starte nye kampe før dette tidspunkt."),
+        verbose_name=_("Resting until"),
+        help_text=_("The player is resting and cannot start new matches before this time."),
     )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True, blank=True,
         related_name='players',
-        verbose_name=_("Klubbruger"),
+        verbose_name=_("Club user"),
     )
 
     def __str__(self):
@@ -56,19 +56,19 @@ class Player(models.Model):
 
 class Team(models.Model):
     PAIR_TYPE_CHOICES = [
-        ('double', _('Double')),
-        ('mixed', _('Mixeddouble')),
+        ('double', _("Doubles")),
+        ('mixed', _("Mixed doubles")),
     ]
     player1 = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='team_player1')
     player2 = models.ForeignKey(Player, on_delete=models.SET_NULL, related_name='team_player2', null=True, blank=True)
     pair_type = models.CharField(
         max_length=10, choices=PAIR_TYPE_CHOICES, null=True, blank=True,
-        verbose_name=_('Par-type'),
-        help_text=_('Double: samme køn · Mixeddouble: blandede'),
+        verbose_name=_("Pair type"),
+        help_text=_("Doubles: same gender · Mixed doubles: mixed gender"),
     )
     division = models.CharField(
         max_length=30, blank=True, null=True,
-        verbose_name=_('Række'),
+        verbose_name=_("Division"),
     )
     name = models.CharField(max_length=100, blank=True, null=True)
 
