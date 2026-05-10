@@ -153,11 +153,13 @@ Both methods respect:
 | `age` | IntegerField | Age |
 | `ranking` | IntegerField | Ranking (lower = better) |
 | `division` | CharField (choices) | U9/U11/U13/U15/U17/U19/A/B/C |
-| `gender` | CharField (`M` = Male, `K` = Female using the Danish code retained by the app) | Gender, default `M` |
+| `gender` | CharField (`M`/`K`) | Gender, default `M` |
 | `rest_until` | DateTimeField, nullable | Resting until this time (set automatically after a match) |
 | `owner` | FK → User, nullable | Club user who owns the player |
 
 ### `players.Team`
+
+Note: the application retains the Danish `K` code for female players.
 | Field | Type | Description |
 |---|---|---|
 | `player1` | FK → Player | Always set |
