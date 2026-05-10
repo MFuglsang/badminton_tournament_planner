@@ -51,6 +51,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'tournaments.middleware.SetLanguageCookieMiddleware',
 ]
 
 ROOT_URLCONF = 'tournament_planner.urls'

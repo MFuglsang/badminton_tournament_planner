@@ -2,6 +2,34 @@ from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+
+class UserProfile(models.Model):
+    """Stores per-club preferences, e.g. default language."""
+    LANGUAGE_CHOICES = [
+        ('da', 'Dansk'),
+        ('en', 'English'),
+    ]
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='profile',
+        verbose_name=_("User"),
+    )
+    language = models.CharField(
+        max_length=10,
+        choices=LANGUAGE_CHOICES,
+        default='da',
+        verbose_name=_("Default language"),
+    )
+
+    def __str__(self):
+        return f"{self.user.username} profile"
+
+    class Meta:
+        verbose_name = _("User profile")
+        verbose_name_plural = _("User profiles")
+
+
 # Create your models here.
 
 class Tournament(models.Model):

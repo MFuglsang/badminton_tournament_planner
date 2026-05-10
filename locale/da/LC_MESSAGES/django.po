@@ -1082,3 +1082,39 @@ msgstr "Generelt"
 
 msgid "Go to match"
 msgstr "Gå til kamp"
+
+msgid "Select tournament"
+msgstr "Vælg turnering"
+
+msgid "Tournament overview"
+msgstr "Turneringsoversigt"
+
+msgid "Select club and tournament"
+msgstr "Vælg klub og turnering"
+
+msgid "No tournaments available yet."
+msgstr "Ingen turneringer tilgængelige endnu."
+
+msgid "Club"
+msgstr "Klub"
+
+msgid "Select club"
+msgstr "Vælg klub"
+
+msgid "Select club first"
+msgstr "Vælg klub først"
+
+msgid "Upcoming tournaments"
+msgstr "Kommende turneringer"
+
+msgid "No upcoming tournaments."
+msgstr "Ingen kommende turneringer."
+
+msgid "Past tournaments"
+msgstr "Tidligere turneringer"
+
+msgid "View"
+msgstr "Se"
+
+msgid "Select a club and tournament to view the match overview and time schedule."
+msgstr "Vælg en klub og turnering for at se kampoversigt og spilleplan."

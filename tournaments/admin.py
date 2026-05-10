@@ -1,5 +1,10 @@
 from django.contrib import admin
-from .models import Tournament, Division, Match
+from .models import Tournament, Division, Match, UserProfile
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'language')
+    list_editable = ('language',)
 
 @admin.register(Tournament)
 class TournamentAdmin(admin.ModelAdmin):
