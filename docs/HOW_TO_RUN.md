@@ -18,7 +18,8 @@ cd badminton_tournament_planner
 ### 2. Create and Activate a Virtual Environment
 ```bash
 python -m venv .venv
-source .venv/Scripts/activate  # On Windows
+source .venv/bin/activate      # macOS / Linux
+.venv\Scripts\activate        # Windows
 ```
 
 ### 3. Install Dependencies
@@ -52,14 +53,14 @@ python manage.py runserver
 
 ---
 
-## Workflow: Opsæt og kør en turnering
+## Workflow: Set Up and Run a Tournament
 
-1. **Opret spillere** via `/admin/players/player/add/` eller `/players/add/`.
-2. **Opret hold** (par af spillere) via `/admin/players/team/add/` eller `/players/teams/add/`.
-3. **Opret en turnering** via `/admin/tournaments/tournament/add/`.
-4. **Opret divisioner** under turneringen via `/admin/tournaments/division/add/`, og tilføj hold til divisionen.
-5. **Generer kampprogram** ved at besøge turneringens side (`/tournaments/<id>/`) og klikke "Generer kampprogram" for en division.
-6. **Registrer resultater** ved at klikke "Registrer resultat" ved de enkelte kampe.
+1. **Create players** via `/admin/players/player/add/` or `/players/add/`.
+2. **Create teams** (pairs of players) via `/admin/players/team/add/` or `/players/teams/add/`.
+3. **Create a tournament** via `/admin/tournaments/tournament/add/`.
+4. **Create divisions** under the tournament via `/admin/tournaments/division/add/`, then add teams to each division.
+5. **Generate the match programme** by visiting the tournament page (`/tournaments/<id>/`) and clicking **Generate match programme** for a division.
+6. **Record results** by clicking **Record result** for the individual matches.
 
 ---
 

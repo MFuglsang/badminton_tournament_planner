@@ -1,120 +1,120 @@
-# Brugervejledning: Afviklingssiden
+# User Guide: Tournament-Day Page
 
-Afviklingssiden er din primære arbejdsflade på selve turneringsdagen. Den giver dig et samlet overblik over alle kampe, aktive kampe og de næste kampe der skal startes.
-
----
-
-## Sidens opbygning
-
-Siden er opdelt i to kolonner:
-
-- **Venstre kolonne** — alle rækker med deres kampe
-- **Højre kolonne (sidebar)** — de kampe der er i gang lige nu, de næste kampe der skal startes, og genveje
-
-Øverst på siden vises en **fremgangslinje** der viser hvor mange kampe der er afviklet ud af det samlede antal.
+The tournament-day page is the main workspace during the event itself. It gives you a complete overview of all matches, active matches, and the next matches that should be started.
 
 ---
 
-## Fremgangslinje
+## Page Layout
+
+The page is divided into two columns:
+
+- **Left column** — all divisions and their matches
+- **Right column (sidebar)** — matches currently in progress, the next matches to start, and shortcuts
+
+At the top of the page there is a **progress bar** showing how many matches have been completed out of the total number of matches.
+
+---
+
+## Progress Bar
 
 ```
-24 / 60 kampe afviklet        3 i gang
+24 / 60 matches completed      3 in progress
 ████████░░░░░░░░░░░░░░░
 ```
 
-- Det **grønne felt** vokser efterhånden som kampe afsluttes
-- Når alle kampe er afviklet vises: **✓ Alle kampe afviklet**
+- The **green area** grows as matches are completed
+- When all matches are done, the page shows: **✓ All matches completed**
 
 ---
 
-## Søgning
+## Search
 
-Øverst i venstre kolonne er der et søgefelt. Du kan søge på:
+At the top of the left column there is a search field. You can search by:
 
-- **Kampnummer** — f.eks. `#42`
-- **Spillernavn eller parnavn** — f.eks. `Hansen`
+- **Match number** — for example `#42`
+- **Player name or team name** — for example `Hansen`
 
-Matchende kampe fremhæves med gul baggrund på tværs af alle rækker.
+Matching matches are highlighted with a yellow background across all divisions.
 
 ---
 
-## Rækker (venstre kolonne)
+## Divisions (left column)
 
-Hver række kan foldes ud og ind ved at klikke på dens header. Headeren viser:
+Each division can be expanded or collapsed by clicking its header. The header shows:
 
-| Element | Betydning |
+| Element | Meaning |
 |---|---|
-| Rækkenavn | Navn på disciplinen, f.eks. "Mixed Double A" |
-| Disciplin | Singles, Double osv. |
-| 🔵 **X i gang** | Antal kampe der er startet, men ikke afsluttet |
-| 🟡 **X venter** | Antal kampe der mangler at blive startet |
-| 🟢 **X færdige** | Antal afsluttede kampe |
-| ✓ **Færdig** | Alle kampe i rækken er afviklet |
+| Division name | Name of the event, for example "Mixed Double A" |
+| Discipline | Singles, doubles, and so on |
+| 🔵 **X in progress** | Number of matches that have started but are not yet finished |
+| 🟡 **X waiting** | Number of matches that still need to be started |
+| 🟢 **X finished** | Number of completed matches |
+| ✓ **Finished** | All matches in the division have been completed |
 
-### Faner inde i en række
+### Tabs inside a division
 
-Når en række er foldet ud, kan du skifte mellem tre faner:
+When a division is expanded, you can switch between three tabs:
 
-#### Kampe
-Viser alle ventende og igangværende kampe i rækken.
+#### Matches
+Shows all waiting and in-progress matches in the division.
 
-For hver kamp vises:
-- **#nummer** og planlagt tidspunkt
-- **Spillere/par** med evt. seedning og statusikoner
-- **Knapper** til at starte eller registrere resultat
+For each match the page shows:
+- **#number** and scheduled time
+- **Players/teams** with optional seeding and status icons
+- **Buttons** to start the match or record the result
 
-Statusikoner ved spillernavne:
-- 🏸 — spilleren er i gang med en anden kamp
-- ⚠ **Optaget** — vises i stedet for Start-knap hvis en spiller er optaget eller i hvile
+Status icons next to player names:
+- 🏸 — the player is currently playing another match
+- ⚠ **Busy** — shown instead of the Start button if a player is busy or resting
 
-Afsluttede kampe er foldet væk under **"Afsluttede kampe (X)"** og kan foldes ud ved behov. Her kan resultater rettes.
+Completed matches are collapsed under **"Completed matches (X)"** and can be expanded when needed. Results can be corrected there.
 
-#### Stilling
-Viser den aktuelle stilling i rækken (gruppespil/slutspil).
+#### Standings
+Shows the current standings in the division (group stage / playoff).
 
-Kolonner: Spillede (S), Vundet (V), Tabt (T), Point (Pt), Sæt og Score.
+Columns: Played (P), Won (W), Lost (L), Points (Pts), Sets, and Score.
 
-En grøn pil ↑ viser hvilke hold der avancerer til slutspillet.
+A green arrow ↑ shows which teams advance to the playoff stage.
 
-Statusprikker:
-- 🟢 — spiller er i gang med en kamp
-- 🟡 — spiller er i hvile
+Status dots:
+- 🟢 — player is currently in a match
+- 🟡 — player is resting
 
-#### Spilletræ / Slutspil
-Viser bracket-visning for rækker med udskilningskampe.
-
----
-
-## Sidebar (højre kolonne)
-
-### ⚡ Kampe i gang
-Vises kun hvis der er aktive kampe. For hver igangværende kamp kan du direkte:
-- Klikke **Resultat** for at registrere udfaldet
-- Klikke **WO** for at registrere en walkover
-
-### 🏸 Næste kampe
-Viser de op til 5 næste ventende kampe (sorteret på tidspunkt), hvor ingen af spillerne er optaget. Klik **▶ Start** for at starte en kamp direkte herfra.
+#### Bracket / Playoff
+Shows the bracket view for divisions with elimination matches.
 
 ---
 
-## Typisk arbejdsgang på turneringsdagen
+## Sidebar (right column)
 
-1. **Åbn afviklingssiden** og hold den åben i browseren hele dagen
-2. **Se sidebar → Næste kampe** for at finde hvem der skal på banen
-3. Klik **▶ Start** på den pågældende kamp
-4. Når kampen er slut: gå til **⚡ I gang** og klik **Resultat**
-5. Registrer resultatet — siden opdateres automatisk hvert 60. sekund
-                    
----
+### ⚡ Matches in Progress
+Shown only when there are active matches. For each running match you can directly:
+- Click **Result** to record the outcome
+- Click **WO** to record a walkover
 
-## Storskærm
-
-Klik **📺 Storskærm** øverst på siden for at åbne en storskærmsvisning i et nyt vindue. Den viser de 5 næste kampe og er optimeret til at blive vist på en ekstern skærm i hallen. Storskærmen opdaterer sig selv automatisk.
+### 🏸 Next Matches
+Shows up to the next 5 waiting matches (sorted by time) where none of the players are busy. Click **▶ Start** to start a match directly from here.
 
 ---
 
-## Tip
+## Typical Workflow on Tournament Day
 
-- Afviklingssiden opdateres automatisk. Husk at genindlæse siden manuelt hvis du vil have de nyeste data med det samme (F5 / Cmd+R).
-- Brug **søgefeltet** til hurtigt at finde en specifik kamps nummer eller et spillernavn, hvis en spiller spørger hvornår de skal spille.
-- Rækkerne husker ikke hvilke der er foldet ud ved genindlæsning — fold de aktive rækker ud ved start af dagen.
+1. **Open the tournament-day page** and keep it open in the browser all day
+2. **Check sidebar → Next matches** to see who should go on court
+3. Click **▶ Start** for the relevant match
+4. When the match ends, go to **⚡ In progress** and click **Result**
+5. Record the result — the page refreshes automatically every 60 seconds
+
+---
+
+## Big Screen
+
+Click **📺 Big screen** at the top of the page to open a big-screen view in a new window. It shows the next 5 matches and is optimized for display on an external screen in the hall. The big-screen view refreshes automatically.
+
+---
+
+## Tips
+
+- The tournament-day page refreshes automatically. Reload the page manually if you want the newest data immediately (F5 / Cmd+R).
+- Use the **search field** to quickly find a specific match number or player name when someone asks when they are playing.
+- The page does not remember which divisions were expanded after a reload, so expand the active divisions again at the start of the day.

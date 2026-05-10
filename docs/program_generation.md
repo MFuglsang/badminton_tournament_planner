@@ -1,124 +1,124 @@
-# Programgenerering – teknisk dokumentation
+# Programme Generation - Technical Documentation
 
-Dette dokument beskriver det komplette flow for kampprogram- og spilleplansgenerering i badminton tournament planner. Det er skrevet til brug for en ny agent eller udvikler der skal forstå og arbejde videre med koden.
-
----
-
-## Oversigt: to separate trin
-
-Programgenereringen er opdelt i to uafhængige trin:
-
-1. **Kampprogram** – hvilke hold møder hinanden (runder, grupper, bracket-struktur). Genereres per division. Resultat: `Match`-rækker i databasen med `match_round`, `match_number`, `team1`, `team2`.
-
-2. **Spilleplan** – hvornår og på hvilken bane hver kamp afvikles. Genereres for hele turneringen på én gang. Resultat: `Match.scheduled_time` og `Match.court` udfyldes via en optimeringssolver.
+This document describes the complete flow for match-programme and schedule generation in Badminton Tournament Planner. It is written for a new agent or developer who needs to understand and continue working on the code.
 
 ---
 
-## Datamodel (relevante felter)
+## Overview: Two Separate Steps
 
-### `Tournament` (tournaments/models.py)
-| Felt | Type | Betydning |
-|------|------|-----------|
-| `date` | DateField | Turneringsdato |
-| `start_time` | TimeField | Klokkeslæt for første kamp |
-| `court_count` | IntegerField | Antal tilgængelige baner |
-| `single_match_duration` | IntegerField | Varighed i minutter for singlekampe |
-| `double_match_duration` | IntegerField | Varighed i minutter for doublekampe |
-| `player_break_time` | IntegerField | Minimumspause i minutter mellem en spillers kampe |
-| `schedule_locked` | BooleanField | Låser programmet mod ændringer |
-| `owner` | FK → User | Hvilken klub/bruger der ejer turneringen |
+Programme generation is divided into two independent steps:
 
-### `Division` (tournaments/models.py)
-| Felt | Type | Betydning |
-|------|------|-----------|
-| `discipline` | CharField | `single`, `double` eller `mixed` |
-| `tournament_type` | CharField | `group` (ren round-robin), `playoff` (grupper + slutspil), `tree` (enkelt-elimination) |
-| `group_count` | IntegerField | Antal grupper (kun playoff) |
-| `advance_count` | IntegerField | Antal der går videre per gruppe (kun playoff) |
-| `teams` | M2M → Team | Tilmeldte hold |
+1. **Match programme** - which teams meet each other (rounds, groups, bracket structure). Generated per division. Result: `Match` rows in the database with `match_round`, `match_number`, `team1`, and `team2`.
 
-### `Match` (tournaments/models.py)
-| Felt | Type | Betydning |
-|------|------|-----------|
-| `division` | FK → Division | Hvilken division kampen tilhører |
-| `team1` / `team2` | FK → Team | Deltagende hold. `team1=None` = placeholder (bracket-kamp der ikke er klar endnu) |
-| `match_round` | IntegerField | Rundenummer inden for divisionen |
-| `match_number` | IntegerField (nullable) | Globalt løbenummer på tværs af turneringen (tildeles ved kampprogram-generering) |
-| `bracket_slot` | IntegerField (nullable) | Position i bracket-træet (1-baseret, kun tree/playoff) |
-| `bracket_label` | CharField (nullable) | Tekstbeskrivelse til placeholders, f.eks. "V-kamp #5 vs V-kamp #6" |
-| `phase` | CharField | `group` eller `playoff` (kun relevant for playoff-divisioner) |
-| `group_number` | IntegerField (nullable) | Gruppe 1, 2, … (kun playoff) |
-| `scheduled_time` | DateTimeField (nullable) | Beregnet starttidspunkt (udfyldes af spilleplansgeneratoren) |
-| `court` | CharField (nullable) | Banenummer som streng (udfyldes af spilleplansgeneratoren) |
+2. **Time schedule** - when and on which court each match is played. Generated for the whole tournament in one pass. Result: `Match.scheduled_time` and `Match.court` are populated via an optimisation solver.
+
+---
+
+## Data Model (relevant fields)
+
+### `Tournament` (`tournaments/models.py`)
+| Field | Type | Meaning |
+|------|------|---------|
+| `date` | DateField | Tournament date |
+| `start_time` | TimeField | Time of the first match |
+| `court_count` | IntegerField | Number of available courts |
+| `single_match_duration` | IntegerField | Duration in minutes for singles matches |
+| `double_match_duration` | IntegerField | Duration in minutes for doubles matches |
+| `player_break_time` | IntegerField | Minimum break in minutes between a player's matches |
+| `schedule_locked` | BooleanField | Locks the programme against further changes |
+| `owner` | FK → User | Which club/user owns the tournament |
+
+### `Division` (`tournaments/models.py`)
+| Field | Type | Meaning |
+|------|------|---------|
+| `discipline` | CharField | `single`, `double`, or `mixed` |
+| `tournament_type` | CharField | `group` (pure round-robin), `playoff` (groups + playoff), `tree` (single elimination) |
+| `group_count` | IntegerField | Number of groups (playoff only) |
+| `advance_count` | IntegerField | Number advancing from each group (playoff only) |
+| `teams` | M2M → Team | Registered teams |
+
+### `Match` (`tournaments/models.py`)
+| Field | Type | Meaning |
+|------|------|---------|
+| `division` | FK → Division | Which division the match belongs to |
+| `team1` / `team2` | FK → Team | Participating teams. `team1=None` = placeholder (a bracket match that is not ready yet) |
+| `match_round` | IntegerField | Round number within the division |
+| `match_number` | IntegerField (nullable) | Global running number across the tournament (assigned during match-programme generation) |
+| `bracket_slot` | IntegerField (nullable) | Position in the bracket tree (1-based, tree/playoff only) |
+| `bracket_label` | CharField (nullable) | Text description for placeholders, for example `Winner of match #5 vs winner of match #6` |
+| `phase` | CharField | `group` or `playoff` (only relevant for playoff divisions) |
+| `group_number` | IntegerField (nullable) | Group 1, 2, ... (playoff only) |
+| `scheduled_time` | DateTimeField (nullable) | Calculated start time (filled by the schedule generator) |
+| `court` | CharField (nullable) | Court number as a string (filled by the schedule generator) |
 | `status` | CharField | `pending`, `in_progress`, `completed` |
-| `walkover` | BooleanField | Walk-over-kamp |
+| `walkover` | BooleanField | Walkover match |
 
 ---
 
-## Trin 1: Kampprogram-generering
+## Step 1: Match-Programme Generation
 
 **Entry point:** `tournaments/views.py` → `division_generate_schedule(request, pk)`  
-**Router:** `tournaments/scheduler.py` → `generate_schedule(division)` (vælger metode ud fra `division.tournament_type`)
+**Router:** `tournaments/scheduler.py` → `generate_schedule(division)` (selects the method based on `division.tournament_type`)
 
 ### A. Round-robin (`tournament_type = 'group'`)
 
-**Funktion:** `scheduler.generate_round_robin(division)`
+**Function:** `scheduler.generate_round_robin(division)`
 
-Bruger **cirkel-metoden** (implementeret i `_round_robin_rounds(teams)`):
-- Hold sorteres alfabetisk efter player1.name
-- Ét hold holdes fast; de øvrige roterer én plads per runde
-- Med `n` hold (afrundet op til lige tal): `n-1` runder × `n/2` samtidige kampe
-- Ulige antal hold: en dummy-plads tilføjes → den runde der har dummy som modstander er en fridag (ekskluderes automatisk)
+Uses the **circle method** (implemented in `_round_robin_rounds(teams)`):
+- Teams are sorted alphabetically by `player1.name`
+- One team stays fixed; the others rotate one position per round
+- With `n` teams (rounded up to an even number): `n-1` rounds × `n/2` simultaneous matches
+- Odd number of teams: a dummy slot is added → the round paired with the dummy becomes a bye round (excluded automatically)
 
-Hvert kamp-par får `match_round` sat til rundenummeret, så alle kampe i samme runde kan planlægges simultant af spilleplansgeneratoren.
+Each match pairing gets `match_round` set to the round number so all matches in the same round can be scheduled simultaneously by the time-schedule generator.
 
 ```
-Eksempel: 4 hold [A, B, C, D]
-Runde 1: A-D, B-C
-Runde 2: A-C, D-B
-Runde 3: A-B, C-D
+Example: 4 teams [A, B, C, D]
+Round 1: A-D, B-C
+Round 2: A-C, D-B
+Round 3: A-B, C-D
 ```
 
-### B. Enkelt-elimination bracket (`tournament_type = 'tree'`)
+### B. Single-elimination bracket (`tournament_type = 'tree'`)
 
-**Funktion:** `scheduler.generate_bracket(division)`
+**Function:** `scheduler.generate_bracket(division)`
 
-1. Hold seedes: seedede hold (fra `DivisionSeed`) først i seed-rækkefølge, derefter resten alfabetisk.
-2. Bracket-størrelse rundes op til næste potens af 2. Overskydende pladser = byes.
-3. Placering via `_seeding_order(n_slots)` der afspejler standard bracketing: seed 1 møder laveste seed i sin halvdel.
-4. Runde 1: reelle kampe + bye-kampe (auto-completed med `walkover=True`).
-5. Runde 2+: placeholder-kampe med `team1=None, team2=None` og `bracket_label` der beskriver hvem der mødes.
-6. Byes avanceres automatisk via `_advance_bracket_inline()` så næste rundes placeholder straks får `team1` udfyldt.
-7. Når en kamp gennemføres kalder `advance_bracket(match)` → `_advance_bracket_inline()` for at udfylde næste runde.
+1. Teams are seeded: seeded teams (from `DivisionSeed`) first in seed order, then the rest alphabetically.
+2. Bracket size is rounded up to the next power of 2. Extra slots become byes.
+3. Placement uses `_seeding_order(n_slots)`, mirroring standard bracketing: seed 1 meets the lowest seed in its half.
+4. Round 1: real matches + bye matches (auto-completed with `walkover=True`).
+5. Round 2+: placeholder matches with `team1=None, team2=None` and `bracket_label` describing who will meet.
+6. Byes are advanced automatically via `_advance_bracket_inline()` so the next round's placeholder gets `team1` filled immediately.
+7. When a match is completed, `advance_bracket(match)` calls `_advance_bracket_inline()` to fill the next round.
 
 ### C. Playoff (`tournament_type = 'playoff'`)
 
-**Funktion:** `scheduler.generate_playoff(division)`
+**Function:** `scheduler.generate_playoff(division)`
 
-Kombinerer round-robin og bracket:
+Combines round-robin and bracket logic:
 
-1. **Fordeling i grupper:** Hold fordeles i `group_count` grupper via snake-seeding:  
-   Hold 1→G1, 2→G2, 3→G3, 4→G3, 5→G2, 6→G1, 7→G1, osv.  
-   Dette sikrer jævn fordeling uanset antal hold.
+1. **Group distribution:** Teams are distributed into `group_count` groups using snake seeding.  
+   Team 1→G1, 2→G2, 3→G3, 4→G3, 5→G2, 6→G1, 7→G1, and so on.  
+   This ensures an even distribution regardless of the number of teams.
 
-2. **Gruppespil:** Cirkel-metode round-robin per gruppe (samme som type `group`). Kampe får `phase='group'` og `group_number` sat.
+2. **Group stage:** Circle-method round-robin within each group (same as type `group`). Matches get `phase='group'` and `group_number` set.
 
-3. **Slutspil-bracket:** `advance_count` vinder(e) per gruppe går videre. Bracket-pladser tildeles labels som "Nr.1 gr.1", "Nr.2 gr.1", "Nr.1 gr.2" osv. Placeholders med `phase='playoff'` oprettes. Bracket-rundenumre starter fra `max_group_round + 1`.
+3. **Playoff bracket:** `advance_count` winner(s) from each group advance. Bracket slots receive labels such as `No.1 grp.1`, `No.2 grp.1`, `No.1 grp.2`, and so on. Placeholders with `phase='playoff'` are created. Bracket round numbers start from `max_group_round + 1`.
 
-### Match-nummerering
+### Match Numbering
 
-Umiddelbart efter kamp-generering tildeler `division_generate_schedule()` globale løbenumre (`match_number`) til alle nye kampe, der fortsætter fra det højeste eksisterende nummer i turneringen. Dette sikrer entydige kampreferencer på tværs af divisioner.
+Immediately after match generation, `division_generate_schedule()` assigns global running numbers (`match_number`) to all new matches, continuing from the highest existing number in the tournament. This ensures unique match references across divisions.
 
-For `tree`-divisioner opdateres bracket-labels efter nummerering, så de refererer til faktiske kampnumre: "V-kamp #5 vs V-kamp #6".
+For `tree` divisions, bracket labels are updated after numbering so they reference actual match numbers: `Winner of match #5 vs winner of match #6`.
 
 ---
 
-## Trin 2: Spilleplan-generering
+## Step 2: Time-Schedule Generation
 
 **Entry point:** `tournaments/views.py` → `tournament_generate_time_schedule(request, pk)`  
-**Implementering:** `tournaments/schedule_planner.py` → `generate_time_schedule(tournament)`
+**Implementation:** `tournaments/schedule_planner.py` → `generate_time_schedule(tournament)`
 
-Generatoren forsøger OR-Tools CP-SAT solveren og falder tilbage til greedy ved fejl:
+The generator first tries the OR-Tools CP-SAT solver and falls back to a greedy approach on failure:
 
 ```python
 try:
@@ -127,93 +127,93 @@ except Exception:
     return _schedule_greedy(tournament, matches)
 ```
 
-Kampe der behandles: alle kampe med `match_number` sat, bortset fra byes (`team1!=None, team2=None`).
+Matches considered: all matches with `match_number` set, except byes (`team1!=None, team2=None`).
 
-### Tidsindeksering
+### Time Indexing
 
-Tid repræsenteres som diskrete **slots** af `_SLOT_MINUTES = 5` minutter. Alle varigheder rundes op til nærmeste slot. En 25-min kamp = 5 slots. Dette reducerer problemstørrelsen drastisk for solveren.
+Time is represented as discrete **slots** of `_SLOT_MINUTES = 5` minutes. All durations are rounded up to the nearest slot. A 25-minute match = 5 slots. This reduces the problem size dramatically for the solver.
 
-Konvertering tilbage: `start_slot * 5 min + tournament.start_time`.
+Conversion back: `start_slot * 5 min + tournament.start_time`.
 
-### OR-Tools CP-SAT solver (`_schedule_ortools`)
+### OR-Tools CP-SAT Solver (`_schedule_ortools`)
 
-Google OR-Tools CP-SAT er en Constraint Programming solver der finder den **optimale løsning** (korteste samlede turneringsvarighed) givet alle hårde krav.
+Google OR-Tools CP-SAT is a constraint programming solver that finds the **optimal solution** (shortest overall tournament duration) subject to all hard constraints.
 
-**Variabler per kamp:**
-- `s_{id}` — IntVar: startslot (0…horizon)
-- `e_{id}` — IntVar: slutslot (= s + d, fast duration)
-- `c_{id}_{court}` — BoolVar per bane: exactly-one (kampen er på præcis én bane)
-- Optional interval-variabler per bane til `AddNoOverlap`
+**Variables per match:**
+- `s_{id}` — IntVar: start slot (0...horizon)
+- `e_{id}` — IntVar: end slot (= s + d, fixed duration)
+- `c_{id}_{court}` — BoolVar per court: exactly one court is selected for the match
+- Optional interval variables per court for `AddNoOverlap`
 
 **Constraints:**
 
-| Constraint | Implementering |
+| Constraint | Implementation |
 |-----------|----------------|
-| Banekapacitet: max 1 kamp per bane ad gangen | `AddNoOverlap(court_intervals[c])` med optionelle intervaller |
-| Spillerkonflikt: en spiller kan ikke spille to kampe på samme tid | `AddNoOverlap` på padded intervals (varighed + break) per spiller |
-| Pausetid: minimum `player_break_time` min mellem en spillers kampe | Pause inkluderes i spillerens interval-varighed (padding) |
-| Playoff-barriere: slutspilskampe tidligst efter alle gruppekampe i divisionen | `AddMaxEquality` på gruppe-slutslots + `start >= group_end_max + break` |
-| Bracket-rækkefølge: placeholder-kampe tidligst efter begge feeder-kampe | `start[m] >= end[feeder] + break_slots` for begge feedere |
+| Court capacity: max 1 match per court at a time | `AddNoOverlap(court_intervals[c])` with optional intervals |
+| Player conflict: a player cannot play two matches at the same time | `AddNoOverlap` on padded intervals (duration + break) per player |
+| Break time: minimum `player_break_time` minutes between a player's matches | The break is included in the player's interval duration (padding) |
+| Playoff barrier: playoff matches only after all group matches in the division | `AddMaxEquality` on group end slots + `start >= group_end_max + break` |
+| Bracket order: placeholder matches only after both feeder matches | `start[m] >= end[feeder] + break_slots` for both feeders |
 
-**Objektiv:** Minimér makespan (= max end-tid for alle kampe).
+**Objective:** Minimise makespan (= the maximum end time across all matches).
 
-**Solver-parametre:**
-- `max_time_in_seconds = 30.0` — tidsgrænse
-- `num_workers = 4` — parallelisering
+**Solver parameters:**
+- `max_time_in_seconds = 30.0` — time limit
+- `num_workers = 4` — parallelism
 
-**Løsningsudtræk:** For hvert match aflæses `solver.value(start_vars[m.id])` → konverteres til datetime. Bane aflæses ved at finde den `court_lit` der har value=1.
+**Extracting the solution:** For each match, `solver.value(start_vars[m.id])` is read and converted to a datetime. The court is read by finding the `court_lit` with `value=1`.
 
-### Greedy fallback (`_schedule_greedy`)
+### Greedy Fallback (`_schedule_greedy`)
 
-Behandler kampe i rækkefølgen `(match_round, division, match_number)` og placerer hver kamp **grådigt**:
+Processes matches in the order `(match_round, division, match_number)` and places each match **greedily**:
 
-1. Beregn `player_earliest`: seneste sluttidspunkt + break for alle spillere i kampen. Ny spiller bruger `start_dt - break_td` som default (så første kamp ikke forskydes).
-2. Find den bane der giver tidligst mulig starttid (givet `player_earliest`). Ved uafgjort vælges den **travleste** bane (højest `court_free`) for at undgå at en forsinket kamp optager en fri bane som en tidligere kamp godt kunne bruge.
-3. Opdatér `court_free[idx]` og `player_free[pk]`.
+1. Compute `player_earliest`: the latest end time + break for all players in the match. A new player uses `start_dt - break_td` as the default (so the first match is not delayed).
+2. Find the court that gives the earliest possible start time (given `player_earliest`). On ties, pick the **busiest** court (highest `court_free`) to avoid a delayed match taking up a free court that an earlier match could have used.
+3. Update `court_free[idx]` and `player_free[pk]`.
 
-Greedy garanterer ikke optimal baneudnyttelse, men er deterministisk og lynhurtig.
+Greedy does not guarantee optimal court utilisation, but it is deterministic and extremely fast.
 
 ---
 
-## Brugerflow
+## User Flow
 
 ```
-Turneringsside
-    └─► [Generer kampprogram] per division
+Tournament page
+    └─► [Generate match programme] per division
             → scheduler.generate_schedule(division)
-            → Match-rækker oprettes med match_round, match_number
-            → Vises i turneringsoversigten
+            → Match rows are created with match_round, match_number
+            → Shown in the tournament overview
 
-Spilleplanside (/tournaments/<pk>/schedule/)
-    └─► [⚡ Generer spilleplan]
-            → POST til tournament_generate_time_schedule
+Schedule page (/tournaments/<pk>/schedule/)
+    └─► [⚡ Generate schedule]
+            → POST to tournament_generate_time_schedule
             → schedule_planner.generate_time_schedule(tournament)
-            → OR-Tools CP-SAT løser optimeringsproblemet
-            → Match.scheduled_time og Match.court gemmes
-            → Spinner-overlay vises under beregning
-            → Siden genindlæser med den færdige spilleplan
-    └─► [🔒 Lås program]
+            → OR-Tools CP-SAT solves the optimisation problem
+            → Match.scheduled_time and Match.court are saved
+            → Spinner overlay is shown during calculation
+            → The page reloads with the finished schedule
+    └─► [🔒 Lock programme]
             → tournament.schedule_locked = True
-            → Forhindrer yderligere ændringer
+            → Prevents further changes
 ```
 
 ---
 
-## Kendte begrænsninger og mulige forbedringer
+## Known Limitations and Possible Improvements
 
-- **Placeholder-kampe i spilleplanen:** Kamp-tid for bracket-finaler estimeres ud fra feeder-matchenes planlagte sluttider. Når de faktiske resultater kendes vil kampene i praksis starte til en anden tid end planlagt. Der er pt. ingen automatisk re-scheduling efter resultater.
-- **`_SLOT_MINUTES = 5`:** Kampvarigheder der ikke er delelige med 5 rundes op. Dette er acceptabelt i praksis da reelle kampe varierer i varighed.
-- **Solver-timeout:** Ved meget store turneringer (100+ kampe) kan `FEASIBLE` (ikke `OPTIMAL`) returneres inden for tidsgrænsen. Løsningen er stadig gyldig men ikke nødvendigvis optimal.
-- **Mix af discipliner:** `double_match_duration` bruges som fallback for både `double` og `mixed` discipline. Mixed double bruger altså double-varighed.
+- **Placeholder matches in the schedule:** Match times for bracket finals are estimated from the feeder matches' scheduled end times. When actual results are known, the matches will in practice start at a different time than planned. There is currently no automatic re-scheduling after results are entered.
+- **`_SLOT_MINUTES = 5`:** Match durations not divisible by 5 are rounded up. This is acceptable in practice because real matches vary in duration.
+- **Solver timeout:** For very large tournaments (100+ matches), `FEASIBLE` (not `OPTIMAL`) may be returned within the time limit. The solution is still valid but not necessarily optimal.
+- **Mixed-discipline duration:** `double_match_duration` is used as the fallback for both `double` and `mixed` disciplines. Mixed doubles therefore use the doubles duration.
 
 ---
 
-## Nøglefiler
+## Key Files
 
-| Fil | Indhold |
+| File | Contents |
 |-----|---------|
-| `tournaments/scheduler.py` | Kampprogram-generering: round-robin (cirkel-metode), bracket, playoff |
-| `tournaments/schedule_planner.py` | Spilleplan-generering: OR-Tools CP-SAT solver + greedy fallback |
-| `tournaments/models.py` | Tournament, Division, Match, DivisionSeed datamodeller |
+| `tournaments/scheduler.py` | Match-programme generation: round-robin (circle method), bracket, playoff |
+| `tournaments/schedule_planner.py` | Time-schedule generation: OR-Tools CP-SAT solver + greedy fallback |
+| `tournaments/models.py` | Tournament, Division, Match, DivisionSeed data models |
 | `tournaments/views.py` | `division_generate_schedule`, `tournament_generate_time_schedule` |
-| `tournaments/templates/tournaments/schedule.html` | Spilleplan-visning med spinner-overlay |
+| `tournaments/templates/tournaments/schedule.html` | Schedule view with spinner overlay |

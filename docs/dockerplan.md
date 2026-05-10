@@ -1,19 +1,19 @@
-# Docker-produktionsplan
+# Docker Production Plan
 
-Denne fil beskriver alle trin der skal gennemføres for at køre projektet i Docker
-med PostgreSQL, Gunicorn og Nginx.
+This file describes all steps required to run the project in Docker
+with PostgreSQL, Gunicorn, and Nginx.
 
 ---
 
-## Målarkitektur
+## Target Architecture
 
 ```
 Internet → port 80/443
               │
          ┌────▼─────┐
-         │  nginx   │  serverer /static/ og /media/ direkte
-         └────┬─────┘  proxy_pass alt andet → web:8000
-              │ intern Docker-netværk
+         │  nginx   │  serves /static/ and /media/ directly
+         └────┬─────┘  proxy_pass everything else → web:8000
+              │ internal Docker network
          ┌────▼─────┐
          │  web     │  Django + Gunicorn (2 workers)
          └────┬─────┘
@@ -23,22 +23,22 @@ Internet → port 80/443
          └────┬─────┘
               │
          [volume: postgres_data]   ← persistent database
-         [volume: media_data]      ← uploadede filer (logoer m.m.)
-         [volume: static_data]     ← collectstatic output (deles med nginx)
+         [volume: media_data]      ← uploaded files (logos, etc.)
+         [volume: static_data]     ← collectstatic output (shared with nginx)
 ```
 
 ---
 
-## Trin 1 – Tilpas `requirements.txt`
+## Step 1 – Update `requirements.txt`
 
-Tilføj disse to pakker:
+Add these two packages:
 
 ```
 gunicorn
 psycopg2-binary
 ```
 
-Fuldt indhold af `requirements.txt` når det er gjort:
+Full contents of `requirements.txt` after that change:
 
 ```
 django
@@ -53,24 +53,24 @@ psycopg2-binary
 
 ---
 
-## Trin 2 – Tilpas `tournament_planner/settings.py`
+## Step 2 – Update `tournament_planner/settings.py`
 
-### 2a. Tilføj `import os` øverst i filen
+### 2a. Add `import os` at the top of the file
 
 ```python
 import os
 from pathlib import Path
 ```
 
-### 2b. Erstat `SECRET_KEY`, `DEBUG` og `ALLOWED_HOSTS`
+### 2b. Replace `SECRET_KEY`, `DEBUG`, and `ALLOWED_HOSTS`
 
 ```python
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-skift-mig-i-produktion')
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-me-in-production')
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost').split(',')
 ```
 
-### 2c. Erstat `DATABASES`-blokken
+### 2c. Replace the `DATABASES` block
 
 ```python
 DATABASES = {
@@ -85,7 +85,7 @@ DATABASES = {
 }
 ```
 
-### 2d. Tilføj `STATIC_ROOT`
+### 2d. Add `STATIC_ROOT`
 
 ```python
 STATIC_URL = '/static/'
@@ -97,9 +97,9 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 ---
 
-## Trin 3 – Opret `Dockerfile`
+## Step 3 – Create `Dockerfile`
 
-Placer i projektets rod:
+Place it in the project root:
 
 ```dockerfile
 FROM python:3.13-slim
@@ -114,7 +114,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Saml statiske filer – rammer ikke databasen, er sikker at køre ved build
+# Collect static files - does not touch the database and is safe to run during build
 RUN SECRET_KEY=build-dummy python manage.py collectstatic --noinput
 
 EXPOSE 8000
@@ -127,9 +127,9 @@ CMD ["gunicorn", "tournament_planner.wsgi:application", \
 
 ---
 
-## Trin 4 – Opret `docker-compose.yml`
+## Step 4 – Create `docker-compose.yml`
 
-Placer i projektets rod:
+Place it in the project root:
 
 ```yaml
 services:
@@ -188,7 +188,7 @@ volumes:
 
 ---
 
-## Trin 5 – Opret `nginx/nginx.conf`
+## Step 5 – Create `nginx/nginx.conf`
 
 ```nginx
 server {
@@ -218,25 +218,25 @@ server {
 
 ---
 
-## Trin 6 – Opret `.env` (commit ALDRIG denne til git)
+## Step 6 – Create `.env` (NEVER commit this file to git)
 
-Opret `.env` i projektets rod:
+Create `.env` in the project root:
 
 ```env
-SECRET_KEY=skift-til-en-lang-tilfaeldig-streng-mindst-50-tegn
+SECRET_KEY=change-to-a-long-random-string-at-least-50-characters
 POSTGRES_DB=badminton
 POSTGRES_USER=badminton
-POSTGRES_PASSWORD=skift-dette-til-noget-sikkert
-ALLOWED_HOSTS=localhost,dit-domæne.dk
+POSTGRES_PASSWORD=change-this-to-something-secure
+ALLOWED_HOSTS=localhost,your-domain.example
 ```
 
-Tilføj til `.gitignore`:
+Add this to `.gitignore`:
 
 ```
 .env
 ```
 
-Generér en SECRET_KEY med Python:
+Generate a SECRET_KEY with Python:
 
 ```bash
 python -c "import secrets; print(secrets.token_urlsafe(50))"
@@ -244,9 +244,9 @@ python -c "import secrets; print(secrets.token_urlsafe(50))"
 
 ---
 
-## Trin 7 – Opret `.dockerignore`
+## Step 7 – Create `.dockerignore`
 
-Placer i projektets rod:
+Place it in the project root:
 
 ```
 .venv/
@@ -260,56 +260,56 @@ db.sqlite3
 
 ---
 
-## Første opstart
+## First Startup
 
 ```bash
-# 1. Byg images
+# 1. Build the images
 docker compose build
 
-# 2. Start stakken
+# 2. Start the stack
 docker compose up -d
 
-# 3. Kør migrationer (PostgreSQL er tom ved første start)
+# 3. Run migrations (PostgreSQL is empty on first start)
 docker compose exec web python manage.py migrate
 
-# 4. Opret superbruger
+# 4. Create a superuser
 docker compose exec web python manage.py createsuperuser
 
-# 5. Tjek logs
+# 5. Check the logs
 docker compose logs -f web
 ```
 
 ---
 
-## Opdatering / re-deploy
+## Update / Re-deploy
 
 ```bash
-# Byg nyt image og genstart kun web-containeren (db og nginx uberørt)
+# Build a new image and restart only the web container (db and nginx unchanged)
 docker compose build web
 docker compose up -d --no-deps web
 
-# Kør eventuelle nye migrationer
+# Run any new migrations
 docker compose exec web python manage.py migrate
 ```
 
 ---
 
-## Backup af PostgreSQL
+## PostgreSQL Backup
 
 ```bash
-# Dump til fil
+# Dump to a file
 docker compose exec db pg_dump -U badminton badminton > backup_$(date +%Y%m%d).sql
 
-# Gendan fra fil
+# Restore from a file
 docker compose exec -T db psql -U badminton badminton < backup_20260101.sql
 ```
 
 ---
 
-## Vigtige noter
+## Important Notes
 
-- **Eksisterende Django-kode kræver ingen ændringer** — views, models og templates er uberørt.
-- **Tests kører stadig mod SQLite** via `pytest-django` — PostgreSQL er kun til produktion.
-- **OR-Tools** fungerer uændret inde i containeren (installeres via `requirements.txt`).
-- **`CONN_MAX_AGE`** kan tilføjes til `DATABASES`-config hvis forbindelsesgenbrug ønskes ved høj belastning: `'CONN_MAX_AGE': 60`.
-- **HTTPS**: Tilføj Certbot-container eller brug Caddy i stedet for nginx når et domæne er klar.
+- **The existing Django code does not require changes** — views, models, and templates remain untouched.
+- **Tests still run against SQLite** via `pytest-django` — PostgreSQL is only for production.
+- **OR-Tools** works unchanged inside the container (installed via `requirements.txt`).
+- **`CONN_MAX_AGE`** can be added to the `DATABASES` config if connection reuse is desired under heavy load: `'CONN_MAX_AGE': 60`.
+- **HTTPS**: Add a Certbot container or use Caddy instead of nginx once a domain is ready.
