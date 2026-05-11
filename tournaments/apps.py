@@ -7,6 +7,5 @@ class TournamentsConfig(AppConfig):
     name = 'tournaments'
 
     def ready(self):
-        """Import signal handlers when Django starts the app.
-        """
+        """Import signal handlers when Django starts the app."""
         import tournaments.signals  # noqa
