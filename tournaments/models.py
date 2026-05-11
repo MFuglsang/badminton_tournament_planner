@@ -4,7 +4,7 @@ from django.utils.translation import gettext_lazy as _
 
 
 class UserProfile(models.Model):
-    """Stores per-club preferences, e.g. default language."""
+    """Store per-club preferences such as default language."""
     LANGUAGE_CHOICES = [
         ('da', 'Dansk'),
         ('en', 'English'),
@@ -23,7 +23,11 @@ class UserProfile(models.Model):
     )
 
     def __str__(self):
-        """Return a readable profile label."""
+        """Return a readable profile label.
+
+        Returns:
+            str: Username suffixed with ``profile``.
+        """
         return f"{self.user.username} profile"
 
     class Meta:
@@ -34,7 +38,7 @@ class UserProfile(models.Model):
 # Create your models here.
 
 class Tournament(models.Model):
-    """Stores tournament metadata and scheduling configuration."""
+    """Store tournament metadata and scheduling configuration."""
 
     name = models.CharField(max_length=200, verbose_name=_("Name"))
     date = models.DateField(verbose_name=_("Date"))
@@ -98,11 +102,15 @@ class Tournament(models.Model):
     )
 
     def __str__(self):
-        """Return a readable tournament label."""
+        """Return a readable tournament label.
+
+        Returns:
+            str: Tournament name and scoring model.
+        """
         return f"{self.name} ({self.scoring_model})"
 
 class Division(models.Model):
-    """Represents a playable division within a tournament."""
+    """Represent a playable division within a tournament."""
 
     DISCIPLINE_CHOICES = [
         ('single', _("Singles")),
@@ -152,11 +160,15 @@ class Division(models.Model):
     teams = models.ManyToManyField('players.Team', related_name='divisions', blank=True, verbose_name=_("Participants"))
 
     def __str__(self):
-        """Return a readable division label."""
+        """Return a readable division label.
+
+        Returns:
+            str: Division name, discipline, and tournament name.
+        """
         return f"{self.name} – {self.get_discipline_display()} ({self.tournament.name})"
 
 class Match(models.Model):
-    """Represents a scheduled or completed match in a division."""
+    """Represent a scheduled or completed match in a division."""
 
     STATUS_CHOICES = [
         ('pending', _('Pending')),
@@ -184,14 +196,18 @@ class Match(models.Model):
     )
 
     def __str__(self):
-        """Return a readable match label."""
+        """Return a readable match label.
+
+        Returns:
+            str: Match round and participant labels.
+        """
         t1 = self.team1 or self.bracket_label or 'TBD'
         t2 = self.team2 or ('Bye' if not self.bracket_label else 'TBD')
         return f"R{self.match_round}: {t1} vs {t2} ({self.division.name})"
 
 
 class DivisionSeed(models.Model):
-    """Records the seed number of a team within a division (optional seeding)."""
+    """Record the optional seed number of a team within a division."""
     division = models.ForeignKey(Division, on_delete=models.CASCADE, related_name='seeds')
     team = models.ForeignKey('players.Team', on_delete=models.CASCADE, related_name='division_seeds')
     seed_number = models.PositiveIntegerField(verbose_name=_("Seed number"))
@@ -201,12 +217,16 @@ class DivisionSeed(models.Model):
         ordering = ['seed_number']
 
     def __str__(self):
-        """Return the seed display label."""
+        """Return the seed display label.
+
+        Returns:
+            str: Seed number, team name, and division name.
+        """
         return f"Seed {self.seed_number}: {self.team.name} ({self.division.name})"
 
 
 class MedalOverride(models.Model):
-    """Manually assigned medal for a division, overriding the computed result."""
+    """Store a manual medal assignment overriding computed results."""
     MEDAL_CHOICES = [
         ('gold',   _("Gold")),
         ('silver', _("Silver")),
@@ -222,5 +242,9 @@ class MedalOverride(models.Model):
         ordering = ['medal', 'order']
 
     def __str__(self):
-        """Return the medal override display label."""
+        """Return the medal override display label.
+
+        Returns:
+            str: Medal, team name, and division name.
+        """
         return f"{self.get_medal_display()}: {self.team.name} ({self.division.name})"

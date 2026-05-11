@@ -2,6 +2,6 @@ from django.apps import AppConfig
 
 
 class PlayersConfig(AppConfig):
-    """Configuration for the players app."""
+    """Configure Django settings for the players app."""
 
     name = 'players'

@@ -4,34 +4,53 @@ from .models import Player, Team, DivisionCategory
 
 
 def _division_choices(owner):
-    """Return a list of (value, label) tuples from the user's DivisionCategory list."""
+    """Build division select choices for an owner.
+
+    Args:
+        owner: User owning the available division categories.
+
+    Returns:
+        list[tuple[str, str]]: Choice tuples for select widgets.
+    """
     cats = DivisionCategory.objects.filter(owner=owner).values_list('name', flat=True)
     return [('', _("— Select division —"))] + [(c, c) for c in cats]
 
 
 class PlayerForm(forms.ModelForm):
-    """Form for creating and editing a player."""
+    """Form used to create and edit players."""
 
     class Meta:
         model = Player
         fields = ['name', 'age', 'gender', 'division']
 
     def __init__(self, *args, owner=None, **kwargs):
-        """Configure owner-specific division choices."""
+        """Configure owner-specific division choices.
+
+        Args:
+            *args: Positional arguments passed to ``ModelForm``.
+            owner: User used to scope available division categories.
+            **kwargs: Keyword arguments passed to ``ModelForm``.
+        """
         super().__init__(*args, **kwargs)
         if owner is not None:
             self.fields['division'].widget = forms.Select(choices=_division_choices(owner))
 
 
 class TeamForm(forms.ModelForm):
-    """Form for creating and editing a doubles or mixed team."""
+    """Form used to create and edit doubles or mixed teams."""
 
     class Meta:
         model = Team
         fields = ['player1', 'player2', 'pair_type', 'division']
 
     def __init__(self, *args, owner=None, **kwargs):
-        """Limit selectable players and divisions to the owner."""
+        """Limit selectable players and divisions to the owner.
+
+        Args:
+            *args: Positional arguments passed to ``ModelForm``.
+            owner: User used to scope available players and divisions.
+            **kwargs: Keyword arguments passed to ``ModelForm``.
+        """
         super().__init__(*args, **kwargs)
         if owner is not None:
             qs = Player.objects.filter(owner=owner).order_by('name')
@@ -40,7 +59,11 @@ class TeamForm(forms.ModelForm):
             self.fields['division'].widget = forms.Select(choices=_division_choices(owner))
 
     def clean(self):
-        """Validate pair type and gender constraints for two-player teams."""
+        """Validate pair type and gender constraints for two-player teams.
+
+        Returns:
+            dict: Cleaned form data.
+        """
         cleaned = super().clean()
         p1 = cleaned.get('player1')
         p2 = cleaned.get('player2')

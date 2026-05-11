@@ -3,14 +3,14 @@ from .models import Tournament, Division, Match, UserProfile
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    """Admin configuration for user profiles."""
+    """Configure admin list behavior for user profiles."""
 
     list_display = ('user', 'language')
     list_editable = ('language',)
 
 @admin.register(Tournament)
 class TournamentAdmin(admin.ModelAdmin):
-    """Admin configuration for tournaments."""
+    """Configure admin list behavior for tournaments."""
 
     list_display = ('name', 'date', 'division_model', 'scoring_model')
     list_filter = ('division_model', 'scoring_model')
@@ -18,7 +18,7 @@ class TournamentAdmin(admin.ModelAdmin):
 
 @admin.register(Division)
 class DivisionAdmin(admin.ModelAdmin):
-    """Admin configuration for divisions."""
+    """Configure admin list behavior for divisions."""
 
     list_display = ('name', 'tournament', 'team_count')
     list_filter = ('tournament',)
@@ -26,13 +26,20 @@ class DivisionAdmin(admin.ModelAdmin):
     filter_horizontal = ('teams',)
 
     def team_count(self, obj):
-        """Return number of teams in the division."""
+        """Return the number of teams assigned to a division.
+
+        Args:
+            obj: Division instance.
+
+        Returns:
+            int: Number of teams in the division.
+        """
         return obj.teams.count()
     team_count.short_description = 'Hold'
 
 @admin.register(Match)
 class MatchAdmin(admin.ModelAdmin):
-    """Admin configuration for matches."""
+    """Configure admin list behavior for matches."""
 
     list_display = ('division', 'match_round', 'team1', 'team2', 'score', 'winner', 'status')
     list_filter = ('division', 'status')

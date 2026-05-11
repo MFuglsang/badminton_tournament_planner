@@ -219,12 +219,26 @@ def _h2h_points(team_pk, group_pks, h2h):
 
 
 def _sets_diff(row):
-    """Return set differential for one standings row."""
+    """Compute set differential for one standings row.
+
+    Args:
+        row: Standings row dictionary.
+
+    Returns:
+        int: ``sets_won - sets_lost`` for the team.
+    """
     return row['sets_won'] - row['sets_lost']
 
 
 def _score_diff(row):
-    """Return point differential for one standings row."""
+    """Compute point differential for one standings row.
+
+    Args:
+        row: Standings row dictionary.
+
+    Returns:
+        int: ``score_for - score_against`` for the team.
+    """
     return row['score_for'] - row['score_against']
 
 

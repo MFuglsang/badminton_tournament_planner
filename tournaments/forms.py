@@ -49,7 +49,7 @@ def _validate_set(a, b):
 
 
 class TournamentForm(forms.ModelForm):
-    """Form for creating and editing tournaments."""
+    """Form used to create and edit tournaments."""
 
     class Meta:
         model = Tournament
@@ -66,7 +66,7 @@ class TournamentForm(forms.ModelForm):
 
 
 class DivisionForm(forms.ModelForm):
-    """Form for creating and editing divisions."""
+    """Form used to create and edit divisions."""
 
     class Meta:
         model = Division
@@ -82,7 +82,12 @@ class DivisionForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
-        """Set optional defaults for bracket and medal fields."""
+        """Set optional defaults for bracket and medal fields.
+
+        Args:
+            *args: Positional arguments passed to ``ModelForm``.
+            **kwargs: Keyword arguments passed to ``ModelForm``.
+        """
         super().__init__(*args, **kwargs)
         self.fields['group_count'].required = False
         self.fields['advance_count'].required = False
@@ -98,34 +103,58 @@ class DivisionForm(forms.ModelForm):
         self.fields['bronze_count'].initial = 0
 
     def clean_group_count(self):
-        """Return a default group count when omitted."""
+        """Return a default group count when omitted.
+
+        Returns:
+            int: Provided group count or the default value ``2``.
+        """
         val = self.cleaned_data.get('group_count')
         return val if val is not None else 2
 
     def clean_advance_count(self):
-        """Return a default advance count when omitted."""
+        """Return a default advance count when omitted.
+
+        Returns:
+            int: Provided advance count or the default value ``2``.
+        """
         val = self.cleaned_data.get('advance_count')
         return val if val is not None else 2
 
     def clean_schedule_priority(self):
-        """Clamp schedule priority to the supported range."""
+        """Clamp schedule priority to the supported range.
+
+        Returns:
+            int: Priority constrained to the inclusive range 1..10.
+        """
         val = self.cleaned_data.get('schedule_priority')
         if val is None:
             return 5
         return max(1, min(10, int(val)))
 
     def clean_gold_count(self):
-        """Return default gold medal count when omitted."""
+        """Return default gold medal count when omitted.
+
+        Returns:
+            int: Provided gold count or the default value ``1``.
+        """
         val = self.cleaned_data.get('gold_count')
         return val if val is not None else 1
 
     def clean_silver_count(self):
-        """Return default silver medal count when omitted."""
+        """Return default silver medal count when omitted.
+
+        Returns:
+            int: Provided silver count or the default value ``1``.
+        """
         val = self.cleaned_data.get('silver_count')
         return val if val is not None else 1
 
     def clean_bronze_count(self):
-        """Return default bronze medal count when omitted."""
+        """Return default bronze medal count when omitted.
+
+        Returns:
+            int: Provided bronze count or the default value ``0``.
+        """
         val = self.cleaned_data.get('bronze_count')
         return val if val is not None else 0
 
@@ -140,7 +169,14 @@ class DivisionPlayersForm(forms.Form):
     )
 
     def __init__(self, *args, division=None, owner=None, **kwargs):
-        """Configure player choices and initial selections."""
+        """Configure player choices and initial selections.
+
+        Args:
+            *args: Positional arguments passed to ``Form``.
+            division: Division whose current participants should be pre-selected.
+            owner: User used to scope player choices.
+            **kwargs: Keyword arguments passed to ``Form``.
+        """
         super().__init__(*args, **kwargs)
         qs = Player.objects.order_by('name')
         if owner is not None:
@@ -161,7 +197,14 @@ class DivisionPairsForm(forms.Form):
     )
 
     def __init__(self, *args, division=None, owner=None, **kwargs):
-        """Configure pair choices and initial selections."""
+        """Configure pair choices and initial selections.
+
+        Args:
+            *args: Positional arguments passed to ``Form``.
+            division: Division used to determine discipline and initial pairs.
+            owner: User used to scope pair choices.
+            **kwargs: Keyword arguments passed to ``Form``.
+        """
         super().__init__(*args, **kwargs)
         if division and division.discipline == 'mixed':
             # Mixed: one player of each gender
@@ -191,7 +234,7 @@ def get_participants_form(division, data=None, owner=None):
 
 
 class MatchResultForm(forms.ModelForm):
-    """Form for recording match score and winner."""
+    """Form used to record match score and winner."""
 
     class Meta:
         model = Match
@@ -201,7 +244,12 @@ class MatchResultForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
-        """Limit winner choices to teams participating in the match."""
+        """Limit winner choices to teams participating in the match.
+
+        Args:
+            *args: Positional arguments passed to ``ModelForm``.
+            **kwargs: Keyword arguments passed to ``ModelForm``.
+        """
         super().__init__(*args, **kwargs)
         match = kwargs.get('instance')
         if match:
@@ -213,7 +261,14 @@ class MatchResultForm(forms.ModelForm):
             )
 
     def clean_score(self):
-        """Validate badminton score format and set-level rules."""
+        """Validate badminton score format and set-level rules.
+
+        Returns:
+            str: Normalized score string.
+
+        Raises:
+            forms.ValidationError: If the submitted score is invalid.
+        """
         score = (self.cleaned_data.get('score') or '').strip()
         if not score:
             return score
@@ -257,7 +312,14 @@ class MatchResultForm(forms.ModelForm):
         return score
 
     def clean(self):
-        """Validate winner selection against parsed set results."""
+        """Validate winner selection against parsed set results.
+
+        Returns:
+            dict: Cleaned form data with status set to ``completed`` when valid.
+
+        Raises:
+            forms.ValidationError: If winner does not match computed set winner.
+        """
         cleaned = super().clean()
         score = (cleaned.get('score') or '').strip()
         winner = cleaned.get('winner')
@@ -298,7 +360,13 @@ class WalkoverForm(forms.Form):
     )
 
     def __init__(self, *args, match=None, **kwargs):
-        """Limit walkover winner choices to teams in the match."""
+        """Limit walkover winner choices to teams in the match.
+
+        Args:
+            *args: Positional arguments passed to ``Form``.
+            match: Match whose teams are valid walkover winners.
+            **kwargs: Keyword arguments passed to ``Form``.
+        """
         super().__init__(*args, **kwargs)
         if match:
             from players.models import Team

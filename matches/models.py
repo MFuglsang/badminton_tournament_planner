@@ -5,7 +5,7 @@ from tournaments.models import Tournament
 # Create your models here.
 
 class Match(models.Model):
-    """Stores a simple head-to-head match between two players."""
+    """Store a simple head-to-head match between two players."""
 
     player1 = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='player1_matches')
     player2 = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='player2_matches')
@@ -13,5 +13,9 @@ class Match(models.Model):
     score = models.CharField(max_length=50, blank=True, null=True)
 
     def __str__(self):
-        """Return a readable match label."""
+        """Return a human-readable match label.
+
+        Returns:
+            str: Match label containing players and tournament.
+        """
         return f"{self.player1} vs {self.player2} in {self.tournament}"
