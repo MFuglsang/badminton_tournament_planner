@@ -3,17 +3,23 @@ from .models import Player, Team, DivisionCategory
 
 @admin.register(DivisionCategory)
 class DivisionCategoryAdmin(admin.ModelAdmin):
+    """Configure admin list behavior for division categories."""
+
     list_display = ('name', 'sort_order', 'owner')
     list_filter = ('owner',)
     search_fields = ('name',)
 
 @admin.register(Player)
 class PlayerAdmin(admin.ModelAdmin):
+    """Configure admin list behavior for players."""
+
     list_display = ('name', 'gender', 'age', 'division')
     list_filter = ('gender', 'division')
     search_fields = ('name',)
 
 @admin.register(Team)
 class TeamAdmin(admin.ModelAdmin):
+    """Configure admin list behavior for teams."""
+
     list_display = ('name', 'player1', 'player2')
     search_fields = ('name',)

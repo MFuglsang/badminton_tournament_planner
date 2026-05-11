@@ -9,6 +9,14 @@ from tournaments.player_status import get_busy_info, player_status as _player_st
 
 @login_required
 def player_list(request):
+    """Render the player list with filtering and sorting.
+
+    Args:
+        request: Django HTTP request.
+
+    Returns:
+        HttpResponse: Rendered player list page.
+    """
     division = request.GET.get('division', '')
     gender = request.GET.get('gender', '')
     search = request.GET.get('search', '').strip()
@@ -65,6 +73,14 @@ def player_list(request):
 
 @login_required
 def player_add(request):
+    """Create a new player for the logged-in user.
+
+    Args:
+        request: Django HTTP request.
+
+    Returns:
+        HttpResponse: Player form page or redirect response.
+    """
     if request.method == 'POST':
         form = PlayerForm(request.POST, owner=request.user)
         if form.is_valid():
@@ -79,6 +95,15 @@ def player_add(request):
 
 @login_required
 def player_edit(request, pk):
+    """Update an existing player.
+
+    Args:
+        request: Django HTTP request.
+        pk: Primary key of the player to edit.
+
+    Returns:
+        HttpResponse: Player form page or redirect response.
+    """
     player = get_object_or_404(Player, pk=pk, owner=request.user)
     if request.method == 'POST':
         form = PlayerForm(request.POST, instance=player, owner=request.user)
@@ -92,6 +117,15 @@ def player_edit(request, pk):
 
 @login_required
 def player_delete(request, pk):
+    """Delete a player after confirmation.
+
+    Args:
+        request: Django HTTP request.
+        pk: Primary key of the player to delete.
+
+    Returns:
+        HttpResponse: Confirmation page or redirect response.
+    """
     player = get_object_or_404(Player, pk=pk, owner=request.user)
     if request.method == 'POST':
         name = player.name
@@ -102,7 +136,15 @@ def player_delete(request, pk):
 
 @login_required
 def player_clear_rest(request, pk):
-    """POST-only: clear rest_until for a player so they can be scheduled immediately."""
+    """Clear ``rest_until`` so a player can be scheduled immediately.
+
+    Args:
+        request: Django HTTP request.
+        pk: Primary key of the player.
+
+    Returns:
+        HttpResponseRedirect: Redirect to the player list.
+    """
     if request.method == 'POST':
         player = get_object_or_404(Player, pk=pk, owner=request.user)
         player.rest_until = None
@@ -112,6 +154,14 @@ def player_clear_rest(request, pk):
 
 @login_required
 def team_list(request):
+    """Render the team list with filtering and sorting.
+
+    Args:
+        request: Django HTTP request.
+
+    Returns:
+        HttpResponse: Rendered team list page.
+    """
     search = request.GET.get('search', '').strip()
     filter_division = request.GET.get('division', '')
     filter_type = request.GET.get('pair_type', '')
@@ -170,6 +220,14 @@ def team_list(request):
 
 @login_required
 def team_add(request):
+    """Create a new team for the logged-in user.
+
+    Args:
+        request: Django HTTP request.
+
+    Returns:
+        HttpResponse: Team form page or redirect response.
+    """
     if request.method == 'POST':
         form = TeamForm(request.POST, owner=request.user)
         if form.is_valid():
@@ -186,6 +244,15 @@ def team_add(request):
 
 @login_required
 def team_edit(request, pk):
+    """Update an existing team.
+
+    Args:
+        request: Django HTTP request.
+        pk: Primary key of the team to edit.
+
+    Returns:
+        HttpResponse: Team form page or redirect response.
+    """
     team = get_object_or_404(Team, pk=pk, player1__owner=request.user)
     if request.method == 'POST':
         form = TeamForm(request.POST, instance=team, owner=request.user)
@@ -203,6 +270,15 @@ def team_edit(request, pk):
 
 @login_required
 def team_delete(request, pk):
+    """Delete a team after confirmation.
+
+    Args:
+        request: Django HTTP request.
+        pk: Primary key of the team to delete.
+
+    Returns:
+        HttpResponse: Confirmation page or redirect response.
+    """
     team = get_object_or_404(Team, pk=pk, player1__owner=request.user)
     if request.method == 'POST':
         name = team.name
@@ -214,7 +290,15 @@ def team_delete(request, pk):
 
 @login_required
 def player_schedule_print(request, pk):
-    """Print-venlig spilleplan for en enkelt spiller på tværs af turneringer."""
+    """Render a printable schedule for one player across tournaments.
+
+    Args:
+        request: Django HTTP request.
+        pk: Primary key of the player.
+
+    Returns:
+        HttpResponse: Rendered printable schedule.
+    """
     from tournaments.models import Match, Tournament, DivisionSeed
     player = get_object_or_404(Player, pk=pk, owner=request.user)
     # Find alle teams som spilleren er en del af
@@ -254,7 +338,14 @@ def player_schedule_print(request, pk):
 
 @login_required
 def division_category_list(request):
-    """Manage the user's configurable division categories."""
+    """List and create user-specific division categories.
+
+    Args:
+        request: Django HTTP request.
+
+    Returns:
+        HttpResponse: Category management page or redirect response.
+    """
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
         if name:
@@ -271,7 +362,15 @@ def division_category_list(request):
 
 @login_required
 def division_category_delete(request, pk):
-    """Delete a single category (POST only)."""
+    """Delete a single user division category.
+
+    Args:
+        request: Django HTTP request.
+        pk: Primary key of the division category.
+
+    Returns:
+        HttpResponseRedirect: Redirect to the category list.
+    """
     cat = get_object_or_404(DivisionCategory, pk=pk, owner=request.user)
     if request.method == 'POST':
         cat.delete()
@@ -281,7 +380,14 @@ def division_category_delete(request, pk):
 
 @login_required
 def division_category_seed_defaults(request):
-    """POST: pre-populate the default categories for this user."""
+    """Pre-populate default categories for the current user.
+
+    Args:
+        request: Django HTTP request.
+
+    Returns:
+        HttpResponseRedirect: Redirect to the category list.
+    """
     if request.method == 'POST':
         created = 0
         for i, name in enumerate(DEFAULT_DIVISION_CATEGORIES):

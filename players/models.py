@@ -9,7 +9,7 @@ DEFAULT_DIVISION_CATEGORIES = ['U9', 'U11', 'U13', 'U15', 'U17', 'U19', 'A', 'B'
 
 
 class DivisionCategory(models.Model):
-    """User-defined division/age-group categories (e.g. U9, A, B, Begynder)."""
+    """Store a user-defined division category (for example U9 or A)."""
     name = models.CharField(max_length=30, verbose_name=_("Name"))
     sort_order = models.IntegerField(default=0, verbose_name=_("Sort order"))
     owner = models.ForeignKey(
@@ -26,10 +26,17 @@ class DivisionCategory(models.Model):
         ]
 
     def __str__(self):
+        """Return the category name.
+
+        Returns:
+            str: Category name.
+        """
         return self.name
 
 
 class Player(models.Model):
+    """Represent a player participating in tournaments."""
+
     name = models.CharField(max_length=100, verbose_name=_("Name"))
     age = models.IntegerField(verbose_name=_("Age"), blank=True, null=True)
     GENDER_CHOICES = [
@@ -52,9 +59,16 @@ class Player(models.Model):
     )
 
     def __str__(self):
+        """Return a readable player representation.
+
+        Returns:
+            str: Player name, gender, and division.
+        """
         return f"{self.name} ({self.get_gender_display()}, {self.division})"
 
 class Team(models.Model):
+    """Represent a team composed of one or two players."""
+
     PAIR_TYPE_CHOICES = [
         ('double', _("Doubles")),
         ('mixed', _("Mixed doubles")),
@@ -74,9 +88,20 @@ class Team(models.Model):
 
     @property
     def is_single(self):
+        """Return whether this team represents a single player.
+
+        Returns:
+            bool: ``True`` when ``player2`` is missing, else ``False``.
+        """
         return self.player2 is None
 
     def save(self, *args, **kwargs):
+        """Persist the team and auto-generate a name when missing.
+
+        Args:
+            *args: Positional arguments passed to ``Model.save``.
+            **kwargs: Keyword arguments passed to ``Model.save``.
+        """
         if not self.name:
             if self.player2:
                 self.name = f"{self.player1.name} & {self.player2.name}"
@@ -85,4 +110,9 @@ class Team(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
+        """Return the team name.
+
+        Returns:
+            str: Team name.
+        """
         return self.name

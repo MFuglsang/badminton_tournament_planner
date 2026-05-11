@@ -27,6 +27,14 @@ import datetime
 
 @login_required
 def home(request):
+    """Render dashboard with upcoming and recent tournaments.
+
+    Args:
+        request: Django HTTP request.
+
+    Returns:
+        HttpResponse: Rendered dashboard page.
+    """
     upcoming = Tournament.objects.filter(owner=request.user, date__gte=datetime.date.today()).order_by('date')[:3]
     recent = Tournament.objects.filter(owner=request.user, date__lt=datetime.date.today()).order_by('-date')[:3]
     return render(request, 'home.html', {'upcoming': upcoming, 'recent': recent})
