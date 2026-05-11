@@ -8,8 +8,5 @@ class TournamentsConfig(AppConfig):
 
     def ready(self):
         """Import signal handlers when Django starts the app.
-
-        Returns:
-            None: This hook only ensures signal registration.
         """
         import tournaments.signals  # noqa

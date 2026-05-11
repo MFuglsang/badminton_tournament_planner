@@ -63,6 +63,9 @@ class TeamForm(forms.ModelForm):
 
         Returns:
             dict: Cleaned form data.
+
+        Raises:
+            ValidationError: If pair type or gender composition is invalid.
         """
         cleaned = super().clean()
         p1 = cleaned.get('player1')
