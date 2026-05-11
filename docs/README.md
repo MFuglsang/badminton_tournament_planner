@@ -44,3 +44,6 @@ The Badminton Tournament Planner is a Django-based web application designed to h
 
 ## How to Run the Application
 See the `HOW_TO_RUN.md` file for detailed instructions on setting up and running the application.
+
+## Additional Documentation
+- `SYSTEM_PRESENTATION.md`: Functional planner-focused workflow guide with screenshot placeholders for PDF export.
