@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Badminton Tournament Planner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    :root {
+      --green-900: #0d4f22;
+      --green-700: #16692c;
+      --green-600: #1a7d34;
+      --green-100: #f0fdf4;
+      --green-200: #dcfce7;
+      --green-300: #bbf7d0;
+      --slate-900: #0f172a;
+      --slate-700: #334155;
+      --slate-500: #64748b;
+      --slate-200: #e2e8f0;
+      --slate-100: #f1f5f9;
+      --white: #ffffff;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      margin: 0;
+      background: #eef1f6;
+      color: var(--slate-900);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      font-size: 15px;
+    }
+
+    a { color: var(--green-700); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Navbar ─────────────────────────────────────────────── */
+    header {
+      background: var(--green-900);
+      color: white;
+      padding: 0 2rem;
+      height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 2px 12px rgba(10,50,20,0.22);
+    }
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+    .header-brand .logo-icon {
+      background: rgba(255,255,255,0.15);
+      border-radius: 8px;
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+    nav { display: flex; gap: 0.15rem; align-items: center; }
+    nav a {
+      color: rgba(255,255,255,0.78);
+      font-size: 0.83rem;
+      font-weight: 500;
+      padding: 0.4rem 0.85rem;
+      border-radius: 6px;
+      transition: background 0.15s, color 0.15s;
+    }
+    nav a:hover { color: white; background: rgba(255,255,255,0.14); text-decoration: none; }
+
+    /* ── Hero ───────────────────────────────────────────────── */
+    .hero {
+      background: var(--green-900);
+      color: white;
+      padding: 5rem 2rem 5.5rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 70% 60% at 50% 0%, rgba(22,105,44,0.55) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 40% at 80% 80%, rgba(13,79,34,0.4) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .hero-shuttlecock {
+      font-size: 3.5rem;
+      margin-bottom: 1.2rem;
+      display: block;
+      position: relative;
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1.1;
+      margin: 0 0 1rem;
+      position: relative;
+    }
+    .hero h1 span { color: #6ee7a0; }
+    .hero p {
+      font-size: 1.1rem;
+      color: rgba(255,255,255,0.78);
+      max-width: 560px;
+      margin: 0 auto 2.2rem;
+      position: relative;
+    }
+    .hero-buttons {
+      display: flex;
+      gap: 0.8rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      position: relative;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.65rem 1.4rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 2px solid transparent;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+    .btn:hover { text-decoration: none; transform: translateY(-2px); }
+    .btn-light {
+      background: white;
+      color: var(--green-900);
+      border-color: white;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+    }
+    .btn-light:hover { background: var(--green-100); color: var(--green-900); }
+    .btn-outline {
+      background: transparent;
+      color: white;
+      border-color: rgba(255,255,255,0.5);
+    }
+    .btn-outline:hover { background: rgba(255,255,255,0.12); border-color: white; color: white; }
+
+    /* ── Section wrapper ─────────────────────────────────────── */
+    section { padding: 4rem 2rem; }
+    section:nth-child(even) { background: white; }
+    .section-inner { max-width: 1100px; margin: 0 auto; }
+    .section-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--green-700);
+      margin-bottom: 0.5rem;
+    }
+    .section-title {
+      font-size: clamp(1.5rem, 3vw, 2.1rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--green-900);
+      margin: 0 0 0.75rem;
+    }
+    .section-subtitle {
+      font-size: 1rem;
+      color: var(--slate-500);
+      max-width: 580px;
+      margin: 0 0 2.5rem;
+    }
+
+    /* ── Feature cards grid ──────────────────────────────────── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.25rem;
+    }
+    .feature-card {
+      background: var(--white);
+      border: 1px solid var(--slate-200);
+      border-radius: 14px;
+      padding: 1.5rem 1.75rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 16px rgba(0,0,0,0.04);
+      transition: box-shadow 0.2s, border-color 0.2s, transform 0.2s;
+    }
+    .feature-card:hover {
+      box-shadow: 0 6px 24px rgba(22,105,44,0.12);
+      border-color: #a7d7b4;
+      transform: translateY(-3px);
+    }
+    .feature-icon {
+      font-size: 1.8rem;
+      margin-bottom: 0.85rem;
+      display: block;
+    }
+    .feature-card h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--green-900);
+      margin: 0 0 0.5rem;
+    }
+    .feature-card p {
+      font-size: 0.88rem;
+      color: var(--slate-500);
+      margin: 0;
+      line-height: 1.55;
+    }
+
+    /* ── Workflow steps ──────────────────────────────────────── */
+    .workflow { max-width: 860px; margin: 0 auto; }
+    .workflow-step {
+      display: grid;
+      grid-template-columns: 52px 1fr;
+      gap: 1.5rem;
+      margin-bottom: 3rem;
+      align-items: start;
+    }
+    .workflow-step:last-child { margin-bottom: 0; }
+    .step-number {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: var(--green-700);
+      color: white;
+      font-size: 1.2rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 3px 10px rgba(22,105,44,0.3);
+    }
+    .step-content h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--green-900);
+      margin: 0.6rem 0 0.4rem;
+    }
+    .step-content p {
+      font-size: 0.88rem;
+      color: var(--slate-500);
+      margin: 0 0 1rem;
+      line-height: 1.6;
+    }
+
+    /* ── Screenshot placeholder ──────────────────────────────── */
+    .screenshot-placeholder {
+      background: linear-gradient(135deg, var(--slate-100) 0%, #e8f5ec 100%);
+      border: 2px dashed #a7d7b4;
+      border-radius: 12px;
+      height: 220px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      color: var(--slate-500);
+      font-size: 0.82rem;
+      text-align: center;
+      padding: 1rem;
+    }
+    .screenshot-placeholder .placeholder-icon { font-size: 2rem; opacity: 0.5; }
+    .screenshot-placeholder strong { font-weight: 600; color: var(--slate-700); font-size: 0.88rem; }
+
+    /* actual screenshots (swap in later) */
+    .screenshot-placeholder img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 10px;
+    }
+
+    /* ── Stats strip ─────────────────────────────────────────── */
+    .stats {
+      background: var(--green-900);
+      color: white;
+      padding: 3rem 2rem;
+    }
+    .stats-inner {
+      max-width: 900px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 2rem;
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 2.4rem;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      color: #6ee7a0;
+      display: block;
+    }
+    .stat-label {
+      font-size: 0.83rem;
+      color: rgba(255,255,255,0.7);
+      margin-top: 0.2rem;
+    }
+
+    /* ── Tournament types ────────────────────────────────────── */
+    .types-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 1.25rem;
+    }
+    .type-card {
+      background: var(--green-100);
+      border: 1.5px solid var(--green-300);
+      border-radius: 14px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    .type-card .type-icon { font-size: 2rem; margin-bottom: 0.7rem; display: block; }
+    .type-card h3 { font-size: 1rem; font-weight: 700; color: var(--green-900); margin: 0 0 0.4rem; }
+    .type-card p { font-size: 0.85rem; color: var(--slate-500); margin: 0; }
+
+    /* ── CTA ─────────────────────────────────────────────────── */
+    .cta {
+      background: var(--green-900);
+      color: white;
+      text-align: center;
+      padding: 5rem 2rem;
+    }
+    .cta h2 {
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin: 0 0 1rem;
+    }
+    .cta p {
+      font-size: 1rem;
+      color: rgba(255,255,255,0.75);
+      max-width: 500px;
+      margin: 0 auto 2rem;
+    }
+
+    /* ── Footer ──────────────────────────────────────────────── */
+    footer {
+      background: var(--slate-900);
+      color: rgba(255,255,255,0.5);
+      text-align: center;
+      padding: 1.5rem 2rem;
+      font-size: 0.82rem;
+    }
+    footer a { color: rgba(255,255,255,0.6); }
+    footer a:hover { color: white; }
+
+    /* ── Responsive ──────────────────────────────────────────── */
+    @media (max-width: 640px) {
+      header { padding: 0 1rem; }
+      nav { display: none; }
+      .hero { padding: 3.5rem 1.25rem 4rem; }
+      .workflow-step { grid-template-columns: 40px 1fr; gap: 1rem; }
+      .step-number { width: 40px; height: 40px; font-size: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Navbar ────────────────────────────────────────────── -->
+<header>
+  <div class="header-brand">
+    <span class="logo-icon">🏸</span>
+    Badminton Tournament Planner
+  </div>
+  <nav>
+    <a href="#features">Features</a>
+    <a href="#workflow">How it works</a>
+    <a href="#formats">Formats</a>
+    <a href="https://github.com/YOUR_USERNAME/badminton_tournament_planner" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+</header>
+
+<!-- ── Hero ─────────────────────────────────────────────── -->
+<div class="hero">
+  <span class="hero-shuttlecock">🏸</span>
+  <h1>Run your <span>badminton tournament</span><br>from start to finish</h1>
+  <p>Register players, build divisions, auto-generate schedules, track results live — all in one place.</p>
+  <div class="hero-buttons">
+    <a href="https://github.com/YOUR_USERNAME/badminton_tournament_planner" class="btn btn-light" target="_blank" rel="noopener">
+      View on GitHub
+    </a>
+    <a href="#workflow" class="btn btn-outline">See how it works</a>
+  </div>
+</div>
+
+<!-- ── Stats strip ──────────────────────────────────────── -->
+<div class="stats">
+  <div class="stats-inner">
+    <div>
+      <span class="stat-value">3</span>
+      <div class="stat-label">Tournament formats</div>
+    </div>
+    <div>
+      <span class="stat-value">∞</span>
+      <div class="stat-label">Divisions per tournament</div>
+    </div>
+    <div>
+      <span class="stat-value">100%</span>
+      <div class="stat-label">Auto-generated schedules</div>
+    </div>
+    <div>
+      <span class="stat-value">Live</span>
+      <div class="stat-label">Big-screen hall display</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Features ─────────────────────────────────────────── -->
+<section id="features">
+  <div class="section-inner">
+    <div class="section-label">Features</div>
+    <h2 class="section-title">Everything you need on tournament day</h2>
+    <p class="section-subtitle">From the first player registration to the final prize ceremony — no spreadsheets, no paper lists.</p>
+
+    <div class="features-grid">
+
+      <div class="feature-card">
+        <span class="feature-icon">👤</span>
+        <h3>Player &amp; team management</h3>
+        <p>Register players with age, gender and division. Create singles, doubles and mixed doubles pairs with automatic gender validation.</p>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">🏆</span>
+        <h3>Flexible tournament setup</h3>
+        <p>Create tournaments with date, start time, number of courts and scoring model. Upload a logo for printed documents.</p>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">📋</span>
+        <h3>Division configuration</h3>
+        <p>Fully configurable divisions and categories — no hardcoded values. Set discipline, format and participant list per division.</p>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">🔢</span>
+        <h3>Seeding support</h3>
+        <p>Assign seed numbers to top players or pairs. Seeded participants are automatically placed correctly in brackets and groups.</p>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">📅</span>
+        <h3>Auto-generated schedules</h3>
+        <p>Generate a full time-based schedule that distributes all matches across courts and time slots in seconds. Lock it when ready.</p>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">⚡</span>
+        <h3>Live result entry</h3>
+        <p>Enter set scores visually during the tournament. Automatic winner registration, bracket advancement and standings updates.</p>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">🖨️</span>
+        <h3>Print-ready documents</h3>
+        <p>Match programmes, time schedules, score sheets and individual player schedules — formatted and ready to print.</p>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">📺</span>
+        <h3>Big screen display</h3>
+        <p>Live view of current and upcoming matches for a hall display. Shows court, status and opponents at a glance.</p>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">💾</span>
+        <h3>Backup &amp; restore</h3>
+        <p>Export any tournament as a JSON backup. Import it on another instance to restore all divisions, matches and results.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── Workflow ──────────────────────────────────────────── -->
+<section id="workflow" style="background:#eef1f6;">
+  <div class="section-inner">
+    <div class="section-label">How it works</div>
+    <h2 class="section-title">From setup to trophy in 6 steps</h2>
+    <p class="section-subtitle">A practical walkthrough in the same order a tournament planner typically works.</p>
+
+    <div class="workflow">
+
+      <div class="workflow-step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <h3>Register players &amp; teams</h3>
+          <p>Add all players with their name, age, gender and division. Create doubles and mixed doubles pairs — the system validates gender rules automatically.</p>
+          <div class="screenshot-placeholder">
+            <span class="placeholder-icon">🖼️</span>
+            <strong>Screenshot: Players list &amp; add player form</strong>
+            <span>Place your screenshot at <code>screenshots/01-players-and-teams.png</code></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="workflow-step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <h3>Create a tournament</h3>
+          <p>Enter the tournament name, date, start time, number of available courts and the scoring model (e.g. best-of-3 sets). Optionally upload a logo.</p>
+          <div class="screenshot-placeholder">
+            <span class="placeholder-icon">🖼️</span>
+            <strong>Screenshot: Create tournament form</strong>
+            <span>Place your screenshot at <code>screenshots/02-create-tournament.png</code></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="workflow-step">
+        <div class="step-number">3</div>
+        <div class="step-content">
+          <h3>Add divisions &amp; register participants</h3>
+          <p>Split the tournament into playable categories. Choose discipline (singles/doubles/mixed), tournament type, and register participants directly from the tournament page.</p>
+          <div class="screenshot-placeholder">
+            <span class="placeholder-icon">🖼️</span>
+            <strong>Screenshot: Tournament page with divisions</strong>
+            <span>Place your screenshot at <code>screenshots/03-add-divisions.png</code></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="workflow-step">
+        <div class="step-number">4</div>
+        <div class="step-content">
+          <h3>Generate match programmes</h3>
+          <p>With one click, the system generates the full match list for each division based on participants, format and seeding. Reset and regenerate at any time before locking.</p>
+          <div class="screenshot-placeholder">
+            <span class="placeholder-icon">🖼️</span>
+            <strong>Screenshot: Division with generated match programme</strong>
+            <span>Place your screenshot at <code>screenshots/04-generate-match-programme.png</code></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="workflow-step">
+        <div class="step-number">5</div>
+        <div class="step-content">
+          <h3>Build the time schedule</h3>
+          <p>Generate a court-and-time schedule for all matches across all divisions. Review it, make manual adjustments if needed, then lock the schedule to go live.</p>
+          <div class="screenshot-placeholder">
+            <span class="placeholder-icon">🖼️</span>
+            <strong>Screenshot: Time schedule page</strong>
+            <span>Place your screenshot at <code>screenshots/05-create-play-schedule.png</code></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="workflow-step">
+        <div class="step-number">6</div>
+        <div class="step-content">
+          <h3>Run the tournament live</h3>
+          <p>Start matches, enter set scores, handle walkovers and watch standings and brackets update in real time. Use the big-screen view for hall display.</p>
+          <div class="screenshot-placeholder">
+            <span class="placeholder-icon">🖼️</span>
+            <strong>Screenshot: Tournament run page</strong>
+            <span>Place your screenshot at <code>screenshots/06-running-the-tournament.png</code></span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── Tournament formats ────────────────────────────────── -->
+<section id="formats">
+  <div class="section-inner">
+    <div class="section-label">Tournament formats</div>
+    <h2 class="section-title">Three competition formats supported</h2>
+    <p class="section-subtitle">Choose the format that fits your division — or mix formats within the same tournament.</p>
+
+    <div class="types-grid">
+      <div class="type-card">
+        <span class="type-icon">🔄</span>
+        <h3>Round-robin</h3>
+        <p>Every participant plays everyone else in the group. Standings are calculated automatically from results.</p>
+      </div>
+      <div class="type-card">
+        <span class="type-icon">🏅</span>
+        <h3>Bracket</h3>
+        <p>Direct elimination with seeding. Seeded players are placed correctly in the bracket from the start.</p>
+      </div>
+      <div class="type-card">
+        <span class="type-icon">🥇</span>
+        <h3>Playoff</h3>
+        <p>Group stage followed by a bracket. Top players from each group advance to knock-out rounds automatically.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Access control strip ──────────────────────────────── -->
+<section style="background:#eef1f6; padding:3rem 2rem;">
+  <div class="section-inner" style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;align-items:center;">
+    <div>
+      <div class="section-label">Access &amp; security</div>
+      <h2 class="section-title" style="font-size:1.6rem;">Multi-user, per-club isolation</h2>
+      <p style="color:var(--slate-500);font-size:0.92rem;margin:0 0 1rem;">Each club logs in with their own account. Players, pairs and tournaments are tied to the user who created them — no cross-club data leakage. A public view lets spectators follow the tournament without logging in.</p>
+      <ul style="color:var(--slate-500);font-size:0.88rem;padding-left:1.2rem;margin:0;line-height:2;">
+        <li>Per-user tournament and player ownership</li>
+        <li>Login required to create or edit data</li>
+        <li>Public read-only view for spectators</li>
+      </ul>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:0.8rem;">
+      <div style="background:white;border:1px solid var(--slate-200);border-radius:12px;padding:1.1rem 1.3rem;display:flex;align-items:center;gap:0.9rem;box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+        <span style="font-size:1.4rem;">🔐</span>
+        <div>
+          <div style="font-weight:700;font-size:0.88rem;color:var(--slate-900);">Tournament admin</div>
+          <div style="font-size:0.8rem;color:var(--slate-500);">Full access — create, edit, run</div>
+        </div>
+      </div>
+      <div style="background:white;border:1px solid var(--slate-200);border-radius:12px;padding:1.1rem 1.3rem;display:flex;align-items:center;gap:0.9rem;box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+        <span style="font-size:1.4rem;">👁️</span>
+        <div>
+          <div style="font-weight:700;font-size:0.88rem;color:var(--slate-900);">Public viewer</div>
+          <div style="font-size:0.8rem;color:var(--slate-500);">Read-only — schedule, results, standings</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA ───────────────────────────────────────────────── -->
+<div class="cta">
+  <h2>Ready to run your next tournament?</h2>
+  <p>Open source, self-hosted and free. Get started in minutes.</p>
+  <div style="display:flex;gap:0.8rem;justify-content:center;flex-wrap:wrap;">
+    <a href="https://github.com/YOUR_USERNAME/badminton_tournament_planner" class="btn btn-light" target="_blank" rel="noopener">View on GitHub</a>
+    <a href="https://github.com/YOUR_USERNAME/badminton_tournament_planner/blob/main/docs/HOW_TO_RUN.md" class="btn btn-outline" target="_blank" rel="noopener">How to run</a>
+  </div>
+</div>
+
+<!-- ── Footer ───────────────────────────────────────────── -->
+<footer>
+  <p>
+    Badminton Tournament Planner &mdash; open source under the
+    <a href="https://github.com/YOUR_USERNAME/badminton_tournament_planner/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>.
+    Built with Django &amp; SQLite.
+  </p>
+</footer>
+
+</body>
+</html>
