@@ -15,10 +15,10 @@
     </style>
     <script>
         (function () {
-            var lang = new URLSearchParams(window.location.search).get("lang");
-            if (lang === "en" || lang === "da") {
-                document.documentElement.lang = lang;
-            }
+            window.__docsSupportedLangs = ["en", "da"];
+            var urlLang = new URLSearchParams(window.location.search).get("lang");
+            window.__docsInitialLang = window.__docsSupportedLangs.includes(urlLang) ? urlLang : "en";
+            document.documentElement.lang = window.__docsInitialLang;
         }());
     </script>
 </head>
@@ -54,12 +54,9 @@
 
     <script>
         (function () {
-            var supported = ["en", "da"];
+            var supported = window.__docsSupportedLangs || ["en", "da"];
             var params = new URLSearchParams(window.location.search);
-            var lang = params.get("lang");
-            if (!supported.includes(lang)) {
-                lang = "en";
-            }
+            var lang = window.__docsInitialLang || "en";
 
             function setLanguage(nextLang) {
                 document.documentElement.lang = nextLang;
