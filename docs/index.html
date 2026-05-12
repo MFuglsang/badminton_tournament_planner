@@ -15,10 +15,10 @@
     </style>
     <script>
         (function () {
-            window.docsPageI18n = { supportedLangs: ["en", "da"] };
+            window.docsPageI18N = { supportedLangs: ["en", "da"] };
             var urlLang = new URLSearchParams(window.location.search).get("lang");
-            window.docsPageI18n.initialLang = window.docsPageI18n.supportedLangs.includes(urlLang) ? urlLang : "en";
-            document.documentElement.lang = window.docsPageI18n.initialLang;
+            window.docsPageI18N.initialLang = window.docsPageI18N.supportedLangs.includes(urlLang) ? urlLang : "en";
+            document.documentElement.lang = window.docsPageI18N.initialLang;
         }());
     </script>
 </head>
@@ -55,7 +55,7 @@
     <script>
         (function () {
             var params = new URLSearchParams(window.location.search);
-            var lang = window.docsPageI18n ? window.docsPageI18n.initialLang : "en";
+            var lang = window.docsPageI18N.initialLang;
 
             function setLanguage(nextLang) {
                 document.documentElement.lang = nextLang;
