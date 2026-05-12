@@ -47,3 +47,4 @@ See the `HOW_TO_RUN.md` file for detailed instructions on setting up and running
 
 ## Additional Documentation
 - `SYSTEM_PRESENTATION.md`: Functional planner-focused workflow guide with screenshot placeholders for PDF export.
+- `index.html`: GitHub Pages entry point with English/Danish language switch (`?lang=en` / `?lang=da`).

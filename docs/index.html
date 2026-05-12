@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Badminton Tournament Planner</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+        .language-switch { display: flex; gap: .5rem; margin-bottom: 1rem; }
+        .language-switch button { border: 1px solid #cbd5e1; background: #fff; padding: .4rem .8rem; border-radius: 6px; cursor: pointer; }
+        .language-switch button.active { background: #0f766e; color: #fff; border-color: #0f766e; }
+        .lang-content { display: none; }
+        .lang-content.active { display: block; }
+        h1 { margin-top: 0; }
+    </style>
+    <script>
+        (function () {
+            window.docsPageI18N = { supportedLangs: ["en", "da"] };
+            var urlLang = new URLSearchParams(window.location.search).get("lang");
+            window.docsPageI18N.initialLang = window.docsPageI18N.supportedLangs.includes(urlLang) ? urlLang : "en";
+            document.documentElement.lang = window.docsPageI18N.initialLang;
+        }());
+    </script>
+</head>
+<body>
+    <div class="language-switch">
+        <button type="button" data-switch-lang="en">English</button>
+        <button type="button" data-switch-lang="da">Dansk</button>
+    </div>
+
+    <section class="lang-content" data-lang="en">
+        <h1>Badminton Tournament Planner</h1>
+        <p>
+            Web app for badminton clubs to handle players, divisions, match generation, scheduling and results.
+        </p>
+        <ul>
+            <li><a href="./README.md">Project overview</a></li>
+            <li><a href="./HOW_TO_RUN.md">How to run</a></li>
+            <li><a href="./SYSTEM_PRESENTATION.md">System presentation</a></li>
+        </ul>
+    </section>
+
+    <section class="lang-content" data-lang="da">
+        <h1>Badminton Tournament Planner</h1>
+        <p>
+            Webapp til badmintonklubber, som håndterer spillere, rækker, programgenerering, tidsplan og resultater.
+        </p>
+        <ul>
+            <li><a href="./afvikling-brugervejledning.md">Brugervejledning (dansk)</a></li>
+            <li><a href="./README.md">Projektoversigt (engelsk)</a></li>
+            <li><a href="./HOW_TO_RUN.md">Kør projektet (engelsk)</a></li>
+        </ul>
+    </section>
+
+    <script>
+        (function () {
+            var params = new URLSearchParams(window.location.search);
+            var lang = window.docsPageI18N.initialLang;
+
+            function setLanguage(nextLang) {
+                document.documentElement.lang = nextLang;
+                document.querySelectorAll("[data-lang]").forEach(function (el) {
+                    el.classList.toggle("active", el.getAttribute("data-lang") === nextLang);
+                });
+                document.querySelectorAll("[data-switch-lang]").forEach(function (button) {
+                    button.classList.toggle("active", button.getAttribute("data-switch-lang") === nextLang);
+                });
+                params.set("lang", nextLang);
+                var query = params.toString();
+                var nextUrl = query ? window.location.pathname + "?" + query : window.location.pathname;
+                window.history.replaceState({}, "", nextUrl);
+            }
+
+            document.querySelectorAll("[data-switch-lang]").forEach(function (button) {
+                button.addEventListener("click", function () {
+                    setLanguage(button.getAttribute("data-switch-lang"));
+                });
+            });
+
+            setLanguage(lang);
+        }());
+    </script>
+</body>
+</html>
