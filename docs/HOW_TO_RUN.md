@@ -65,8 +65,46 @@ python manage.py runserver
 
 ---
 
+## Docker (production)
+
+See [docs/dockerplan.md](docs/dockerplan.md) for the full architecture overview and operational guide.
+
+### Quick start
+
+```bash
+# 1. Copy the example env file and set your secrets
+cp .env.example .env
+#    Edit .env: fill in SECRET_KEY, POSTGRES_PASSWORD, and ALLOWED_HOSTS
+
+# 2. Build and start all services (Postgres + Django/Gunicorn + Nginx)
+docker compose build
+docker compose up -d
+
+# 3. Apply database migrations (first run only)
+docker compose exec web python manage.py migrate
+
+# 4. Create an admin account
+docker compose exec web python manage.py createsuperuser
+```
+
+The application is then available at **http://localhost/**.
+
+### Stack
+
+| Service | Image / role |
+|---------|-------------|
+| `db`    | PostgreSQL 16-alpine — persistent data on a named volume |
+| `web`   | Python 3.13-slim — Django served by Gunicorn (2 workers) |
+| `nginx` | nginx:alpine — reverse proxy, serves `/static/` and `/media/` directly |
+
+All three services communicate on an isolated Docker network (`internal`).
+PostgreSQL data, media uploads, and collected static files are stored on
+named Docker volumes so data survives container restarts.
+
+---
+
 ## Notes
-- Ensure `DEBUG = True` in `settings.py` for development.
-- For production, configure `ALLOWED_HOSTS` and set `DEBUG = False`.
+- For local development, set `DEBUG=True` in your shell or `.env` before running `runserver`.
+- For production, set `SECRET_KEY`, `ALLOWED_HOSTS`, and all `POSTGRES_*` variables via the `.env` file (see Docker section above).
 - Templates for the project homepage are in `tournament_planner/templates/`.
 - App-specific templates are in `<app>/templates/<app>/`.

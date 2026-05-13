@@ -65,4 +65,15 @@ Handles everything from player registration to match scheduling and result entry
 ---
 
 ## Getting started
-See [docs/HOW_TO_RUN.md](docs/HOW_TO_RUN.md) for installation instructions.
+
+**Docker (recommended for production):**
+```bash
+cp .env.example .env          # fill in SECRET_KEY, POSTGRES_PASSWORD, ALLOWED_HOSTS
+docker compose build
+docker compose up -d
+docker compose exec web python manage.py migrate
+docker compose exec web python manage.py createsuperuser
+```
+Then open http://localhost/ in your browser.
+
+**Local development:** See [docs/HOW_TO_RUN.md](docs/HOW_TO_RUN.md) for installation instructions.
