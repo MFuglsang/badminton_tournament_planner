@@ -1,6 +1,0 @@
-.venv
-# Ignore Python cache files
-__pycache__/
-# Ignore all __pycache__ directories recursively
-**/__pycache__/
-db.sqlite3

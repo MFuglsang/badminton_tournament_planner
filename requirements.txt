@@ -1,6 +1,0 @@
-django
-pillow
-pytest
-pytest-django
-coverage
-ortools
