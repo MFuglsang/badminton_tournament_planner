@@ -4,3 +4,5 @@ pytest
 pytest-django
 coverage
 ortools
+gunicorn
+psycopg2-binary
