@@ -114,7 +114,7 @@
 
     /* ── Hero ───────────────────────────────────────────────── */
     .hero {
-      background: var(--green-900);
+      background: var(--green-900) url('img/background.jpg') center center / cover no-repeat;
       color: white;
       padding: 5rem 2rem 5.5rem;
       text-align: center;
@@ -126,8 +126,8 @@
       position: absolute;
       inset: 0;
       background:
-        radial-gradient(ellipse 70% 60% at 50% 0%, rgba(22,105,44,0.55) 0%, transparent 70%),
-        radial-gradient(ellipse 40% 40% at 80% 80%, rgba(13,79,34,0.4) 0%, transparent 60%);
+        linear-gradient(to bottom, rgba(10,50,20,0.72) 0%, rgba(10,50,20,0.60) 100%),
+        radial-gradient(ellipse 70% 60% at 50% 0%, rgba(22,105,44,0.45) 0%, transparent 70%);
       pointer-events: none;
     }
     .hero-shuttlecock {
