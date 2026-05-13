@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" id="html-root">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -82,6 +82,35 @@
       transition: background 0.15s, color 0.15s;
     }
     nav a:hover { color: white; background: rgba(255,255,255,0.14); text-decoration: none; }
+
+    /* ── Language toggle ────────────────────────────────────── */
+    .lang-toggle {
+      display: flex;
+      align-items: center;
+      background: rgba(255,255,255,0.12);
+      border-radius: 20px;
+      padding: 0.2rem 0.25rem;
+      gap: 0.1rem;
+      margin-left: 0.6rem;
+    }
+    .lang-btn {
+      background: transparent;
+      color: rgba(255,255,255,0.7);
+      border: none;
+      border-radius: 16px;
+      padding: 0.22rem 0.65rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s, color 0.15s;
+      letter-spacing: 0.03em;
+    }
+    .lang-btn.active {
+      background: rgba(255,255,255,0.9);
+      color: var(--green-900);
+    }
+    .lang-btn:hover:not(.active) { color: white; background: rgba(255,255,255,0.18); }
 
     /* ── Hero ───────────────────────────────────────────────── */
     .hero {
@@ -380,23 +409,27 @@
     Badminton Tournament Planner
   </div>
   <nav>
-    <a href="#features">Features</a>
-    <a href="#workflow">How it works</a>
-    <a href="#formats">Formats</a>
+    <a href="#features" data-i18n="nav_features">Features</a>
+    <a href="#workflow" data-i18n="nav_how">How it works</a>
+    <a href="#formats" data-i18n="nav_formats">Formats</a>
     <a href="https://github.com/MFuglsang/badminton_tournament_planner" target="_blank" rel="noopener">GitHub</a>
+    <div class="lang-toggle">
+      <button class="lang-btn" id="btn-en" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" id="btn-da" onclick="setLang('da')">DK</button>
+    </div>
   </nav>
 </header>
 
 <!-- ── Hero ─────────────────────────────────────────────── -->
 <div class="hero">
   <span class="hero-shuttlecock">🏸</span>
-  <h1>Run your <span>badminton tournament</span><br>from start to finish</h1>
-  <p>Register players, build divisions, auto-generate schedules, track results live — all in one place.</p>
+  <h1 data-i18n="hero_h1">Run your <span>badminton tournament</span><br>from start to finish</h1>
+  <p data-i18n="hero_p">Register players, build divisions, auto-generate schedules, track results live — all in one place.</p>
   <div class="hero-buttons">
-    <a href="https://github.com/MFuglsang/badminton_tournament_planner" class="btn btn-light" target="_blank" rel="noopener">
+    <a href="https://github.com/MFuglsang/badminton_tournament_planner" class="btn btn-light" target="_blank" rel="noopener" data-i18n="hero_btn_github">
       View on GitHub
     </a>
-    <a href="#workflow" class="btn btn-outline">See how it works</a>
+    <a href="#workflow" class="btn btn-outline" data-i18n="hero_btn_how">See how it works</a>
   </div>
 </div>
 
@@ -405,19 +438,19 @@
   <div class="stats-inner">
     <div>
       <span class="stat-value">3</span>
-      <div class="stat-label">Tournament formats</div>
+      <div class="stat-label" data-i18n="stat_formats">Tournament formats</div>
     </div>
     <div>
       <span class="stat-value">∞</span>
-      <div class="stat-label">Divisions per tournament</div>
+      <div class="stat-label" data-i18n="stat_divisions">Divisions per tournament</div>
     </div>
     <div>
       <span class="stat-value">100%</span>
-      <div class="stat-label">Auto-generated schedules</div>
+      <div class="stat-label" data-i18n="stat_schedules">Auto-generated schedules</div>
     </div>
     <div>
       <span class="stat-value">Live</span>
-      <div class="stat-label">Big-screen hall display</div>
+      <div class="stat-label" data-i18n="stat_display">Big-screen hall display</div>
     </div>
   </div>
 </div>
@@ -425,64 +458,64 @@
 <!-- ── Features ─────────────────────────────────────────── -->
 <section id="features">
   <div class="section-inner">
-    <div class="section-label">Features</div>
-    <h2 class="section-title">Everything you need on tournament day</h2>
-    <p class="section-subtitle">From the first player registration to the final prize ceremony — no spreadsheets, no paper lists.</p>
+    <div class="section-label" data-i18n="features_label">Features</div>
+    <h2 class="section-title" data-i18n="features_title">Everything you need on tournament day</h2>
+    <p class="section-subtitle" data-i18n="features_subtitle">From the first player registration to the final prize ceremony — no spreadsheets, no paper lists.</p>
 
     <div class="features-grid">
 
       <div class="feature-card">
         <span class="feature-icon">👤</span>
-        <h3>Player &amp; team management</h3>
-        <p>Register players with age, gender and division. Create singles, doubles and mixed doubles pairs with automatic gender validation.</p>
+        <h3 data-i18n="feat1_h">Player &amp; team management</h3>
+        <p data-i18n="feat1_p">Register players with age, gender and division. Create singles, doubles and mixed doubles pairs with automatic gender validation.</p>
       </div>
 
       <div class="feature-card">
         <span class="feature-icon">🏆</span>
-        <h3>Flexible tournament setup</h3>
-        <p>Create tournaments with date, start time, number of courts and scoring model. Upload a logo for printed documents.</p>
+        <h3 data-i18n="feat2_h">Flexible tournament setup</h3>
+        <p data-i18n="feat2_p">Create tournaments with date, start time, number of courts and scoring model. Upload a logo for printed documents.</p>
       </div>
 
       <div class="feature-card">
         <span class="feature-icon">📋</span>
-        <h3>Division configuration</h3>
-        <p>Fully configurable divisions and categories — no hardcoded values. Set discipline, format and participant list per division.</p>
+        <h3 data-i18n="feat3_h">Division configuration</h3>
+        <p data-i18n="feat3_p">Fully configurable divisions and categories — no hardcoded values. Set discipline, format and participant list per division.</p>
       </div>
 
       <div class="feature-card">
         <span class="feature-icon">🔢</span>
-        <h3>Seeding support</h3>
-        <p>Assign seed numbers to top players or pairs. Seeded participants are automatically placed correctly in brackets and groups.</p>
+        <h3 data-i18n="feat4_h">Seeding support</h3>
+        <p data-i18n="feat4_p">Assign seed numbers to top players or pairs. Seeded participants are automatically placed correctly in brackets and groups.</p>
       </div>
 
       <div class="feature-card">
         <span class="feature-icon">📅</span>
-        <h3>Auto-generated schedules</h3>
-        <p>Generate a full time-based schedule that distributes all matches across courts and time slots in seconds. Lock it when ready.</p>
+        <h3 data-i18n="feat5_h">Auto-generated schedules</h3>
+        <p data-i18n="feat5_p">Generate a full time-based schedule that distributes all matches across courts and time slots in seconds. Lock it when ready.</p>
       </div>
 
       <div class="feature-card">
         <span class="feature-icon">⚡</span>
-        <h3>Live result entry</h3>
-        <p>Enter set scores visually during the tournament. Automatic winner registration, bracket advancement and standings updates.</p>
+        <h3 data-i18n="feat6_h">Live result entry</h3>
+        <p data-i18n="feat6_p">Enter set scores visually during the tournament. Automatic winner registration, bracket advancement and standings updates.</p>
       </div>
 
       <div class="feature-card">
         <span class="feature-icon">🖨️</span>
-        <h3>Print-ready documents</h3>
-        <p>Match programmes, time schedules, score sheets and individual player schedules — formatted and ready to print.</p>
+        <h3 data-i18n="feat7_h">Print-ready documents</h3>
+        <p data-i18n="feat7_p">Match programmes, time schedules, score sheets and individual player schedules — formatted and ready to print.</p>
       </div>
 
       <div class="feature-card">
         <span class="feature-icon">📺</span>
-        <h3>Big screen display</h3>
-        <p>Live view of current and upcoming matches for a hall display. Shows court, status and opponents at a glance.</p>
+        <h3 data-i18n="feat8_h">Big screen display</h3>
+        <p data-i18n="feat8_p">Live view of current and upcoming matches for a hall display. Shows court, status and opponents at a glance.</p>
       </div>
 
       <div class="feature-card">
         <span class="feature-icon">💾</span>
-        <h3>Backup &amp; restore</h3>
-        <p>Export any tournament as a JSON backup. Import it on another instance to restore all divisions, matches and results.</p>
+        <h3 data-i18n="feat9_h">Backup &amp; restore</h3>
+        <p data-i18n="feat9_p">Export any tournament as a JSON backup. Import it on another instance to restore all divisions, matches and results.</p>
       </div>
 
     </div>
@@ -492,17 +525,17 @@
 <!-- ── Workflow ──────────────────────────────────────────── -->
 <section id="workflow" style="background:#eef1f6;">
   <div class="section-inner">
-    <div class="section-label">How it works</div>
-    <h2 class="section-title">From setup to trophy in 6 steps</h2>
-    <p class="section-subtitle">A practical walkthrough in the same order a tournament planner typically works.</p>
+    <div class="section-label" data-i18n="workflow_label">How it works</div>
+    <h2 class="section-title" data-i18n="workflow_title">From setup to trophy in 6 steps</h2>
+    <p class="section-subtitle" data-i18n="workflow_subtitle">A practical walkthrough in the same order a tournament planner typically works.</p>
 
     <div class="workflow">
 
       <div class="workflow-step">
         <div class="step-number">1</div>
         <div class="step-content">
-          <h3>Register players &amp; teams</h3>
-          <p>Add all players with their name, age, gender and division. Create doubles and mixed doubles pairs — the system validates gender rules automatically.</p>
+          <h3 data-i18n="step1_h">Register players &amp; teams</h3>
+          <p data-i18n="step1_p">Add all players with their name, age, gender and division. Create doubles and mixed doubles pairs — the system validates gender rules automatically.</p>
           <div class="screenshot-placeholder">
             <span class="placeholder-icon">🖼️</span>
             <strong>Screenshot: Players list &amp; add player form</strong>
@@ -514,8 +547,8 @@
       <div class="workflow-step">
         <div class="step-number">2</div>
         <div class="step-content">
-          <h3>Create a tournament</h3>
-          <p>Enter the tournament name, date, start time, number of available courts and the scoring model (e.g. best-of-3 sets). Optionally upload a logo.</p>
+          <h3 data-i18n="step2_h">Create a tournament</h3>
+          <p data-i18n="step2_p">Enter the tournament name, date, start time, number of available courts and the scoring model (e.g. best-of-3 sets). Optionally upload a logo.</p>
           <div class="screenshot-placeholder">
             <span class="placeholder-icon">🖼️</span>
             <strong>Screenshot: Create tournament form</strong>
@@ -527,8 +560,8 @@
       <div class="workflow-step">
         <div class="step-number">3</div>
         <div class="step-content">
-          <h3>Add divisions &amp; register participants</h3>
-          <p>Split the tournament into playable categories. Choose discipline (singles/doubles/mixed), tournament type, and register participants directly from the tournament page.</p>
+          <h3 data-i18n="step3_h">Add divisions &amp; register participants</h3>
+          <p data-i18n="step3_p">Split the tournament into playable categories. Choose discipline (singles/doubles/mixed), tournament type, and register participants directly from the tournament page.</p>
           <div class="screenshot-placeholder">
             <span class="placeholder-icon">🖼️</span>
             <strong>Screenshot: Tournament page with divisions</strong>
@@ -540,8 +573,8 @@
       <div class="workflow-step">
         <div class="step-number">4</div>
         <div class="step-content">
-          <h3>Generate match programmes</h3>
-          <p>With one click, the system generates the full match list for each division based on participants, format and seeding. Reset and regenerate at any time before locking.</p>
+          <h3 data-i18n="step4_h">Generate match programmes</h3>
+          <p data-i18n="step4_p">With one click, the system generates the full match list for each division based on participants, format and seeding. Reset and regenerate at any time before locking.</p>
           <div class="screenshot-placeholder">
             <span class="placeholder-icon">🖼️</span>
             <strong>Screenshot: Division with generated match programme</strong>
@@ -553,8 +586,8 @@
       <div class="workflow-step">
         <div class="step-number">5</div>
         <div class="step-content">
-          <h3>Build the time schedule</h3>
-          <p>Generate a court-and-time schedule for all matches across all divisions. Review it, make manual adjustments if needed, then lock the schedule to go live.</p>
+          <h3 data-i18n="step5_h">Build the time schedule</h3>
+          <p data-i18n="step5_p">Generate a court-and-time schedule for all matches across all divisions. Review it, make manual adjustments if needed, then lock the schedule to go live.</p>
           <div class="screenshot-placeholder">
             <span class="placeholder-icon">🖼️</span>
             <strong>Screenshot: Time schedule page</strong>
@@ -566,8 +599,8 @@
       <div class="workflow-step">
         <div class="step-number">6</div>
         <div class="step-content">
-          <h3>Run the tournament live</h3>
-          <p>Start matches, enter set scores, handle walkovers and watch standings and brackets update in real time. Use the big-screen view for hall display.</p>
+          <h3 data-i18n="step6_h">Run the tournament live</h3>
+          <p data-i18n="step6_p">Start matches, enter set scores, handle walkovers and watch standings and brackets update in real time. Use the big-screen view for hall display.</p>
           <div class="screenshot-placeholder">
             <span class="placeholder-icon">🖼️</span>
             <strong>Screenshot: Tournament run page</strong>
@@ -583,25 +616,25 @@
 <!-- ── Tournament formats ────────────────────────────────── -->
 <section id="formats">
   <div class="section-inner">
-    <div class="section-label">Tournament formats</div>
-    <h2 class="section-title">Three competition formats supported</h2>
-    <p class="section-subtitle">Choose the format that fits your division — or mix formats within the same tournament.</p>
+    <div class="section-label" data-i18n="formats_label">Tournament formats</div>
+    <h2 class="section-title" data-i18n="formats_title">Three competition formats supported</h2>
+    <p class="section-subtitle" data-i18n="formats_subtitle">Choose the format that fits your division — or mix formats within the same tournament.</p>
 
     <div class="types-grid">
       <div class="type-card">
         <span class="type-icon">🔄</span>
-        <h3>Round-robin</h3>
-        <p>Every participant plays everyone else in the group. Standings are calculated automatically from results.</p>
+        <h3 data-i18n="fmt1_h">Round-robin</h3>
+        <p data-i18n="fmt1_p">Every participant plays everyone else in the group. Standings are calculated automatically from results.</p>
       </div>
       <div class="type-card">
         <span class="type-icon">🏅</span>
-        <h3>Bracket</h3>
-        <p>Direct elimination with seeding. Seeded players are placed correctly in the bracket from the start.</p>
+        <h3 data-i18n="fmt2_h">Bracket</h3>
+        <p data-i18n="fmt2_p">Direct elimination with seeding. Seeded players are placed correctly in the bracket from the start.</p>
       </div>
       <div class="type-card">
         <span class="type-icon">🥇</span>
-        <h3>Playoff</h3>
-        <p>Group stage followed by a bracket. Top players from each group advance to knock-out rounds automatically.</p>
+        <h3 data-i18n="fmt3_h">Playoff</h3>
+        <p data-i18n="fmt3_p">Group stage followed by a bracket. Top players from each group advance to knock-out rounds automatically.</p>
       </div>
     </div>
   </div>
@@ -611,28 +644,28 @@
 <section style="background:#eef1f6; padding:3rem 2rem;">
   <div class="section-inner" style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;align-items:center;">
     <div>
-      <div class="section-label">Access &amp; security</div>
-      <h2 class="section-title" style="font-size:1.6rem;">Multi-user, per-club isolation</h2>
-      <p style="color:var(--slate-500);font-size:0.92rem;margin:0 0 1rem;">Each club logs in with their own account. Players, pairs and tournaments are tied to the user who created them — no cross-club data leakage. A public view lets spectators follow the tournament without logging in.</p>
+      <div class="section-label" data-i18n="access_label">Access &amp; security</div>
+      <h2 class="section-title" style="font-size:1.6rem;" data-i18n="access_title">Multi-user, per-club isolation</h2>
+      <p style="color:var(--slate-500);font-size:0.92rem;margin:0 0 1rem;" data-i18n="access_p">Each club logs in with their own account. Players, pairs and tournaments are tied to the user who created them — no cross-club data leakage. A public view lets spectators follow the tournament without logging in.</p>
       <ul style="color:var(--slate-500);font-size:0.88rem;padding-left:1.2rem;margin:0;line-height:2;">
-        <li>Per-user tournament and player ownership</li>
-        <li>Login required to create or edit data</li>
-        <li>Public read-only view for spectators</li>
+        <li data-i18n="access_li1">Per-user tournament and player ownership</li>
+        <li data-i18n="access_li2">Login required to create or edit data</li>
+        <li data-i18n="access_li3">Public read-only view for spectators</li>
       </ul>
     </div>
     <div style="display:flex;flex-direction:column;gap:0.8rem;">
       <div style="background:white;border:1px solid var(--slate-200);border-radius:12px;padding:1.1rem 1.3rem;display:flex;align-items:center;gap:0.9rem;box-shadow:0 2px 8px rgba(0,0,0,0.05);">
         <span style="font-size:1.4rem;">🔐</span>
         <div>
-          <div style="font-weight:700;font-size:0.88rem;color:var(--slate-900);">Tournament admin</div>
-          <div style="font-size:0.8rem;color:var(--slate-500);">Full access — create, edit, run</div>
+          <div style="font-weight:700;font-size:0.88rem;color:var(--slate-900);" data-i18n="role_admin">Tournament admin</div>
+          <div style="font-size:0.8rem;color:var(--slate-500);" data-i18n="role_admin_desc">Full access — create, edit, run</div>
         </div>
       </div>
       <div style="background:white;border:1px solid var(--slate-200);border-radius:12px;padding:1.1rem 1.3rem;display:flex;align-items:center;gap:0.9rem;box-shadow:0 2px 8px rgba(0,0,0,0.05);">
         <span style="font-size:1.4rem;">👁️</span>
         <div>
-          <div style="font-weight:700;font-size:0.88rem;color:var(--slate-900);">Public viewer</div>
-          <div style="font-size:0.8rem;color:var(--slate-500);">Read-only — schedule, results, standings</div>
+          <div style="font-weight:700;font-size:0.88rem;color:var(--slate-900);" data-i18n="role_viewer">Public viewer</div>
+          <div style="font-size:0.8rem;color:var(--slate-500);" data-i18n="role_viewer_desc">Read-only — schedule, results, standings</div>
         </div>
       </div>
     </div>
@@ -641,11 +674,11 @@
 
 <!-- ── CTA ───────────────────────────────────────────────── -->
 <div class="cta">
-  <h2>Ready to run your next tournament?</h2>
-  <p>Open source, self-hosted and free. Get started in minutes.</p>
+  <h2 data-i18n="cta_h">Ready to run your next tournament?</h2>
+  <p data-i18n="cta_p">Open source, self-hosted and free. Get started in minutes.</p>
   <div style="display:flex;gap:0.8rem;justify-content:center;flex-wrap:wrap;">
-    <a href="https://github.com/MFuglsang/badminton_tournament_planner" class="btn btn-light" target="_blank" rel="noopener">View on GitHub</a>
-    <a href="https://github.com/MFuglsang/badminton_tournament_planner/blob/main/docs/HOW_TO_RUN.md" class="btn btn-outline" target="_blank" rel="noopener">How to run</a>
+    <a href="https://github.com/MFuglsang/badminton_tournament_planner" class="btn btn-light" target="_blank" rel="noopener" data-i18n="cta_btn_github">View on GitHub</a>
+    <a href="https://github.com/MFuglsang/badminton_tournament_planner/blob/main/docs/HOW_TO_RUN.md" class="btn btn-outline" target="_blank" rel="noopener" data-i18n="cta_btn_how">How to run</a>
   </div>
 </div>
 
@@ -658,5 +691,178 @@
   </p>
 </footer>
 
+<script>
+  const translations = {
+    en: {
+      nav_features: 'Features',
+      nav_how: 'How it works',
+      nav_formats: 'Formats',
+      hero_h1: 'Run your <span>badminton tournament</span><br>from start to finish',
+      hero_p: 'Register players, build divisions, auto-generate schedules, track results live \u2014 all in one place.',
+      hero_btn_github: 'View on GitHub',
+      hero_btn_how: 'See how it works',
+      stat_formats: 'Tournament formats',
+      stat_divisions: 'Divisions per tournament',
+      stat_schedules: 'Auto-generated schedules',
+      stat_display: 'Big-screen hall display',
+      features_label: 'Features',
+      features_title: 'Everything you need on tournament day',
+      features_subtitle: 'From the first player registration to the final prize ceremony \u2014 no spreadsheets, no paper lists.',
+      feat1_h: 'Player &amp; team management',
+      feat1_p: 'Register players with age, gender and division. Create singles, doubles and mixed doubles pairs with automatic gender validation.',
+      feat2_h: 'Flexible tournament setup',
+      feat2_p: 'Create tournaments with date, start time, number of courts and scoring model. Upload a logo for printed documents.',
+      feat3_h: 'Division configuration',
+      feat3_p: 'Fully configurable divisions and categories \u2014 no hardcoded values. Set discipline, format and participant list per division.',
+      feat4_h: 'Seeding support',
+      feat4_p: 'Assign seed numbers to top players or pairs. Seeded participants are automatically placed correctly in brackets and groups.',
+      feat5_h: 'Auto-generated schedules',
+      feat5_p: 'Generate a full time-based schedule that distributes all matches across courts and time slots in seconds. Lock it when ready.',
+      feat6_h: 'Live result entry',
+      feat6_p: 'Enter set scores visually during the tournament. Automatic winner registration, bracket advancement and standings updates.',
+      feat7_h: 'Print-ready documents',
+      feat7_p: 'Match programmes, time schedules, score sheets and individual player schedules \u2014 formatted and ready to print.',
+      feat8_h: 'Big screen display',
+      feat8_p: 'Live view of current and upcoming matches for a hall display. Shows court, status and opponents at a glance.',
+      feat9_h: 'Backup &amp; restore',
+      feat9_p: 'Export any tournament as a JSON backup. Import it on another instance to restore all divisions, matches and results.',
+      workflow_label: 'How it works',
+      workflow_title: 'From setup to trophy in 6 steps',
+      workflow_subtitle: 'A practical walkthrough in the same order a tournament planner typically works.',
+      step1_h: 'Register players &amp; teams',
+      step1_p: 'Add all players with their name, age, gender and division. Create doubles and mixed doubles pairs \u2014 the system validates gender rules automatically.',
+      step2_h: 'Create a tournament',
+      step2_p: 'Enter the tournament name, date, start time, number of available courts and the scoring model (e.g. best-of-3 sets). Optionally upload a logo.',
+      step3_h: 'Add divisions &amp; register participants',
+      step3_p: 'Split the tournament into playable categories. Choose discipline (singles/doubles/mixed), tournament type, and register participants directly from the tournament page.',
+      step4_h: 'Generate match programmes',
+      step4_p: 'With one click, the system generates the full match list for each division based on participants, format and seeding. Reset and regenerate at any time before locking.',
+      step5_h: 'Build the time schedule',
+      step5_p: 'Generate a court-and-time schedule for all matches across all divisions. Review it, make manual adjustments if needed, then lock the schedule to go live.',
+      step6_h: 'Run the tournament live',
+      step6_p: 'Start matches, enter set scores, handle walkovers and watch standings and brackets update in real time. Use the big-screen view for hall display.',
+      formats_label: 'Tournament formats',
+      formats_title: 'Three competition formats supported',
+      formats_subtitle: 'Choose the format that fits your division \u2014 or mix formats within the same tournament.',
+      fmt1_h: 'Round-robin',
+      fmt1_p: 'Every participant plays everyone else in the group. Standings are calculated automatically from results.',
+      fmt2_h: 'Bracket',
+      fmt2_p: 'Direct elimination with seeding. Seeded players are placed correctly in the bracket from the start.',
+      fmt3_h: 'Playoff',
+      fmt3_p: 'Group stage followed by a bracket. Top players from each group advance to knock-out rounds automatically.',
+      access_label: 'Access &amp; security',
+      access_title: 'Multi-user, per-club isolation',
+      access_p: 'Each club logs in with their own account. Players, pairs and tournaments are tied to the user who created them \u2014 no cross-club data leakage. A public view lets spectators follow the tournament without logging in.',
+      access_li1: 'Per-user tournament and player ownership',
+      access_li2: 'Login required to create or edit data',
+      access_li3: 'Public read-only view for spectators',
+      role_admin: 'Tournament admin',
+      role_admin_desc: 'Full access \u2014 create, edit, run',
+      role_viewer: 'Public viewer',
+      role_viewer_desc: 'Read-only \u2014 schedule, results, standings',
+      cta_h: 'Ready to run your next tournament?',
+      cta_p: 'Open source, self-hosted and free. Get started in minutes.',
+      cta_btn_github: 'View on GitHub',
+      cta_btn_how: 'How to run',
+    },
+    da: {
+      nav_features: 'Funktioner',
+      nav_how: 'S\xe5dan fungerer det',
+      nav_formats: 'Formater',
+      hero_h1: 'Afvikl din <span>badmintonturneringen</span><br>fra start til slut',
+      hero_p: 'Registrer spillere, opret r\xe6kker, generer kampprogram automatisk og f\xf8lg resultater live \u2014 alt samlet \xe9t sted.',
+      hero_btn_github: 'Se p\xe5 GitHub',
+      hero_btn_how: 'S\xe5dan fungerer det',
+      stat_formats: 'Turneringsformater',
+      stat_divisions: 'R\xe6kker pr. turnering',
+      stat_schedules: 'Automatisk genererede kampplaner',
+      stat_display: 'Storsk\xe6rm i hallen',
+      features_label: 'Funktioner',
+      features_title: 'Alt hvad du beh\xf8ver p\xe5 turneringsdagen',
+      features_subtitle: 'Fra den f\xf8rste spillerregistrering til pr\xe6mieuddeling \u2014 uden regneark og papirlister.',
+      feat1_h: 'Spiller- og holdh\xe5ndtering',
+      feat1_p: 'Registrer spillere med alder, k\xf8n og r\xe6kke. Opret single-, double- og mixed double-par med automatisk k\xf8nsvalidering.',
+      feat2_h: 'Fleksibel turneringsops\xe6tning',
+      feat2_p: 'Opret turneringer med dato, starttidspunkt, antal baner og pointmodel. Upload et logo til trykte dokumenter.',
+      feat3_h: 'R\xe6kkekonfiguration',
+      feat3_p: 'Fuldt konfigurerbare r\xe6kker og kategorier \u2014 ingen hardcodede v\xe6rdier. S\xe6t disciplin, format og deltagerliste pr. r\xe6kke.',
+      feat4_h: 'Seedning',
+      feat4_p: 'Tildel seedningsnumre til topspillere eller -par. Seedede deltagere placeres automatisk korrekt i bracket og grupper.',
+      feat5_h: 'Automatisk genererede kampplaner',
+      feat5_p: 'Generer en komplet tidsbaseret kamplan, der fordeler alle kampe p\xe5 baner og tidspunkter p\xe5 sekunder. L\xe5s den n\xe5r du er klar.',
+      feat6_h: 'Live resultatindtastning',
+      feat6_p: 'Indt\xe6st s\xe6tscore visuelt under turneringen. Automatisk vinderre gistrering, bracket-avancement og opdatering af stilling.',
+      feat7_h: 'Udskriftsklare dokumenter',
+      feat7_p: 'Kampprogram, kamplan, scoreark og individuelle spillerplaner \u2014 formateret og klar til print.',
+      feat8_h: 'Storsk\xe6rmsvisning',
+      feat8_p: 'Live visning af aktuelle og kommende kampe til halsk\xe6rm. Viser bane, status og modstandere.',
+      feat9_h: 'Backup &amp; gendannelse',
+      feat9_p: 'Eksporter enhver turnering som JSON-backup. Importer den p\xe5 en anden instans og gendan alle r\xe6kker, kampe og resultater.',
+      workflow_label: 'S\xe5dan fungerer det',
+      workflow_title: 'Fra ops\xe6tning til pokal i 6 trin',
+      workflow_subtitle: 'En praktisk gennemgang i den r\xe6kkef\xf8lge, en turneringsarrang\xf8r typisk arbejder.',
+      step1_h: 'Registrer spillere &amp; hold',
+      step1_p: 'Tilf\xf8j alle spillere med navn, alder, k\xf8n og r\xe6kke. Opret double- og mixed double-par \u2014 systemet validerer k\xf8nsregler automatisk.',
+      step2_h: 'Opret en turnering',
+      step2_p: 'Indt\xe6st turneringens navn, dato, starttidspunkt, antal ledige baner og pointmodel (f.eks. bedst af 3 s\xe6t). Upload eventuelt et logo.',
+      step3_h: 'Tilf\xf8j r\xe6kker &amp; registrer deltagere',
+      step3_p: 'Opdel turneringen i spillbare kategorier. V\xe6lg disciplin (single/double/mixed), turneringstype og registrer deltagere direkte fra turneringssiden.',
+      step4_h: 'Generer kampprogrammer',
+      step4_p: 'Med \xe9t klik genererer systemet den fulde kampliste for hver r\xe6kke baseret p\xe5 deltagere, format og seedning. Nulstil og generer igen n\xe5r som helst f\xf8r l\xe5sning.',
+      step5_h: 'Byg kamplanen',
+      step5_p: 'Generer en bane-og-tid-plan for alle kampe p\xe5 tv\xe6rs af r\xe6kker. Gennemg\xe5 den, juster manuelt ved behov, og l\xe5s derefter planen.',
+      step6_h: 'K\xf8r turneringen live',
+      step6_p: 'Start kampe, indt\xe6st s\xe6tscore, h\xe5ndter walkovers og se stilling og bracket opdateres i realtid. Brug storsk\xe6rmsvisningen til hallen.',
+      formats_label: 'Turneringsformater',
+      formats_title: 'Tre konkurrenceformater underst\xf8ttet',
+      formats_subtitle: 'V\xe6lg det format der passer til din r\xe6kke \u2014 eller bland formater inden for samme turnering.',
+      fmt1_h: 'Alle-mod-alle',
+      fmt1_p: 'Alle deltagere spiller mod hinanden i gruppen. Stilling beregnes automatisk ud fra resultaterne.',
+      fmt2_h: 'Bracket',
+      fmt2_p: 'Direkte eliminering med seedning. Seedede spillere placeres korrekt i bracketen fra starten.',
+      fmt3_h: 'Playoff',
+      fmt3_p: 'Gruppespil efterfulgt af bracket. Topspillere fra hver gruppe avancerer automatisk til knockoutrunder.',
+      access_label: 'Adgang &amp; sikkerhed',
+      access_title: 'Flerbruger, isoleret pr. klub',
+      access_p: 'Hver klub logger ind med sin egen konto. Spillere, par og turneringer er knyttet til den bruger, der oprettede dem \u2014 ingen datal\xe6kage p\xe5 tv\xe6rs af klubber. En offentlig visning lader tilskuere f\xf8lge turneringen uden at logge ind.',
+      access_li1: 'Turneringer og spillere ejes pr. bruger',
+      access_li2: 'Login kr\xe6ves for at oprette eller redigere data',
+      access_li3: 'Offentlig skrivebeskyttet visning for tilskuere',
+      role_admin: 'Turneringsadmin',
+      role_admin_desc: 'Fuld adgang \u2014 opret, rediger, afvikl',
+      role_viewer: 'Offentlig tilskuer',
+      role_viewer_desc: 'Skrivebeskyttet \u2014 kamplan, resultater, stilling',
+      cta_h: 'Klar til at afvikle din n\xe6ste turnering?',
+      cta_p: 'Open source, selvh\xf8stet og gratis. Kom i gang p\xe5 f\xe5 minutter.',
+      cta_btn_github: 'Se p\xe5 GitHub',
+      cta_btn_how: 'S\xe5dan k\xf8rer du den',
+    }
+  };
+
+  function setLang(lang) {
+    if (!translations[lang]) return;
+    document.getElementById('html-root').lang = lang === 'da' ? 'da' : 'en';
+    document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+    document.getElementById('btn-da').classList.toggle('active', lang === 'da');
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if (translations[lang][key] !== undefined) {
+        el.innerHTML = translations[lang][key];
+      }
+    });
+    try { localStorage.setItem('lang', lang); } catch(e) {}
+    const url = new URL(window.location);
+    url.searchParams.set('lang', lang);
+    history.replaceState(null, '', url);
+  }
+
+  (function init() {
+    const params = new URLSearchParams(window.location.search);
+    const urlLang = params.get('lang');
+    const storedLang = (() => { try { return localStorage.getItem('lang'); } catch(e) { return null; } })();
+    const lang = (urlLang === 'da' || urlLang === 'en') ? urlLang : (storedLang || 'en');
+    setLang(lang);
+  })();
+</script>
 </body>
 </html>
