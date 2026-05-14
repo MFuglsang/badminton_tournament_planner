@@ -249,7 +249,7 @@
           {% if dd.match_count and dd.completed_count == dd.match_count %}<span class="pill pill-complete">✓ {% trans "Done" %}</span>{% endif %}
         </span>
         {% if division.gold_count or division.silver_count or division.bronze_count %}
-        <a href="{% url 'division_medals' division.pk %}" class="btn-medal" title="Medaljer for {{ division.name }}" onclick="event.stopPropagation();">🏅 Medaljer</a>
+        <a href="{% url 'division_medals' division.pk %}" class="btn-medal" title="{% blocktrans with name=division.name %}Medals for {{ name }}{% endblocktrans %}" onclick="event.stopPropagation();">🏅 {% trans "Medals" %}</a>
         {% endif %}
       </div>
 

@@ -3,6 +3,8 @@
 __pycache__/
 # Ignore all __pycache__ directories recursively
 **/__pycache__/
+*.py[cod]
+*$py.class
 db.sqlite3
 .env
 staticfiles/

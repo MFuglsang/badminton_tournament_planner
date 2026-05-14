@@ -1,8 +1,8 @@
-<!DOCTYPE html>
-<html lang="da">
+{% load i18n %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE|default:'en' }}">
 <head>
 <meta charset="UTF-8">
-<title>Baneskilte – {{ tournament.name }}</title>
+<title>{% trans "Court signs" %} – {{ tournament.name }}</title>
 <style>
   /* ── Screen header ── */
   body {
@@ -164,9 +164,9 @@
 
 <!-- Screen header -->
 <div class="screen-header">
-  <h1>🏸 Baneskilte – {{ tournament.name }}</h1>
-  <button class="btn btn-primary" onclick="window.print()">🖨️ Udskriv</button>
-  <a href="{% url 'tournament_detail' tournament.pk %}" class="btn btn-secondary">← Tilbage</a>
+  <h1>🏸 {% trans "Court signs" %} – {{ tournament.name }}</h1>
+  <button class="btn btn-primary" onclick="window.print()">🖨️ {% trans "Print" %}</button>
+  <a href="{% url 'tournament_detail' tournament.pk %}" class="btn btn-secondary">← {% trans "Back" %}</a>
 </div>
 
 <div class="signs-container">
@@ -177,7 +177,7 @@
     {% endif %}
     <div class="sign-tournament-name">{{ tournament.name }}</div>
     <div class="sign-divider"></div>
-    <div class="sign-label">Bane</div>
+    <div class="sign-label">{% trans "Court" %}</div>
     <div class="sign-number">{{ court }}</div>
   </div>
   {% endfor %}

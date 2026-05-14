@@ -1,6 +1,7 @@
+{% load i18n %}
 {# Include with: status=<'playing'|'resting'|None>  rest_until_ts=<unix_int|None> #}
 {% if status == 'playing' %}
-<span title="Kamp i gang" style="margin-left:0.25rem;">🏸</span>
+<span title="{% trans 'Match in progress' %}" style="margin-left:0.25rem;">🏸</span>
 {% elif status == 'resting' %}
-<span class="status-badge-rest" title="Hvileperiode" style="margin-left:0.25rem; font-size:0.75rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ rest_until_ts }}"></span></span>
+<span class="status-badge-rest" title="{% trans 'Rest period' %}" style="margin-left:0.25rem; font-size:0.75rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ rest_until_ts }}"></span></span>
 {% endif %}

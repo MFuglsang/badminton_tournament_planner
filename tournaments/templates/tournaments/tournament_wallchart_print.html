@@ -221,10 +221,10 @@
 <body>
 
 <div class="screen-header">
-  <h1>Resultattavle – {{ tournament.name }}</h1>
-  <button class="btn btn-primary" onclick="window.print()">🖨 Udskriv / Gem PDF</button>
-  <button class="btn btn-secondary" id="toggle-times-btn" onclick="toggleTimes()">⏰ Skjul tidspunkter</button>
-  <a href="{% url 'tournament_detail' tournament.pk %}" class="btn btn-secondary">← Turnering</a>
+  <h1>{% trans "Result chart" %} – {{ tournament.name }}</h1>
+  <button class="btn btn-primary" onclick="window.print()">🖨 {% trans "Print / Save PDF" %}</button>
+  <button class="btn btn-secondary" id="toggle-times-btn" onclick="toggleTimes()">⏰ {% trans "Hide times" %}</button>
+  <a href="{% url 'tournament_detail' tournament.pk %}" class="btn btn-secondary">← {% trans "Tournament" %}</a>
 </div>
 
 <div class="tourn-header">
@@ -234,10 +234,10 @@
   <div>
     <h2>{{ tournament.name }}</h2>
     <p>
-      <strong>Dato:</strong> {{ tournament.date }}
-      &nbsp;·&nbsp; <strong>Scoring:</strong> {{ tournament.get_scoring_model_display }}
-      &nbsp;·&nbsp; <strong>Baner:</strong> {{ tournament.court_count }}
-      {% if tournament.start_time %}&nbsp;·&nbsp; <strong>Start:</strong> {{ tournament.start_time|time:"H:i" }}{% endif %}
+      <strong>{% trans "Date" %}:</strong> {{ tournament.date }}
+      &nbsp;·&nbsp; <strong>{% trans "Scoring" %}:</strong> {{ tournament.get_scoring_model_display }}
+      &nbsp;·&nbsp; <strong>{% trans "Courts" %}:</strong> {{ tournament.court_count }}
+      {% if tournament.start_time %}&nbsp;·&nbsp; <strong>{% trans "Start" %}:</strong> {{ tournament.start_time|time:"H:i" }}{% endif %}
     </p>
   </div>
 </div>

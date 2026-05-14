@@ -1,18 +1,19 @@
 {% extends 'base_viewer.html' %}
+{% load i18n %}
 {% load tournament_extras %}
-{% block title %}Spilleplan – {{ tournament.name }}{% endblock %}
+{% block title %}{% trans "Time schedule" %} – {{ tournament.name }}{% endblock %}
 {% block content %}
 
 <div class="page-actions">
-    <h1>Spilleplan – {{ tournament.name }}</h1>
+    <h1>{% trans "Time schedule" %} – {{ tournament.name }}</h1>
     <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
-        <a href="{% url 'public_tournament' tournament.pk %}" class="btn btn-secondary">← Kampoversigt</a>
+        <a href="{% url 'public_tournament' tournament.pk %}" class="btn btn-secondary">← {% trans "Match overview" %}</a>
     </div>
 </div>
 
 {% if not tournament.start_time %}
 <div class="flash flash-warning">
-    Turneringen har endnu ingen spilleplan.
+    {% trans "The tournament does not have a time schedule yet." %}
 </div>
 {% endif %}
 
