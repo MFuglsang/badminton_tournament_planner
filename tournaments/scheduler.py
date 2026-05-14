@@ -7,6 +7,8 @@ Scheduling logic for generating match schedules based on tournament type.
 import itertools
 import math
 
+from django.utils.translation import gettext_lazy as _
+
 
 def _sort_teams_by_seed(division, teams):
     """
@@ -100,15 +102,29 @@ def _seeding_order(n_slots):
 
 
 def get_round_label(round_num, total_rounds):
-    """Return a Danish label for the given bracket round."""
+    """Return a translated label for the given bracket round."""
     from_end = total_rounds - round_num + 1
-    labels = {1: 'Finale', 2: 'Semifinale', 3: 'Kvartfinale', 4: 'Ottendedelsfinale'}
-    return labels.get(from_end, f'Runde {round_num}')
+    labels = {
+        1: _('Final'),
+        2: _('Semifinal'),
+        3: _('Quarterfinal'),
+        4: _('Round of 16'),
+    }
+    if from_end in labels:
+        return labels[from_end]
+    return _('Round %(n)s') % {'n': round_num}
 
 
 def _bracket_placeholder_label(round_num, total_rounds, n_slots, slot_num):
-    """Human-readable label for a not-yet-determined bracket match."""
-    name = get_round_label(round_num, total_rounds)
+    """Human-readable label for a not-yet-determined bracket match.
+
+    Stored in DB; rendered as-is in templates. Forced to English so the
+    stored label matches the source language used in the .po file (existing
+    Danish labels in legacy data continue to render unchanged).
+    """
+    from django.utils.translation import override
+    with override('en'):
+        name = str(get_round_label(round_num, total_rounds))
     return name if n_slots == 1 else f'{name} {slot_num}'
 
 

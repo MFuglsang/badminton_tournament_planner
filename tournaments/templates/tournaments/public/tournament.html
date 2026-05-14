@@ -1,4 +1,5 @@
 {% extends 'base_viewer.html' %}
+{% load i18n %}
 {% load tournament_extras %}
 {% block title %}{{ tournament.name }}{% endblock %}
 
@@ -6,16 +7,16 @@
 <div class="page-actions">
     <h1>{{ tournament.name }}</h1>
     <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
-        <a href="{% url 'public_schedule' tournament.pk %}" class="btn btn-primary">📅 Spilleplan</a>
+        <a href="{% url 'public_schedule' tournament.pk %}" class="btn btn-primary">📅 {% trans "Time schedule" %}</a>
     </div>
 </div>
 <p style="color:#64748b; font-size:0.85rem; margin: -0.75rem 0 1.5rem; display:flex; flex-wrap:wrap; gap:0.4rem 1.25rem;">
-    <span><strong>Dato:</strong> {{ tournament.date }}</span>
-    <span><strong>Scoring:</strong> {{ tournament.get_scoring_model_display }}</span>
-    <span><strong>Baner:</strong> {{ tournament.court_count }}</span>
-    <span><strong>Start:</strong> {{ tournament.start_time|time:"H:i"|default:"–" }}</span>
+    <span><strong>{% trans "Date" %}:</strong> {{ tournament.date }}</span>
+    <span><strong>{% trans "Scoring" %}:</strong> {{ tournament.get_scoring_model_display }}</span>
+    <span><strong>{% trans "Courts" %}:</strong> {{ tournament.court_count }}</span>
+    <span><strong>{% trans "Start" %}:</strong> {{ tournament.start_time|time:"H:i"|default:"–" }}</span>
     {% if tournament.schedule_locked %}
-    <span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fbbf24; padding:0.25rem 0.65rem;">🔒 Program låst</span>
+    <span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fbbf24; padding:0.25rem 0.65rem;">🔒 {% trans "Programme locked" %}</span>
     {% endif %}
 </p>
 
@@ -29,17 +30,17 @@
             <span class="badge badge-in-progress" style="font-size:0.67rem;">{{ division.get_tournament_type_display }}</span>
         </span>
         <span style="font-size:0.8rem; color:#94a3b8; margin-left:0.75rem; font-weight:400;">
-            {{ division.teams.count }} deltager{{ division.teams.count|pluralize:"e" }}
+            {% blocktrans count counter=division.teams.count %}{{ counter }} participant{% plural %}{{ counter }} participants{% endblocktrans %}
         </span>
     </summary>
     <div class="division-body">
 
 {# ── Stilling: normale grupper ─── #}
 {% if standings %}
-<h3>Stilling</h3>
+<h3>{% trans "Standings" %}</h3>
 <div class="pub-table-wrap"><table style="max-width:600px;">
     <thead>
-        <tr><th>#</th><th>{% if division.discipline == 'single' %}Spiller{% else %}Par{% endif %}</th><th>Kampe</th><th>Vundet</th><th>Tabt</th><th>Point</th></tr>
+        <tr><th>#</th><th>{% if division.discipline == 'single' %}{% trans "Player" %}{% else %}{% trans "Pair" %}{% endif %}</th><th>{% trans "Matches" %}</th><th>{% trans "Won" %}</th><th>{% trans "Lost" %}</th><th>{% trans "Points" %}</th></tr>
     </thead>
     <tbody>
         {% for row in standings %}
@@ -52,7 +53,7 @@
             </td>
             <td>
                 <strong>{{ row.team.name }}</strong>{{ seeds_dict|dict_get:row.team.pk }}
-                {% if row.status == 'playing' %} <span title="Spiller i gang">🏸</span>
+                {% if row.status == 'playing' %} <span title="{% trans 'Player on court' %}">🏸</span>
                 {% elif row.status == 'resting' %} <span class="status-badge-rest" style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ row.rest_until|unix_ts }}"></span></span>
                 {% endif %}
             </td>
@@ -68,13 +69,13 @@
 
 {# ── Stilling: playoff – per gruppe ─── #}
 {% if dd.group_standings %}
-<h3>Gruppestillinger</h3>
+<h3>{% trans "Group standings" %}</h3>
 {% for g_num, g_rows in dd.group_standings %}
 <div style="margin-bottom:1rem; overflow-x:auto; -webkit-overflow-scrolling:touch;">
-    <div style="font-weight:700; font-size:0.9rem; color:#16692c; margin-bottom:0.35rem;">Gruppe {{ g_num }}</div>
+    <div style="font-weight:700; font-size:0.9rem; color:#16692c; margin-bottom:0.35rem;">{% blocktrans with n=g_num %}Group {{ n }}{% endblocktrans %}</div>
     <table style="max-width:600px;">
         <thead>
-            <tr><th>#</th><th>{% if division.discipline == 'single' %}Spiller{% else %}Par{% endif %}</th><th>Kampe</th><th>Vundet</th><th>Tabt</th><th>Point</th></tr>
+            <tr><th>#</th><th>{% if division.discipline == 'single' %}{% trans "Player" %}{% else %}{% trans "Pair" %}{% endif %}</th><th>{% trans "Matches" %}</th><th>{% trans "Won" %}</th><th>{% trans "Lost" %}</th><th>{% trans "Points" %}</th></tr>
         </thead>
         <tbody>
             {% for row in g_rows %}
@@ -84,11 +85,11 @@
                     {% elif forloop.counter == 2 %}<span class="rank-2">🥈</span>
                     {% elif forloop.counter == 3 %}<span class="rank-3">🥉</span>
                     {% else %}{{ forloop.counter }}{% endif %}
-                    {% if forloop.counter <= division.advance_count %}<span style="font-size:0.7rem; color:#16a34a; margin-left:0.3rem;">↑ videre</span>{% endif %}
+                    {% if forloop.counter <= division.advance_count %}<span style="font-size:0.7rem; color:#16a34a; margin-left:0.3rem;">↑ {% trans "advances" %}</span>{% endif %}
                 </td>
                 <td>
                     <strong>{{ row.team.name }}</strong>{{ seeds_dict|dict_get:row.team.pk }}
-                    {% if row.status == 'playing' %} <span title="Spiller i gang">🏸</span>
+                    {% if row.status == 'playing' %} <span title="{% trans 'Player on court' %}">🏸</span>
                     {% elif row.status == 'resting' %} <span class="status-badge-rest" style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ row.rest_until|unix_ts }}"></span></span>
                     {% endif %}
                 </td>
@@ -106,7 +107,7 @@
 
 {# ── Bracket ─── #}
 {% if dd.bracket_data %}
-<h3>{% if division.tournament_type == 'playoff' %}Slutspil{% else %}Turneringsdiagram{% endif %}</h3>
+<h3>{% if division.tournament_type == 'playoff' %}{% trans "Playoff" %}{% else %}{% trans "Tournament bracket" %}{% endif %}</h3>
 <div class="bracket-container">
   {% for round in dd.bracket_data.rounds %}
   <div class="bracket-round{% if round.is_last %} bracket-round-last{% endif %}">
@@ -128,14 +129,14 @@
             {{ slot.match.team2.name }}{{ slot.match.t2_seed }}
           </div>
           {% elif slot.match.status == 'completed' %}
-          <div class="bracket-team bye">Fri</div>
+          <div class="bracket-team bye">{% trans "Bye" %}</div>
           {% else %}
           <div class="bracket-team bye">TBD</div>
           {% endif %}
         {% endif %}
       </div>
       {% else %}
-      <div class="bracket-card"><div class="bracket-tbd">Afventer…</div></div>
+      <div class="bracket-card"><div class="bracket-tbd">{% trans "Awaiting…" %}</div></div>
       {% endif %}
     </div>
     {% endfor %}
@@ -146,13 +147,13 @@
 
 {# ── Kampprogram ─── #}
 {% if dd.matches %}
-<h3>Kampprogram</h3>
+<h3>{% trans "Match programme" %}</h3>
 <div class="pub-table-wrap">
 <table>
     <thead>
         <tr>
-            {% if division.tournament_type == 'playoff' %}<th>Fase</th>{% endif %}
-            <th>Runde</th><th>#</th><th>Hold 1</th><th>Hold 2</th><th>Resultat</th><th>Vinder</th><th>Status</th>
+            {% if division.tournament_type == 'playoff' %}<th>{% trans "Phase" %}</th>{% endif %}
+            <th>{% trans "Round" %}</th><th>#</th><th>{% trans "Team 1" %}</th><th>{% trans "Team 2" %}</th><th>{% trans "Score" %}</th><th>{% trans "Winner" %}</th><th>{% trans "Status" %}</th>
         </tr>
     </thead>
     <tbody>
@@ -161,7 +162,7 @@
         <tr>
             {% if division.tournament_type == 'playoff' %}
             <td style="font-size:0.8rem; color:{% if match.phase == 'playoff' %}#7c3aed{% else %}#16692c{% endif %}; font-weight:600;">
-                {% if match.phase == 'playoff' %}Slutspil{% else %}G{{ match.group_number }}{% endif %}
+                {% if match.phase == 'playoff' %}{% trans "Playoff" %}{% else %}{% blocktrans with n=match.group_number %}G{{ n }}{% endblocktrans %}{% endif %}
             </td>
             {% endif %}
             <td>{{ match.match_round }}</td>
@@ -181,9 +182,9 @@
             <td>{{ match.score|default:"–" }}</td>
             <td>{% if match.winner %}{{ match.winner.name }}{% if match.walkover %} <span class="badge badge-walkover">WO</span>{% endif %}{% else %}–{% endif %}</td>
             <td>
-                {% if match.status == 'completed' %}<span class="badge badge-completed">Afsluttet</span>
-                {% elif match.status == 'in_progress' %}<span class="badge badge-in-progress">I gang</span>
-                {% else %}<span class="badge badge-pending">Venter</span>{% endif %}
+                {% if match.status == 'completed' %}<span class="badge badge-completed">{% trans "Completed" %}</span>
+                {% elif match.status == 'in_progress' %}<span class="badge badge-in-progress">{% trans "In progress" %}</span>
+                {% else %}<span class="badge badge-pending">{% trans "Pending" %}</span>{% endif %}
             </td>
         </tr>
         {% endif %}
@@ -199,6 +200,6 @@
 {% endfor %}
 
 {% if not division_data %}
-<div class="flash flash-warning" style="margin-top:1rem;">Denne turnering har endnu ingen divisioner.</div>
+<div class="flash flash-warning" style="margin-top:1rem;">{% trans "This tournament has no divisions yet." %}</div>
 {% endif %}
 {% endblock %}
