@@ -609,9 +609,7 @@
           <h3 data-i18n="step3_h">Add divisions &amp; register participants</h3>
           <p data-i18n="step3_p">Split the tournament into playable categories. Choose discipline (singles/doubles/mixed), tournament type, and register participants directly from the tournament page.</p>
           <div class="screenshot-placeholder">
-            <span class="placeholder-icon">🖼️</span>
-            <strong>Screenshot: Tournament page with divisions</strong>
-            <span>Place your screenshot at <code>screenshots/03-add-divisions.png</code></span>
+            <img src="img/Create_division.png" alt="Tournament page with divisions" loading="lazy">
           </div>
         </div>
       </div>
@@ -736,6 +734,12 @@
     Built with Django &amp; SQLite.
   </p>
 </footer>
+
+<!-- ── Lightbox overlay ──────────────────────────────────── -->
+<div id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="Screenshot preview">
+  <button type="button" class="lightbox-close" aria-label="Close">&times;</button>
+  <img src="" alt="">
+</div>
 
 <script>
   const translations = {
@@ -936,11 +940,5 @@
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && lb.classList.contains('open')) close(); });
   })();
 </script>
-
-<!-- ── Lightbox overlay ──────────────────────────────────── -->
-<div id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="Screenshot preview">
-  <button type="button" class="lightbox-close" aria-label="Close">&times;</button>
-  <img src="" alt="">
-</div>
 </body>
 </html>
