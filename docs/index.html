@@ -336,6 +336,8 @@
     }
     .lightbox.open { display: flex; }
     .lightbox img {
+      width: 100%;
+      height: 100%;
       max-width: 100%;
       max-height: 100%;
       object-fit: contain;
@@ -596,9 +598,7 @@
           <h3 data-i18n="step2_h">Create a tournament</h3>
           <p data-i18n="step2_p">Enter the tournament name, date, start time, number of available courts and the scoring model (e.g. best-of-3 sets). Optionally upload a logo.</p>
           <div class="screenshot-placeholder">
-            <span class="placeholder-icon">🖼️</span>
-            <strong>Screenshot: Create tournament form</strong>
-            <span>Place your screenshot at <code>screenshots/02-create-tournament.png</code></span>
+            <img src="img/create_tournament.png" alt="Create tournament form" loading="lazy">
           </div>
         </div>
       </div>
