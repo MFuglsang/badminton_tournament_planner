@@ -232,8 +232,8 @@ class BracketDataTest(TestCase):
         self.assertIsNotNone(data)
         self.assertEqual(data['total_rounds'], 2)
         self.assertEqual(len(data['rounds']), 2)
-        self.assertEqual(data['rounds'][0]['label'], 'Semifinale')
-        self.assertEqual(data['rounds'][1]['label'], 'Finale')
+        self.assertEqual(str(data['rounds'][0]['label']), 'Semifinal')
+        self.assertEqual(str(data['rounds'][1]['label']), 'Final')
 
 
 class GenerateScheduleRouterTest(TestCase):
