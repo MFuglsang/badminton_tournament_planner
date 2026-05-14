@@ -313,7 +313,54 @@
       height: 100%;
       object-fit: cover;
       border-radius: 10px;
+      cursor: zoom-in;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
+    .screenshot-placeholder img:hover {
+      transform: scale(1.02);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+    }
+
+    /* ── Lightbox ────────────────────────────────────────── */
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.88);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 2rem;
+      cursor: zoom-out;
+      animation: lb-fade 0.15s ease-out;
+    }
+    .lightbox.open { display: flex; }
+    .lightbox img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 6px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    }
+    .lightbox-close {
+      position: absolute;
+      top: 1rem;
+      right: 1.25rem;
+      background: rgba(255,255,255,0.1);
+      border: none;
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      font-size: 1.4rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    .lightbox-close:hover { background: rgba(255,255,255,0.2); }
+    @keyframes lb-fade { from { opacity: 0; } to { opacity: 1; } }
 
     /* ── Stats strip ─────────────────────────────────────────── */
     .stats {
@@ -537,10 +584,9 @@
           <h3 data-i18n="step1_h">Register players &amp; teams</h3>
           <p data-i18n="step1_p">Add all players with their name, age, gender and division. Create doubles and mixed doubles pairs — the system validates gender rules automatically.</p>
           <div class="screenshot-placeholder">
-            <span class="placeholder-icon">🖼️</span>
-            <strong>Screenshot: Players list &amp; add player form</strong>
-            <span>Place your screenshot at <code>screenshots/01-players-and-teams.png</code></span>
+            <img src="img/player_overview.png" alt="Players list &amp; add player form" loading="lazy">
           </div>
+          
         </div>
       </div>
 
@@ -863,6 +909,38 @@
     const lang = (urlLang === 'da' || urlLang === 'en') ? urlLang : (storedLang || 'en');
     setLang(lang);
   })();
+
+  /* ── Lightbox for screenshots ───────────────────────────── */
+  (function initLightbox() {
+    const lb = document.getElementById('lightbox');
+    const lbImg = lb.querySelector('img');
+    const lbClose = lb.querySelector('.lightbox-close');
+
+    function open(src, alt) {
+      lbImg.src = src;
+      lbImg.alt = alt || '';
+      lb.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+    function close() {
+      lb.classList.remove('open');
+      lbImg.src = '';
+      document.body.style.overflow = '';
+    }
+
+    document.querySelectorAll('.screenshot-placeholder img').forEach(img => {
+      img.addEventListener('click', () => open(img.src, img.alt));
+    });
+    lb.addEventListener('click', e => { if (e.target === lb) close(); });
+    lbClose.addEventListener('click', close);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && lb.classList.contains('open')) close(); });
+  })();
 </script>
+
+<!-- ── Lightbox overlay ──────────────────────────────────── -->
+<div id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="Screenshot preview">
+  <button type="button" class="lightbox-close" aria-label="Close">&times;</button>
+  <img src="" alt="">
+</div>
 </body>
 </html>
