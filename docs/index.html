@@ -488,6 +488,149 @@
     .type-card h3 { font-size: 1rem; font-weight: 700; color: var(--green-900); margin: 0 0 0.4rem; }
     .type-card p { font-size: 0.85rem; color: var(--slate-500); margin: 0; }
 
+    /* ── Hosting / pricing ──────────────────────────────────── */
+    .hosting { background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%); }
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+      align-items: stretch;
+    }
+    .price-card {
+      background: white;
+      border: 1.5px solid var(--slate-200);
+      border-radius: 14px;
+      padding: 1.75rem 1.6rem 1.6rem;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 16px rgba(0,0,0,0.04);
+      transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
+    }
+    .price-card:hover {
+      box-shadow: 0 8px 28px rgba(22,105,44,0.14);
+      transform: translateY(-3px);
+      border-color: #a7d7b4;
+    }
+    .price-card.featured {
+      border-color: var(--green-700);
+      border-width: 2px;
+      box-shadow: 0 6px 24px rgba(22,105,44,0.18);
+    }
+    .price-badge {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--green-700);
+      color: white;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 0.3rem 0.8rem;
+      border-radius: 999px;
+      box-shadow: 0 2px 8px rgba(22,105,44,0.3);
+    }
+    .price-tier {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--green-900);
+      margin: 0 0 0.2rem;
+    }
+    .price-range {
+      font-size: 0.82rem;
+      color: var(--slate-500);
+      margin: 0 0 1.25rem;
+    }
+    .price-amount-row {
+      display: flex;
+      align-items: baseline;
+      gap: 0.35rem;
+      margin-bottom: 0.2rem;
+    }
+    .price-prefix {
+      font-size: 0.78rem;
+      color: var(--slate-500);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .price-amount {
+      font-size: 2.4rem;
+      font-weight: 800;
+      color: var(--green-700);
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+    .price-currency { font-size: 1.2rem; font-weight: 700; color: var(--green-700); }
+    .price-unit {
+      font-size: 0.8rem;
+      color: var(--slate-500);
+      margin-bottom: 1.1rem;
+    }
+    .price-features {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 0.5rem;
+      flex: 1;
+    }
+    .price-features li {
+      font-size: 0.88rem;
+      color: var(--slate-700);
+      padding: 0.35rem 0 0.35rem 1.4rem;
+      position: relative;
+    }
+    .price-features li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      top: 0.35rem;
+      color: var(--green-600);
+      font-weight: 800;
+    }
+    .contact-banner {
+      margin-top: 2rem;
+      background: white;
+      border: 1px solid var(--slate-200);
+      border-radius: 14px;
+      padding: 1.5rem 1.75rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+    }
+    .contact-banner h3 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--slate-900);
+    }
+    .contact-banner p {
+      margin: 0.25rem 0 0;
+      font-size: 0.85rem;
+      color: var(--slate-500);
+    }
+    .btn-contact {
+      background: var(--green-700);
+      color: white;
+      border-color: var(--green-700);
+    }
+    .btn-contact:hover { background: var(--green-900); color: white; border-color: var(--green-900); }
+
+    /* Currency toggle: show DKK on da, EUR on en */
+    body.lang-en .price-dkk { display: none; }
+    body.lang-da .price-eur { display: none; }
+
+    /* Nav highlight for Hosting */
+    nav a.nav-highlight {
+      background: rgba(110, 231, 160, 0.18);
+      color: white;
+    }
+    nav a.nav-highlight:hover { background: rgba(110, 231, 160, 0.32); }
+
     /* ── CTA ─────────────────────────────────────────────────── */
     .cta {
       background: var(--green-900);
@@ -527,6 +670,11 @@
       align-items: center;
     }
 
+    @media (max-width: 860px) {
+      .pricing-grid { grid-template-columns: 1fr; }
+      .contact-banner { flex-direction: column; align-items: flex-start; text-align: left; }
+    }
+
     @media (max-width: 640px) {
       header { padding: 0 1rem; }
       nav { display: none; }
@@ -549,6 +697,7 @@
     Badminton Tournament Planner
   </div>
   <nav>
+    <a href="#hosting" class="nav-highlight" data-i18n="nav_hosting">Ready-to-use</a>
     <a href="#features" data-i18n="nav_features">Features</a>
     <a href="#workflow" data-i18n="nav_how">How it works</a>
     <a href="#formats" data-i18n="nav_formats">Formats</a>
@@ -594,6 +743,79 @@
     </div>
   </div>
 </div>
+
+<!-- ── Hosting / pricing ────────────────────────────────── -->
+<section id="hosting" class="hosting">
+  <div class="section-inner">
+    <div class="section-label" data-i18n="hosting_label">Ready-to-use</div>
+    <h2 class="section-title" data-i18n="hosting_title">Let us run your tournament for you</h2>
+    <p class="section-subtitle" data-i18n="hosting_subtitle">No installation, no servers, no technical setup — we provide a ready-to-use tournament site for your event. Pay once per tournament, based on the number of players.</p>
+
+    <div class="pricing-grid">
+
+      <div class="price-card">
+        <h3 class="price-tier" data-i18n="tier_small_h">Small</h3>
+        <div class="price-range" data-i18n="tier_small_range">Up to 30 players</div>
+        <div class="price-amount-row">
+          <span class="price-prefix" data-i18n="price_from">From</span>
+          <span class="price-eur"><span class="price-currency">€</span><span class="price-amount">39</span></span>
+          <span class="price-dkk"><span class="price-amount">299</span><span class="price-currency"> kr.</span></span>
+        </div>
+        <div class="price-unit" data-i18n="price_unit">per tournament</div>
+        <ul class="price-features">
+          <li data-i18n="tier_inc1">We host it for you</li>
+          <li data-i18n="tier_inc2">Dedicated tournament URL</li>
+          <li data-i18n="tier_inc3">Daily backup</li>
+          <li data-i18n="tier_inc4">Email support</li>
+        </ul>
+      </div>
+
+      <div class="price-card featured">
+        <span class="price-badge" data-i18n="tier_medium_badge">Most popular</span>
+        <h3 class="price-tier" data-i18n="tier_medium_h">Medium</h3>
+        <div class="price-range" data-i18n="tier_medium_range">30–80 players</div>
+        <div class="price-amount-row">
+          <span class="price-prefix" data-i18n="price_from">From</span>
+          <span class="price-eur"><span class="price-currency">€</span><span class="price-amount">79</span></span>
+          <span class="price-dkk"><span class="price-amount">599</span><span class="price-currency"> kr.</span></span>
+        </div>
+        <div class="price-unit" data-i18n="price_unit">per tournament</div>
+        <ul class="price-features">
+          <li data-i18n="tier_inc1">We host it for you</li>
+          <li data-i18n="tier_inc2">Dedicated tournament URL</li>
+          <li data-i18n="tier_inc3">Daily backup</li>
+          <li data-i18n="tier_inc4">Email support</li>
+        </ul>
+      </div>
+
+      <div class="price-card">
+        <h3 class="price-tier" data-i18n="tier_large_h">Large</h3>
+        <div class="price-range" data-i18n="tier_large_range">80+ players</div>
+        <div class="price-amount-row">
+          <span class="price-prefix" data-i18n="price_from">From</span>
+          <span class="price-eur"><span class="price-currency">€</span><span class="price-amount">129</span></span>
+          <span class="price-dkk"><span class="price-amount">999</span><span class="price-currency"> kr.</span></span>
+        </div>
+        <div class="price-unit" data-i18n="price_unit">per tournament</div>
+        <ul class="price-features">
+          <li data-i18n="tier_inc1">We host it for you</li>
+          <li data-i18n="tier_inc2">Dedicated tournament URL</li>
+          <li data-i18n="tier_inc3">Daily backup</li>
+          <li data-i18n="tier_inc4">Email support</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <div class="contact-banner">
+      <div>
+        <h3 data-i18n="hosting_contact_h">Want a quote or to discuss your tournament?</h3>
+        <p data-i18n="hosting_contact_p">Drop us a line and we'll get back to you with a tailored offer.</p>
+      </div>
+      <a href="mailto:kontakt@btp.dk?subject=Tournament%20hosting%20enquiry" class="btn btn-contact" data-i18n="hosting_contact_btn">✉ Email kontakt@btp.dk</a>
+    </div>
+  </div>
+</section>
 
 <!-- ── Features ─────────────────────────────────────────── -->
 <section id="features">
@@ -857,9 +1079,29 @@
 <script>
   const translations = {
     en: {
+      nav_hosting: 'Ready-to-use',
       nav_features: 'Features',
       nav_how: 'How it works',
       nav_formats: 'Formats',
+      hosting_label: 'Ready-to-use',
+      hosting_title: 'Let us run your tournament for you',
+      hosting_subtitle: 'No installation, no servers, no technical setup — we provide a ready-to-use tournament site for your event. Pay once per tournament, based on the number of players.',
+      price_from: 'From',
+      price_unit: 'per tournament',
+      tier_small_h: 'Small',
+      tier_small_range: 'Up to 30 players',
+      tier_medium_h: 'Medium',
+      tier_medium_range: '30–80 players',
+      tier_medium_badge: 'Most popular',
+      tier_large_h: 'Large',
+      tier_large_range: '80+ players',
+      tier_inc1: 'We host it for you',
+      tier_inc2: 'Dedicated tournament URL',
+      tier_inc3: 'Daily backup',
+      tier_inc4: 'Email support',
+      hosting_contact_h: 'Want a quote or to discuss your tournament?',
+      hosting_contact_p: 'Drop us a line and we\'ll get back to you with a tailored offer.',
+      hosting_contact_btn: '✉ Email kontakt@btp.dk',
       hero_h1: 'Run your <span>badminton tournament</span><br>from start to finish',
       hero_p: 'Register players, build divisions, auto-generate schedules, track results live \u2014 all in one place.',
       hero_btn_github: 'View on GitHub',
@@ -934,9 +1176,29 @@
       gallery_subtitle: 'Browse through every step — from creating players to running the tournament on the big screen.',
     },
     da: {
+      nav_hosting: 'Klar-til-brug',
       nav_features: 'Funktioner',
       nav_how: 'S\xe5dan fungerer det',
       nav_formats: 'Formater',
+      hosting_label: 'Klar-til-brug',
+      hosting_title: 'Lad os k\xf8re din turnering for dig',
+      hosting_subtitle: 'Ingen installation, ingen server, ingen teknisk ops\xe6tning \u2014 vi stiller et klar-til-brug turneringssite til r\xe5dighed til dit st\xe6vne. Betal \xe9n gang pr. turnering, ud fra antal spillere.',
+      price_from: 'Fra',
+      price_unit: 'pr. turnering',
+      tier_small_h: 'Small',
+      tier_small_range: 'Op til 30 spillere',
+      tier_medium_h: 'Medium',
+      tier_medium_range: '30\u201380 spillere',
+      tier_medium_badge: 'Mest populær',
+      tier_large_h: 'Large',
+      tier_large_range: '80+ spillere',
+      tier_inc1: 'Vi hoster det for dig',
+      tier_inc2: 'Egen turnerings-URL',
+      tier_inc3: 'Daglig backup',
+      tier_inc4: 'E-mail support',
+      hosting_contact_h: 'Vil du have et tilbud eller en snak om afviklingen?',
+      hosting_contact_p: 'Skriv til os, s\xe5 vender vi tilbage med et skr\xe6ddersyet tilbud.',
+      hosting_contact_btn: '\u2709 Skriv til kontakt@btp.dk',
       hero_h1: 'Afvikling af din <span>badmintonturnering</span><br>fra start til slut',
       hero_p: 'Registrer spillere, opret r\xe6kker, generer kampprogram automatisk og f\xf8lg resultater live \u2014 alt samlet \xe9t sted.',
       hero_btn_github: 'Se p\xe5 GitHub',
@@ -1015,6 +1277,8 @@
   function setLang(lang) {
     if (!translations[lang]) return;
     document.getElementById('html-root').lang = lang === 'da' ? 'da' : 'en';
+    document.body.classList.remove('lang-en', 'lang-da');
+    document.body.classList.add('lang-' + lang);
     document.getElementById('btn-en').classList.toggle('active', lang === 'en');
     document.getElementById('btn-da').classList.toggle('active', lang === 'da');
     document.querySelectorAll('[data-i18n]').forEach(el => {

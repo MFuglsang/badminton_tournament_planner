@@ -1,1 +1,38 @@
 .env
+
+# Python
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtualenvs
+.venv/
+venv/
+
+# Local DB
+db.sqlite3
+
+# Django
+staticfiles/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Django app source (this branch is GitHub Pages only)
+matches/
+players/
+tournaments/
+tournament_planner/
+locale/
+media/
+nginx/
+Dockerfile
+docker-compose.yml
+.dockerignore
+manage.py
+requirements.txt
+pytest.ini
