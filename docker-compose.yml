@@ -54,6 +54,31 @@ services:
     networks:
       - internal
 
+  # ─── Daily backup of database + media to ./backups/ on the host ──────────────
+  # Optional off-site sync: set S3_BUCKET (and AWS_* / S3_ENDPOINT) in .env
+  # to additionally upload each archive to an S3-compatible bucket.
+  backup:
+    build: ./backup
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      TZ: ${TZ:-Europe/Copenhagen}
+      BACKUP_HOUR: ${BACKUP_HOUR:-2}
+      BACKUP_RETENTION_DAILY: ${BACKUP_RETENTION_DAILY:-14}
+      BACKUP_RETENTION_MONTHLY: ${BACKUP_RETENTION_MONTHLY:-12}
+      BACKUP_ON_START: ${BACKUP_ON_START:-0}
+    volumes:
+      - media_data:/media:ro
+      - ${BACKUP_DIR:-./backups}:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - internal
+
 volumes:
   postgres_data:
   media_data:

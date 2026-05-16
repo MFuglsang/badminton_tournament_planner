@@ -103,6 +103,82 @@ named Docker volumes so data survives container restarts.
 
 ---
 
+## Backups & restore
+
+A dedicated `backup` service runs alongside the application and produces a
+full snapshot every night at **02:00** server local time:
+
+- `db-YYYYMMDD-HHMMSS.dump.gz` — `pg_dump --format=custom`, gzipped
+- `media-YYYYMMDD-HHMMSS.tar.gz` — uploaded media files
+- `YYYYMMDD-HHMMSS.sha256` — integrity sidecar
+
+Archives land in **`./backups/`** on the host (a bind-mount). Retention:
+last 14 daily snapshots + first snapshot of each of the last 12 months.
+
+### Configure (in `.env`)
+
+```ini
+# Required (already set for the app)
+POSTGRES_DB=badminton
+POSTGRES_USER=badminton
+POSTGRES_PASSWORD=...
+
+# Optional — defaults shown
+BACKUP_DIR=./backups          # host directory for archives
+BACKUP_HOUR=2                  # 0-23, when to run daily
+BACKUP_RETENTION_DAILY=14
+BACKUP_RETENTION_MONTHLY=12
+BACKUP_ON_START=0              # set 1 to run a backup immediately when container starts
+TZ=Europe/Copenhagen
+
+# Optional off-site sync — leave empty to disable
+S3_BUCKET=                     # e.g. my-btp-backups
+S3_PREFIX=btp                  # path prefix inside the bucket
+S3_ENDPOINT=                   # e.g. https://s3.eu-central-003.backblazeb2.com (omit for AWS)
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_DEFAULT_REGION=eu-central-1
+```
+
+### Run
+
+```bash
+docker compose up -d backup
+docker compose logs -f backup           # tail backup output
+docker compose exec backup /usr/local/bin/backup.sh   # trigger one immediately
+```
+
+### Restore (manual)
+
+```bash
+# Restore database only
+docker compose run --rm backup \
+    /usr/local/bin/restore.sh /backups/db-20260516-020000.dump.gz
+
+# Restore database AND media
+docker compose run --rm backup \
+    /usr/local/bin/restore.sh \
+        /backups/db-20260516-020000.dump.gz \
+        /backups/media-20260516-020000.tar.gz
+```
+
+The restore script asks for `YES` confirmation before dropping anything.
+
+### Off-site copy
+
+When `S3_BUCKET` is set, every produced archive is also uploaded to the
+bucket with `aws s3 cp`. Use bucket lifecycle rules for off-site retention
+(local prune does not touch the remote). Works with any S3-compatible
+provider — AWS, Backblaze B2, Cloudflare R2, Hetzner Object Storage etc.
+
+### Restore drill (recommended quarterly)
+
+1. Spin up a throwaway Postgres + this backup service pointing at it
+2. Run `restore.sh` against the latest dump
+3. Run `python manage.py check` and verify tournament/player counts
+
+---
+
 ## Notes
 - For local development, set `DEBUG=True` in your shell or `.env` before running `runserver`.
 - For production, set `SECRET_KEY`, `ALLOWED_HOSTS`, and all `POSTGRES_*` variables via the `.env` file (see Docker section above).
