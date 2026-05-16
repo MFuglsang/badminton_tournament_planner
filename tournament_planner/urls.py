@@ -24,6 +24,14 @@ from django.contrib.auth.decorators import login_required
 from tournaments.models import Tournament
 from tournaments.public_views import public_landing, public_tournament, public_schedule
 import datetime
+import os
+
+# Move the admin off the well-known /admin/ path to reduce brute-force noise.
+# Configure via ADMIN_URL env var (must end in '/' and NOT start with '/'),
+# e.g. ADMIN_URL=staff-7x2/.
+_admin_url = os.environ.get('ADMIN_URL', 'admin/').lstrip('/')
+if not _admin_url.endswith('/'):
+    _admin_url += '/'
 
 @login_required
 def home(request):
@@ -45,7 +53,7 @@ urlpatterns = [
     path('dashboard/', home, name='admin_home'),
     path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
-    path('admin/', admin.site.urls),
+    path(_admin_url, admin.site.urls),
     path('players/', include('players.urls')),
     path('tournaments/', include('tournaments.urls')),
     # ── Public / anonymous viewer ──────────────────────────────────────────

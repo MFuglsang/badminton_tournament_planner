@@ -253,8 +253,12 @@ def tournament_export(request, pk):
 @login_required
 def tournament_import(request):
     """Upload a JSON backup and recreate the tournament under the current user."""
-    from players.models import Player, Team as PlayerTeam
-    from django.utils.dateparse import parse_datetime, parse_time, parse_date
+    from django.db import transaction
+
+    # Hard cap on uploaded JSON payload (defence-in-depth alongside nginx's
+    # client_max_body_size). Prevents a malicious or accidental huge file
+    # from being decoded into memory.
+    MAX_IMPORT_BYTES = 5 * 1024 * 1024  # 5 MB
 
     if request.method != 'POST':
         return render(request, 'tournaments/tournament_import.html')
@@ -264,6 +268,14 @@ def tournament_import(request):
         messages.error(request, _("No file selected."))
         return render(request, 'tournaments/tournament_import.html')
 
+    if upload.size > MAX_IMPORT_BYTES:
+        messages.error(
+            request,
+            _("The backup file is too large (max %(mb)d MB).")
+            % {'mb': MAX_IMPORT_BYTES // (1024 * 1024)},
+        )
+        return render(request, 'tournaments/tournament_import.html')
+
     try:
         raw = upload.read().decode('utf-8-sig')  # handles BOM if present
         data = json.loads(raw)
@@ -271,9 +283,31 @@ def tournament_import(request):
         messages.error(request, _("The file could not be read as JSON."))
         return render(request, 'tournaments/tournament_import.html')
 
-    if data.get('version') != 1:
+    if not isinstance(data, dict) or data.get('version') != 1:
         messages.error(request, _("Unknown backup format (version missing or incorrect)."))
         return render(request, 'tournaments/tournament_import.html')
+
+    if not isinstance(data.get('tournament'), dict):
+        messages.error(request, _("Unknown backup format (version missing or incorrect)."))
+        return render(request, 'tournaments/tournament_import.html')
+
+    # Wrap the entire import in a single transaction so a malformed entry
+    # halfway through doesn't leave orphan rows in the database.
+    try:
+        with transaction.atomic():
+            return _do_tournament_import(request, data)
+    except Exception as exc:
+        messages.error(
+            request,
+            _("Import failed and was rolled back: %(err)s") % {'err': str(exc)[:200]},
+        )
+        return render(request, 'tournaments/tournament_import.html')
+
+
+def _do_tournament_import(request, data):
+    """Inner import logic — must run inside an atomic transaction."""
+    from players.models import Player, Team as PlayerTeam
+    from django.utils.dateparse import parse_datetime, parse_time, parse_date
 
     td = data['tournament']
     tournament = Tournament.objects.create(
