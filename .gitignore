@@ -8,3 +8,5 @@ __pycache__/
 db.sqlite3
 .env
 staticfiles/
+# Backup archives produced by the `backup` service
+/backups/
