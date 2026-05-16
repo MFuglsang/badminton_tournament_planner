@@ -1,8 +1,12 @@
-django
-pillow
-pytest
-pytest-django
-coverage
-ortools
-gunicorn
-psycopg2-binary
+# Pinned to compatible releases (~=) to allow patch/security updates
+# but block breaking major-version bumps. Refresh with `pip-audit` regularly.
+Django~=6.0.5
+pillow~=12.1.1
+pytest~=8.3
+pytest-django~=4.9
+coverage~=7.6
+ortools~=9.11
+gunicorn~=23.0
+psycopg2-binary~=2.9.10
+django-axes~=7.0
+django-csp~=4.0

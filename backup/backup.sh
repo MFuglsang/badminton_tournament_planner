@@ -40,7 +40,34 @@ SHA_FILE="$BACKUP_DIR/${TS}.sha256"
 
 log() { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*"; }
 
+# Encrypt a file with `age` if BACKUP_AGE_RECIPIENTS is set, replacing the
+# original with FILE.age. Prints the new path to stdout. If encryption is
+# disabled the original path is returned unchanged.
+encrypt_if_configured() {
+    local path="$1"
+    if [ -z "${BACKUP_AGE_RECIPIENTS:-}" ] || [ -z "$path" ]; then
+        printf '%s' "$path"
+        return 0
+    fi
+    local enc="${path}.age"
+    # shellcheck disable=SC2086  # word-splitting on recipients is intentional
+    local recipient_args=()
+    for r in $BACKUP_AGE_RECIPIENTS; do
+        recipient_args+=("-r" "$r")
+    done
+    if age "${recipient_args[@]}" -o "$enc" "$path"; then
+        rm -f "$path"
+        printf '%s' "$enc"
+    else
+        log "  WARNING: age encryption failed for $path — keeping plain file"
+        printf '%s' "$path"
+    fi
+}
+
 log "Starting backup ${TS}"
+if [ -n "${BACKUP_AGE_RECIPIENTS:-}" ]; then
+    log "Encryption enabled (age recipients: $(echo "$BACKUP_AGE_RECIPIENTS" | wc -w))"
+fi
 
 # ── Database dump ────────────────────────────────────────────────────────────
 export PGPASSWORD="$POSTGRES_PASSWORD"
@@ -57,12 +84,14 @@ pg_dump \
   | gzip -9 > "$DB_FILE"
 unset PGPASSWORD
 log "  -> $(ls -lh "$DB_FILE" | awk '{print $5, $9}')"
+DB_FILE=$(encrypt_if_configured "$DB_FILE")
 
 # ── Media archive ────────────────────────────────────────────────────────────
 if [ -d "$MEDIA_DIR" ] && [ -n "$(ls -A "$MEDIA_DIR" 2>/dev/null || true)" ]; then
     log "Archiving media tree ${MEDIA_DIR}"
     tar czf "$MEDIA_FILE" -C "$MEDIA_DIR" .
     log "  -> $(ls -lh "$MEDIA_FILE" | awk '{print $5, $9}')"
+    MEDIA_FILE=$(encrypt_if_configured "$MEDIA_FILE")
 else
     log "Media directory empty or missing — skipping media archive"
     MEDIA_FILE=""
@@ -140,7 +169,9 @@ prune_pattern() {
 
 log "Pruning old archives (daily=${RETENTION_DAILY}, monthly=${RETENTION_MONTHLY})"
 prune_pattern "db-*.dump.gz"
+prune_pattern "db-*.dump.gz.age"
 prune_pattern "media-*.tar.gz"
+prune_pattern "media-*.tar.gz.age"
 prune_pattern "*.sha256"
 
 # ── Mark success ─────────────────────────────────────────────────────────────

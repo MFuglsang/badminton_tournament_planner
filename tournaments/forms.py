@@ -51,6 +51,11 @@ def _validate_set(a, b):
 class TournamentForm(forms.ModelForm):
     """Form used to create and edit tournaments."""
 
+    # Hard limit on uploaded logo size (bytes). nginx already caps the request
+    # body at 20 MB; this is a stricter app-level limit specifically for logos.
+    MAX_LOGO_BYTES = 2 * 1024 * 1024  # 2 MB
+    ALLOWED_LOGO_FORMATS = {'PNG', 'JPEG', 'GIF', 'WEBP'}
+
     class Meta:
         model = Tournament
         fields = [
@@ -63,6 +68,57 @@ class TournamentForm(forms.ModelForm):
             'date': forms.DateInput(attrs={'type': 'date'}),
             'start_time': forms.TimeInput(attrs={'type': 'time'}),
         }
+
+    def clean_logo(self):
+        """Validate that the uploaded logo is a real raster image of allowed type.
+
+        Rejects SVG and other non-raster formats (SVG can contain
+        ``<script>`` tags and would be served from the same origin under
+        ``/media/`` — a stored-XSS risk). Also enforces a 2 MB size cap.
+        """
+        logo = self.cleaned_data.get('logo')
+        if not logo:
+            return logo
+
+        # ``logo`` may be the existing FieldFile when the form is bound but
+        # no new file was uploaded — in that case there is nothing to validate.
+        if not hasattr(logo, 'file') or not getattr(logo, 'name', None):
+            return logo
+        # An existing stored image has no ``size`` change to validate again.
+        is_new_upload = hasattr(logo, 'content_type') or getattr(logo, '_committed', True) is False
+        if not is_new_upload:
+            return logo
+
+        if logo.size > self.MAX_LOGO_BYTES:
+            raise forms.ValidationError(
+                _("The logo file is too large (max %(mb)d MB).")
+                % {'mb': self.MAX_LOGO_BYTES // (1024 * 1024)}
+            )
+
+        # Verify the file really is a supported raster image by parsing it
+        # with Pillow. ``verify()`` reads the header without decoding pixels.
+        try:
+            from PIL import Image, UnidentifiedImageError
+            logo.seek(0)
+            with Image.open(logo) as img:
+                img.verify()
+                fmt = (img.format or '').upper()
+        except (UnidentifiedImageError, Exception) as exc:  # noqa: BLE001
+            raise forms.ValidationError(
+                _("The logo could not be read as a valid image.")
+            ) from exc
+        finally:
+            try:
+                logo.seek(0)
+            except Exception:
+                pass
+
+        if fmt not in self.ALLOWED_LOGO_FORMATS:
+            raise forms.ValidationError(
+                _("Unsupported image format '%(fmt)s'. Allowed: PNG, JPEG, GIF, WEBP.")
+                % {'fmt': fmt or '?'}
+            )
+        return logo
 
 
 class DivisionForm(forms.ModelForm):

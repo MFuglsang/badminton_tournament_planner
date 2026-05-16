@@ -11,4 +11,6 @@ echo "Starting gunicorn..."
 exec gunicorn tournament_planner.wsgi:application \
     --bind 0.0.0.0:8000 \
     --workers 2 \
-    --timeout 120
+    --timeout 120 \
+    --access-logfile - \
+    --forwarded-allow-ips="*"

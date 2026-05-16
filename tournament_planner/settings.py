@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 import os
+import sys
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -20,13 +21,31 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-i+!@ij+8en3ngnzc#8zmax1self7p2k^(&sg(y&@@nv&r$q-*f')
-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
+# SECURITY WARNING: keep the secret key used in production secret!
+# In DEBUG mode we fall back to an insecure key so local `runserver` works
+# out of the box. In production (DEBUG=False) the variable MUST be set.
+_secret_key_env = os.environ.get('SECRET_KEY')
+if _secret_key_env:
+    SECRET_KEY = _secret_key_env
+elif DEBUG:
+    SECRET_KEY = 'django-insecure-i+!@ij+8en3ngnzc#8zmax1self7p2k^(&sg(y&@@nv&r$q-*f'
+else:
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured(
+        'SECRET_KEY environment variable must be set when DEBUG is False.'
+    )
+
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost').split(',')
+
+# Comma-separated list of fully-qualified origins (https://example.com)
+# that are allowed to submit cross-origin POST requests with CSRF tokens.
+# Required by Django when serving via HTTPS behind a reverse proxy.
+CSRF_TRUSTED_ORIGINS = [
+    o.strip() for o in os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()
+]
 
 
 # Application definition
@@ -38,6 +57,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'axes',
+    'csp',
     'players',
     'tournaments',
     'matches',
@@ -52,7 +73,19 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'csp.middleware.CSPMiddleware',
     'tournaments.middleware.SetLanguageCookieMiddleware',
+    # django-axes must be the LAST middleware so it can observe the
+    # final response/login outcome from all preceding middleware.
+    'axes.middleware.AxesMiddleware',
+]
+
+# ── Authentication backends ───────────────────────────────────────────────────
+# AxesStandaloneBackend must be FIRST so failed-login attempts are recorded
+# even when the credentials are invalid for ModelBackend.
+AUTHENTICATION_BACKENDS = [
+    'axes.backends.AxesStandaloneBackend',
+    'django.contrib.auth.backends.ModelBackend',
 ]
 
 ROOT_URLCONF = 'tournament_planner.urls'
@@ -113,6 +146,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {'min_length': 12},
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
@@ -157,3 +191,120 @@ MEDIA_ROOT = BASE_DIR / 'media'
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/tournaments/'
 LOGOUT_REDIRECT_URL = '/login/'
+
+# ── django-axes (brute-force protection) ──────────────────────────────────────
+# Lock out an account/IP after N failed login attempts within COOLOFF window.
+AXES_FAILURE_LIMIT = 5
+AXES_COOLOFF_TIME = 1  # hours
+AXES_LOCKOUT_PARAMETERS = ['ip_address', 'username']
+AXES_RESET_ON_SUCCESS = True
+# We sit behind nginx, so use X-Forwarded-For (set by nginx.conf).
+AXES_IPWARE_PROXY_COUNT = 1
+AXES_IPWARE_META_PRECEDENCE_ORDER = ['HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR']
+
+# ── Content-Security-Policy (django-csp v4 dict format) ───────────────────────
+# Starts in REPORT-ONLY mode by default — browsers will log violations to the
+# console but not block anything. After verifying the site renders cleanly,
+# flip BTP_CSP_REPORT_ONLY=False to enforce.
+# (The env var is intentionally NOT named CSP_REPORT_ONLY: that name belongs
+#  to django-csp 3.x and triggers a deprecation error in v4 if both are set.)
+_csp_report_only = os.environ.get('BTP_CSP_REPORT_ONLY', 'True') == 'True'
+_csp_directives = {
+    'default-src': ["'self'"],
+    'script-src': ["'self'"],
+    # Many Django admin / form widgets rely on inline styles.
+    'style-src': ["'self'", "'unsafe-inline'"],
+    'img-src': ["'self'", 'data:'],
+    'font-src': ["'self'", 'data:'],
+    'connect-src': ["'self'"],
+    'frame-ancestors': ["'none'"],
+    'base-uri': ["'self'"],
+    'form-action': ["'self'"],
+    'object-src': ["'none'"],
+}
+if _csp_report_only:
+    CONTENT_SECURITY_POLICY_REPORT_ONLY = {'DIRECTIVES': _csp_directives}
+else:
+    CONTENT_SECURITY_POLICY = {'DIRECTIVES': _csp_directives}
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+# Separate "btp.auth" logger captures login successes / failures / logouts.
+# Output goes to stdout so `docker compose logs web` shows them and tools like
+# fail2ban / Loki / a SIEM can ingest them.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'plain': {
+            'format': '[{asctime}] {levelname} {name}: {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'plain',
+        },
+    },
+    'loggers': {
+        'btp.auth': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'axes': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'django.security': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+    },
+}
+
+# ── Security hardening ────────────────────────────────────────────────────────
+# These tighten cookies, enable HSTS and click-jacking/MIME-sniff protection.
+# They are gated on DEBUG so local development over http://localhost still works.
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = 'same-origin'
+X_FRAME_OPTIONS = 'DENY'
+# Session ends when the browser closes, and after 8h of inactivity at the latest.
+SESSION_COOKIE_AGE = 60 * 60 * 8
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+if not DEBUG:
+    # Skip the http→https redirect when the test runner is active — the
+    # Django test client always uses plain `http://testserver/` and would
+    # otherwise receive a 301 to https for every request.
+    _is_testing = (
+        'pytest' in sys.argv[0] or 'py.test' in sys.argv[0]
+        or 'test' in sys.argv[1:2]
+        or os.environ.get('DJANGO_TESTING') == '1'
+    )
+
+    # HTTPS hardening is OPT-IN via ENABLE_HTTPS_HARDENING=True in the env.
+    # Enabling these without a working TLS setup will break the site:
+    #   - SECURE_SSL_REDIRECT → browsers get 301'd to https that doesn't answer
+    #   - SESSION_COOKIE_SECURE / CSRF_COOKIE_SECURE → cookies not sent over http,
+    #     so login appears to "succeed" then immediately log you back out.
+    # Turn this on AFTER nginx is configured with a TLS certificate.
+    _enable_https = (
+        not _is_testing
+        and os.environ.get('ENABLE_HTTPS_HARDENING', 'False') == 'True'
+    )
+
+    if _enable_https:
+        # We sit behind an nginx reverse proxy that terminates TLS and sets
+        # X-Forwarded-Proto. Trust that header so Django knows the request is HTTPS.
+        SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+        SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'True') == 'True'
+        SESSION_COOKIE_SECURE = True
+        CSRF_COOKIE_SECURE = True
+        # HSTS: tell browsers to only use HTTPS for this domain for 1 year.
+        # Set HSTS_SECONDS=0 in the env to disable temporarily during cert work.
+        SECURE_HSTS_SECONDS = int(os.environ.get('SECURE_HSTS_SECONDS', '31536000'))
+        SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+        SECURE_HSTS_PRELOAD = True
