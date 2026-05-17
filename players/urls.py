@@ -4,8 +4,11 @@ from . import views
 urlpatterns = [
     path('', views.player_list, name='player_list'),
     path('add/', views.player_add, name='player_add'),
+    path('template/download/', views.player_template_download, name='player_template_download'),
+    path('upload/', views.player_upload, name='player_upload'),
     path('<int:pk>/edit/', views.player_edit, name='player_edit'),
     path('<int:pk>/delete/', views.player_delete, name='player_delete'),
+    path('bulk-delete/', views.player_bulk_delete, name='player_bulk_delete'),
     path('<int:pk>/schedule/', views.player_schedule_print, name='player_schedule_print'),
     path('<int:pk>/clear-rest/', views.player_clear_rest, name='player_clear_rest'),
     path('teams/', views.team_list, name='team_list'),

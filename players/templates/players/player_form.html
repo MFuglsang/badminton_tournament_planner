@@ -4,6 +4,12 @@
 {% block content %}
 <div style="max-width:560px;">
     <h1>{% if form.instance.pk %}{% blocktrans with name=player.name %}Edit {{ name }}{% endblocktrans %}{% else %}{% trans "Add player" %}{% endif %}</h1>
+    {% if not form.instance.pk %}
+    <p style="margin-bottom:1rem; font-size:0.9rem; color:#475569;">
+        {% trans "Want to add multiple players at once?" %}
+        <a href="{% url 'player_template_download' %}" class="btn btn-secondary btn-sm" style="margin-left:0.5rem;">⬇ {% trans "Download Excel template" %}</a>
+    </p>
+    {% endif %}
     <div class="card">
         <form method="post">
             {% csrf_token %}

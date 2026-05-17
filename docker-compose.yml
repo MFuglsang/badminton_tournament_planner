@@ -38,7 +38,7 @@ services:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://127.0.0.1:8000/login/', timeout=3); sys.exit(0)\" || exit 1"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://localhost:8000/login/', timeout=3); sys.exit(0)\" || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -49,14 +49,21 @@ services:
   nginx:
     image: nginx:alpine
     restart: unless-stopped
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        export NGINX_RESOLVER=$$(awk '/^nameserver/{print $$2;exit}' /etc/resolv.conf)
+        exec /docker-entrypoint.sh nginx -g 'daemon off;'
     ports:
       - "80:80"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/nginx.conf:/etc/nginx/templates/default.conf.template:ro
       - static_data:/static:ro
       - media_data:/media:ro
     depends_on:
-      - web
+      web:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1/ >/dev/null || exit 1"]
       interval: 30s

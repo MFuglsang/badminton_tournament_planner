@@ -2,7 +2,10 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
+from django.http import FileResponse, Http404
 from django.utils.translation import gettext as _
+from pathlib import Path
+import openpyxl
 from .models import Player, Team, DivisionCategory, DEFAULT_DIVISION_CATEGORIES
 from .forms import PlayerForm, TeamForm
 from tournaments.player_status import get_busy_info, player_status as _player_status
@@ -72,15 +75,114 @@ def player_list(request):
     })
 
 @login_required
+def player_template_download(request):
+    path = Path(__file__).parent / 'excel' / 'players.xlsx'
+    if not path.is_file():
+        raise Http404
+    return FileResponse(
+        open(path, 'rb'),
+        as_attachment=True,
+        filename='players.xlsx',
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+
+# Maps values a user might write in the gender column to the model's M/K codes.
+# Danish: M = mand, K = kvinde
+# English: M = male, F = female
+_GENDER_MAP = {'m': 'M', 'k': 'K', 'f': 'K'}
+
+@login_required
+def player_upload(request):
+    if request.method != 'POST':
+        return redirect('player_list')
+
+    uploaded = request.FILES.get('excel_file')
+    if not uploaded:
+        messages.error(request, _("No file selected."))
+        return redirect('player_list')
+
+    if not uploaded.name.lower().endswith('.xlsx'):
+        messages.error(request, _("Please upload an Excel file (.xlsx)."))
+        return redirect('player_list')
+
+    try:
+        wb = openpyxl.load_workbook(uploaded, read_only=True, data_only=True)
+        ws = wb.active
+    except Exception:
+        messages.error(request, _("Could not read the file. Please upload a valid Excel file (.xlsx)."))
+        return redirect('player_list')
+
+    valid_divisions = set(
+        DivisionCategory.objects.filter(owner=request.user).values_list('name', flat=True)
+    )
+
+    rows = iter(ws.rows)
+    # Use header row to find column positions by name (case-insensitive)
+    raw_headers = next(rows, [])
+    headers = [str(c.value).strip().lower() if c.value is not None else '' for c in raw_headers]
+
+    created = 0
+    no_division = 0
+    skipped = 0
+
+    for row in rows:
+        vals = {headers[i]: (cell.value if cell.value is not None else '') for i, cell in enumerate(row) if i < len(headers)}
+
+        name = str(vals.get('name', '')).strip()
+        if not name:
+            continue
+
+        # Age: integer or None
+        try:
+            age = int(vals.get('age') or 0) or None
+        except (ValueError, TypeError):
+            age = None
+
+        # Gender: map to M/K, skip row if unrecognised
+        raw_gender = str(vals.get('gender', '')).strip()
+        gender = _GENDER_MAP.get(raw_gender.lower())
+        if not gender:
+            skipped += 1
+            continue
+
+        # Division: exact match required; unmatched values are dropped silently
+        # (the user can assign division per-player afterwards)
+        raw_division = str(vals.get('division', '')).strip()
+        if raw_division in valid_divisions:
+            division = raw_division
+        else:
+            division = ''
+            if raw_division:
+                no_division += 1
+
+        Player.objects.create(
+            name=name,
+            age=age,
+            gender=gender,
+            division=division,
+            owner=request.user,
+        )
+        created += 1
+
+    wb.close()
+
+    parts = []
+    if created:
+        parts.append(_("%(n)s player(s) added.") % {'n': created})
+    if no_division:
+        parts.append(_("%(n)s player(s) had an unrecognised division and were added without one.") % {'n': no_division})
+    if skipped:
+        parts.append(_("%(n)s row(s) skipped — missing or unrecognised gender value (use M/K or M/F).") % {'n': skipped})
+
+    if created:
+        messages.success(request, " ".join(parts))
+    else:
+        messages.warning(request, " ".join(parts) if parts else _("No players were added."))
+
+    return redirect('player_list')
+
+@login_required
 def player_add(request):
-    """Create a new player for the logged-in user.
-
-    Args:
-        request: Django HTTP request.
-
-    Returns:
-        HttpResponse: Player form page or redirect response.
-    """
     if request.method == 'POST':
         form = PlayerForm(request.POST, owner=request.user)
         if form.is_valid():
@@ -115,24 +217,70 @@ def player_edit(request, pk):
         form = PlayerForm(instance=player, owner=request.user)
     return render(request, 'players/player_form.html', {'form': form, 'player': player})
 
+def _player_blocked_by_tournament(player):
+    """Return True if any of the player's teams are registered in a tournament
+    (either in a division or have matches), which means the player cannot be deleted."""
+    for team in list(player.team_player1.all()) + list(player.team_player2.all()):
+        if team.divisions.exists():
+            return True
+        if team.team1_matches.exists() or team.team2_matches.exists():
+            return True
+    return False
+
+def _delete_player(player):
+    """Delete a player and any teams where they appear as player2 (not cascade-deleted)."""
+    player.team_player2.all().delete()
+    player.delete()  # team_player1 teams are cascade-deleted automatically
+
 @login_required
 def player_delete(request, pk):
-    """Delete a player after confirmation.
-
-    Args:
-        request: Django HTTP request.
-        pk: Primary key of the player to delete.
-
-    Returns:
-        HttpResponse: Confirmation page or redirect response.
-    """
     player = get_object_or_404(Player, pk=pk, owner=request.user)
+    if _player_blocked_by_tournament(player):
+        messages.error(request, _("\"%(name)s\" cannot be deleted because they are registered in a tournament.") % {'name': player.name})
+        return redirect('player_list')
     if request.method == 'POST':
         name = player.name
-        player.delete()
+        _delete_player(player)
         messages.success(request, _("Player \"%(name)s\" has been deleted.") % {'name': name})
         return redirect('player_list')
     return render(request, 'players/player_confirm_delete.html', {'object': player, 'type': 'spiller'})
+
+@login_required
+def player_bulk_delete(request):
+    if request.method != 'POST':
+        return redirect('player_list')
+    ids = request.POST.getlist('player_ids')
+    if not ids:
+        messages.warning(request, _("No players selected."))
+        return redirect('player_list')
+
+    players = Player.objects.filter(pk__in=ids, owner=request.user)
+    deleted = 0
+    blocked_names = []
+    for player in players:
+        if _player_blocked_by_tournament(player):
+            blocked_names.append(player.name)
+        else:
+            _delete_player(player)
+            deleted += 1
+
+    parts = []
+    if deleted:
+        parts.append(_("%(n)s player(s) deleted.") % {'n': deleted})
+    if blocked_names:
+        parts.append(
+            _("%(n)s player(s) could not be deleted because they are registered in a tournament: %(names)s.")
+            % {'n': len(blocked_names), 'names': ', '.join(blocked_names)}
+        )
+
+    if blocked_names and not deleted:
+        messages.error(request, " ".join(parts))
+    elif blocked_names:
+        messages.warning(request, " ".join(parts))
+    else:
+        messages.success(request, " ".join(parts))
+    return redirect('player_list')
+
 
 @login_required
 def player_clear_rest(request, pk):

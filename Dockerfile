@@ -19,6 +19,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# The media/ directory is volume-mounted at runtime, which hides image contents.
+# Copy the bundled Excel template into the players app directory so it is always
+# accessible as a built-in asset regardless of volume state.
+RUN mkdir -p /app/players/excel \
+    && cp /app/media/excel/players.xlsx /app/players/excel/players.xlsx
+
+# Compile translation catalogues
+RUN SECRET_KEY=build-dummy python manage.py compilemessages
+
 # Collect static files – does not touch the database and is safe to run during build
 RUN SECRET_KEY=build-dummy python manage.py collectstatic --noinput
 
