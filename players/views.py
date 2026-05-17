@@ -175,6 +175,37 @@ def player_upload(request):
             continue
 
         # Division: exact match required; unmatched values accepted but stored as empty
+    rows = iter(ws.rows)
+    # Use header row to find column positions by name (case-insensitive)
+    raw_headers = next(rows, [])
+    headers = [str(c.value).strip().lower() if c.value is not None else '' for c in raw_headers]
+
+    created = 0
+    no_division = 0
+    skipped = 0
+
+    for row in rows:
+        vals = {headers[i]: (cell.value if cell.value is not None else '') for i, cell in enumerate(row) if i < len(headers)}
+
+        name = str(vals.get('name', '')).strip()
+        if not name:
+            continue
+
+        # Age: integer or None
+        try:
+            age = int(vals.get('age') or 0) or None
+        except (ValueError, TypeError):
+            age = None
+
+        # Gender: map to M/K, skip row if unrecognised
+        raw_gender = str(vals.get('gender', '')).strip()
+        gender = _GENDER_MAP.get(raw_gender.lower())
+        if not gender:
+            skipped += 1
+            continue
+
+        # Division: exact match required; unmatched values are dropped silently
+        # (the user can assign division per-player afterwards)
         raw_division = str(vals.get('division', '')).strip()
         if raw_division in valid_divisions:
             division = raw_division
@@ -212,6 +243,13 @@ def player_upload(request):
             messages.success(request, " ".join(parts))
     else:
         messages.error(request, " ".join(parts) if parts else _("No players were added."))
+    if skipped:
+        parts.append(_("%(n)s row(s) skipped — missing or unrecognised gender value (use M/K or M/F).") % {'n': skipped})
+
+    if created:
+        messages.success(request, " ".join(parts))
+    else:
+        messages.warning(request, " ".join(parts) if parts else _("No players were added."))
 
     return redirect('player_list')
 
