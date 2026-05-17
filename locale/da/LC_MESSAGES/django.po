@@ -219,6 +219,76 @@ msgstr "Rediger spiller"
 msgid "Add player"
 msgstr "Tilføj spiller"
 
+#: players/templates/players/player_form.html:9
+msgid "Want to add multiple players at once?"
+msgstr "Vil du tilføje flere spillere på én gang?"
+
+#: players/templates/players/player_form.html:10
+msgid "Download Excel template"
+msgstr "Download Excel-skabelon"
+
+#: players/templates/players/player_list.html
+msgid "Upload Excel"
+msgstr "Upload Excel"
+
+#: players/views.py
+msgid "Please upload an Excel file (.xlsx)."
+msgstr "Upload venligst en Excel-fil (.xlsx)."
+
+#: players/views.py
+msgid "Could not read the file. Please upload a valid Excel file (.xlsx)."
+msgstr "Kunne ikke læse filen. Upload venligst en gyldig Excel-fil (.xlsx)."
+
+#: players/views.py
+#, python-format
+msgid "%(n)s player(s) added."
+msgstr "%(n)s spiller(e) tilføjet."
+
+#: players/views.py
+#, python-format
+msgid "%(n)s player(s) had an unrecognised division and were added without one."
+msgstr "%(n)s spiller(e) havde en ukendt række og blev tilføjet uden."
+
+#: players/views.py
+#, python-format
+msgid "%(n)s row(s) skipped — missing or unrecognised gender value (use M/K or M/F)."
+msgstr "%(n)s række(r) sprunget over — manglende eller ukendt kønsværdi (brug M/K eller M/F)."
+
+#: players/views.py
+msgid "No players were added."
+msgstr "Ingen spillere blev tilføjet."
+
+#: players/templates/players/player_list.html
+msgid "Delete the selected players? This cannot be undone."
+msgstr "Slet de valgte spillere? Dette kan ikke fortrydes."
+
+#: players/templates/players/player_list.html
+msgid "Delete selected"
+msgstr "Slet valgte"
+
+#: players/templates/players/player_list.html
+msgid "Select all"
+msgstr "Vælg alle"
+
+#: players/views.py
+msgid "No players selected."
+msgstr "Ingen spillere valgt."
+
+#: players/views.py
+#, python-format
+msgid "\"%(name)s\" cannot be deleted because they are registered in a tournament."
+msgstr "\"%(name)s\" kan ikke slettes, da spilleren er registreret i en turnering."
+
+#: players/views.py
+#, python-format
+msgid "%(n)s player(s) could not be deleted because they are registered in a tournament: %(names)s."
+msgstr "%(n)s spiller(e) kunne ikke slettes, da de er registreret i en turnering: %(names)s."
+
+#: players/views.py
+#, python-format
+msgid "%(n)s player(s) deleted."
+msgstr "%(n)s spiller(e) slettet."
+
 # ── blocktrans strings ──────────────────────────────────────────────────
 #: players/templates/players/player_form.html:6
 #: players/templates/players/team_form.html:6
@@ -2474,6 +2544,7 @@ msgid "Tournament \"%(name)s\" has been deleted."
 msgstr "Hvileperiode for %(name)s er slettet."
 
 #: tournaments/views.py:264
+#: players/views.py
 msgid "No file selected."
 msgstr "Ingen fil valgt."
 

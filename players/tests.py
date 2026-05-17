@@ -401,3 +401,294 @@ class TeamModelSaveTest(TestCase):
         self.assertIn("Zara", team.name)
         self.assertIn("Anna", team.name)
 
+
+# ---------------------------------------------------------------------------
+# Helpers shared by new test classes
+# ---------------------------------------------------------------------------
+
+def _make_xlsx_bytes(rows, headers=('name', 'age', 'gender', 'division')):
+    """Return an in-memory .xlsx file as bytes with the given headers and rows."""
+    import io
+    import openpyxl
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append(list(headers))
+    for row in rows:
+        ws.append(list(row))
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf.read()
+
+
+def _make_upload_file(content: bytes, filename='players.xlsx'):
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    return SimpleUploadedFile(
+        filename,
+        content,
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+
+
+def _make_tournament_division(team):
+    """Create a Tournament + Division and register *team* in it."""
+    import datetime as dt
+    from tournaments.models import Tournament, Division
+    t = Tournament.objects.create(
+        name='Test Cup', date=dt.date(2026, 7, 1),
+        division_model='mixed', scoring_model='best_of_3_21',
+    )
+    div = Division.objects.create(tournament=t, name='A', discipline='single')
+    div.teams.add(team)
+    return div
+
+
+# ---------------------------------------------------------------------------
+# player_template_download
+# ---------------------------------------------------------------------------
+
+class PlayerTemplateDownloadTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = make_user(username='dlclub')
+        self.client.force_login(self.user)
+
+    def test_download_requires_login(self):
+        self.client.logout()
+        response = self.client.get(reverse('player_template_download'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/login/', response['Location'])
+
+    def test_download_returns_xlsx(self):
+        import os
+        # Only run if the template file exists (it is copied during Docker build;
+        # in local dev the file may not be present at players/excel/players.xlsx).
+        from pathlib import Path
+        path = Path(__file__).parent / 'excel' / 'players.xlsx'
+        if not path.is_file():
+            self.skipTest('players/excel/players.xlsx not present in this environment')
+        response = self.client.get(reverse('player_template_download'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.get('Content-Type'),
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+
+
+# ---------------------------------------------------------------------------
+# player_upload (Excel bulk import)
+# ---------------------------------------------------------------------------
+
+class PlayerUploadTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = make_user(username='uploadclub')
+        self.client.force_login(self.user)
+        # Create a valid division category so the upload can match it
+        from players.models import DivisionCategory
+        DivisionCategory.objects.create(name='A', owner=self.user)
+        DivisionCategory.objects.create(name='B', owner=self.user)
+
+    # ── GET redirect ───────────────────────────────────────────────────────
+
+    def test_get_redirects_to_player_list(self):
+        response = self.client.get(reverse('player_upload'))
+        self.assertRedirects(response, reverse('player_list'))
+
+    # ── missing / wrong file ───────────────────────────────────────────────
+
+    def test_no_file_shows_error(self):
+        response = self.client.post(reverse('player_upload'), {})
+        self.assertRedirects(response, reverse('player_list'))
+        msgs = [str(m) for m in response.wsgi_request._messages]
+        self.assertTrue(any('No file' in m or 'Ingen fil' in m for m in msgs))
+
+    def test_wrong_extension_shows_error(self):
+        f = _make_upload_file(b'not an xlsx', filename='players.csv')
+        response = self.client.post(reverse('player_upload'), {'excel_file': f})
+        self.assertRedirects(response, reverse('player_list'))
+        msgs = [str(m) for m in response.wsgi_request._messages]
+        self.assertTrue(any('.xlsx' in m for m in msgs))
+
+    def test_corrupt_file_shows_error(self):
+        f = _make_upload_file(b'this is not a valid xlsx file at all')
+        response = self.client.post(reverse('player_upload'), {'excel_file': f})
+        self.assertRedirects(response, reverse('player_list'))
+        msgs = [str(m) for m in response.wsgi_request._messages]
+        self.assertTrue(any('Could not read' in m or 'Kunne ikke' in m for m in msgs))
+
+    # ── successful imports ─────────────────────────────────────────────────
+
+    def test_valid_rows_create_players(self):
+        data = _make_xlsx_bytes([('Alice', 20, 'K', 'A'), ('Bob', 18, 'M', 'B')])
+        f = _make_upload_file(data)
+        response = self.client.post(reverse('player_upload'), {'excel_file': f})
+        self.assertRedirects(response, reverse('player_list'))
+        self.assertTrue(Player.objects.filter(name='Alice', owner=self.user).exists())
+        self.assertTrue(Player.objects.filter(name='Bob', owner=self.user).exists())
+
+    def test_gender_mapping_lowercase(self):
+        """m → M, k → K, f → K"""
+        data = _make_xlsx_bytes([
+            ('P1', 20, 'm', 'A'),
+            ('P2', 20, 'k', 'A'),
+            ('P3', 20, 'f', 'A'),
+        ])
+        f = _make_upload_file(data)
+        self.client.post(reverse('player_upload'), {'excel_file': f})
+        self.assertEqual(Player.objects.get(name='P1', owner=self.user).gender, 'M')
+        self.assertEqual(Player.objects.get(name='P2', owner=self.user).gender, 'K')
+        self.assertEqual(Player.objects.get(name='P3', owner=self.user).gender, 'K')
+
+    def test_unknown_gender_skips_row(self):
+        data = _make_xlsx_bytes([('Ghost', 20, 'X', 'A')])
+        f = _make_upload_file(data)
+        self.client.post(reverse('player_upload'), {'excel_file': f})
+        self.assertFalse(Player.objects.filter(name='Ghost', owner=self.user).exists())
+
+    def test_unknown_division_adds_player_without_division(self):
+        data = _make_xlsx_bytes([('NoDivPlayer', 20, 'M', 'UNKNOWN')])
+        f = _make_upload_file(data)
+        self.client.post(reverse('player_upload'), {'excel_file': f})
+        p = Player.objects.filter(name='NoDivPlayer', owner=self.user).first()
+        self.assertIsNotNone(p)
+        self.assertEqual(p.division, '')
+
+    def test_empty_name_row_is_skipped(self):
+        data = _make_xlsx_bytes([('', 20, 'M', 'A')])
+        f = _make_upload_file(data)
+        self.client.post(reverse('player_upload'), {'excel_file': f})
+        self.assertEqual(Player.objects.filter(owner=self.user).count(), 0)
+
+    def test_players_belong_to_logged_in_user(self):
+        data = _make_xlsx_bytes([('MyPlayer', 20, 'M', 'A')])
+        f = _make_upload_file(data)
+        self.client.post(reverse('player_upload'), {'excel_file': f})
+        p = Player.objects.get(name='MyPlayer')
+        self.assertEqual(p.owner, self.user)
+
+    def test_success_message_contains_count(self):
+        data = _make_xlsx_bytes([('Alice', 20, 'K', 'A'), ('Bob', 18, 'M', 'A')])
+        f = _make_upload_file(data)
+        response = self.client.post(reverse('player_upload'), {'excel_file': f})
+        msgs = [str(m) for m in response.wsgi_request._messages]
+        self.assertTrue(any('2' in m for m in msgs))
+
+
+# ---------------------------------------------------------------------------
+# player_delete – tournament guard
+# ---------------------------------------------------------------------------
+
+class PlayerDeleteTournamentGuardTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = make_user(username='guardclub')
+        self.client.force_login(self.user)
+
+    def test_delete_free_player_succeeds(self):
+        player = make_player('Free', owner=self.user)
+        response = self.client.post(reverse('player_delete', args=[player.pk]))
+        self.assertRedirects(response, reverse('player_list'))
+        self.assertFalse(Player.objects.filter(pk=player.pk).exists())
+
+    def test_delete_player_in_tournament_is_blocked(self):
+        player = make_player('Blocked', owner=self.user)
+        team = Team.objects.create(player1=player, player2=None, name=player.name)
+        _make_tournament_division(team)
+        response = self.client.post(reverse('player_delete', args=[player.pk]))
+        self.assertRedirects(response, reverse('player_list'))
+        # Player must still exist
+        self.assertTrue(Player.objects.filter(pk=player.pk).exists())
+
+    def test_delete_player_also_removes_player2_team(self):
+        """When player is player2 in an unteamed (free) team, that team is deleted too."""
+        p1 = make_player('P1', owner=self.user)
+        p2 = make_player('P2', owner=self.user)
+        team = Team.objects.create(player1=p1, player2=p2)
+        # team is NOT in any tournament
+        pk_team = team.pk
+        self.client.post(reverse('player_delete', args=[p2.pk]))
+        self.assertFalse(Player.objects.filter(pk=p2.pk).exists())
+        self.assertFalse(Team.objects.filter(pk=pk_team).exists())
+
+
+# ---------------------------------------------------------------------------
+# player_bulk_delete
+# ---------------------------------------------------------------------------
+
+class PlayerBulkDeleteTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = make_user(username='bulkclub')
+        self.client.force_login(self.user)
+        self.p1 = make_player('Alpha', owner=self.user)
+        self.p2 = make_player('Beta', owner=self.user)
+        self.p3 = make_player('Gamma', owner=self.user)
+
+    def test_get_redirects(self):
+        response = self.client.get(reverse('player_bulk_delete'))
+        self.assertRedirects(response, reverse('player_list'))
+
+    def test_no_ids_shows_warning(self):
+        response = self.client.post(reverse('player_bulk_delete'), {})
+        self.assertRedirects(response, reverse('player_list'))
+        msgs = [str(m) for m in response.wsgi_request._messages]
+        self.assertTrue(any('No players' in m or 'Ingen spillere' in m for m in msgs))
+
+    def test_delete_selected_players(self):
+        response = self.client.post(
+            reverse('player_bulk_delete'),
+            {'player_ids': [self.p1.pk, self.p2.pk]},
+        )
+        self.assertRedirects(response, reverse('player_list'))
+        self.assertFalse(Player.objects.filter(pk=self.p1.pk).exists())
+        self.assertFalse(Player.objects.filter(pk=self.p2.pk).exists())
+        self.assertTrue(Player.objects.filter(pk=self.p3.pk).exists())
+
+    def test_success_message_contains_count(self):
+        response = self.client.post(
+            reverse('player_bulk_delete'),
+            {'player_ids': [self.p1.pk, self.p2.pk]},
+        )
+        msgs = [str(m) for m in response.wsgi_request._messages]
+        self.assertTrue(any('2' in m for m in msgs))
+
+    def test_blocked_players_not_deleted(self):
+        team = Team.objects.create(player1=self.p1, player2=None, name=self.p1.name)
+        _make_tournament_division(team)
+        response = self.client.post(
+            reverse('player_bulk_delete'),
+            {'player_ids': [self.p1.pk]},
+        )
+        self.assertRedirects(response, reverse('player_list'))
+        self.assertTrue(Player.objects.filter(pk=self.p1.pk).exists())
+
+    def test_mixed_blocked_and_free_partial_delete(self):
+        team = Team.objects.create(player1=self.p1, player2=None, name=self.p1.name)
+        _make_tournament_division(team)
+        response = self.client.post(
+            reverse('player_bulk_delete'),
+            {'player_ids': [self.p1.pk, self.p2.pk]},
+        )
+        self.assertRedirects(response, reverse('player_list'))
+        self.assertTrue(Player.objects.filter(pk=self.p1.pk).exists())   # blocked
+        self.assertFalse(Player.objects.filter(pk=self.p2.pk).exists())  # deleted
+
+    def test_cannot_delete_other_users_players(self):
+        other = make_user('otherclub2')
+        other_player = make_player('OtherGuy', owner=other)
+        self.client.post(
+            reverse('player_bulk_delete'),
+            {'player_ids': [other_player.pk]},
+        )
+        self.assertTrue(Player.objects.filter(pk=other_player.pk).exists())
+
+    def test_unauthenticated_redirects_to_login(self):
+        self.client.logout()
+        response = self.client.post(
+            reverse('player_bulk_delete'),
+            {'player_ids': [self.p1.pk]},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/login/', response['Location'])
+

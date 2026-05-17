@@ -20,6 +20,9 @@
             line-height: 1.6;
             -webkit-font-smoothing: antialiased;
             font-size: 15px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
         /* ── Header ───────────────────────────────────────────── */
@@ -66,7 +69,7 @@
         .nav-toggle span { display: block; width: 22px; height: 2px; background: white; margin: 5px 0; border-radius: 2px; transition: 0.2s; }
 
         /* ── Layout ───────────────────────────────────────────── */
-        .container { max-width: 1220px; margin: 0 auto; padding: 2rem 1.5rem; }
+        .container { max-width: 1220px; margin: 0 auto; padding: 2rem 1.5rem; flex: 1; }
 
         h1 { font-size: 1.65rem; font-weight: 700; color: #0d4f22; margin: 0 0 0.2rem; letter-spacing: -0.025em; line-height: 1.2; }
         h2 { font-size: 1.1rem; font-weight: 700; color: #0d4f22; margin: 0 0 0.85rem; letter-spacing: -0.01em; }

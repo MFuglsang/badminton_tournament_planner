@@ -4,8 +4,19 @@
 {% block content %}
 <div class="page-actions">
     <h1>{% trans "Players" %}</h1>
-    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
         <a href="{% url 'player_add' %}" class="btn btn-primary">+ {% trans "Add player" %}</a>
+        <form method="post" action="{% url 'player_upload' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="btn-group">
+                <label for="excel_file" class="btn btn-secondary" style="cursor:pointer; margin:0;">
+                    📂 {% trans "Upload Excel" %}
+                    <input id="excel_file" type="file" name="excel_file" accept=".xlsx"
+                           style="display:none;" onchange="this.form.submit()">
+                </label>
+                <a href="{% url 'player_template_download' %}" class="btn btn-secondary">⬇ {% trans "Download template" %}</a>
+            </div>
+        </form>
         <a href="{% url 'division_category_list' %}" class="btn btn-secondary" style="font-size:0.85rem;">&#9881; {% trans "Divisions/categories" %}</a>
     </div>
 </div>
@@ -35,6 +46,9 @@
         <input type="hidden" name="dir" value="{{ dir }}">
 
         <button type="submit" class="btn btn-secondary btn-sm">{% trans "Search" %}</button>
+        <button type="submit" form="bulk-form" id="bulk-delete-btn"
+                class="btn btn-danger btn-sm" style="visibility:hidden;"
+                onclick="return confirm('{% trans "Delete the selected players? This cannot be undone." %}')">&#128465; {% trans "Delete selected" %} (<span id="bulk-count">0</span>)</button>
         {% if search or selected_division or selected_gender %}
         <a href="{% url 'player_list' %}" class="btn btn-secondary btn-sm">✕ {% trans "Clear" %}</a>
         {% endif %}
@@ -45,9 +59,15 @@
 {# ── Sorteringshjælper #}
 {% with base_url="?division="|add:selected_division|add:"&gender="|add:selected_gender|add:"&search="|add:search %}
 {% if players %}
+<form id="bulk-form" method="post" action="{% url 'player_bulk_delete' %}">
+{% csrf_token %}
 <table>
     <thead>
         <tr>
+            <th style="width:2rem;">
+                <input type="checkbox" id="select-all" title="{% trans 'Select all' %}"
+                       style="cursor:pointer; width:1rem; height:1rem;">
+            </th>
             {% for col, label in col_defs %}
             <th>
                 {% if col %}
@@ -76,6 +96,10 @@
     <tbody>
         {% for player in players %}
         <tr>
+            <td style="text-align:center;">
+                <input type="checkbox" name="player_ids" value="{{ player.pk }}"
+                       style="cursor:pointer; width:1rem; height:1rem;">
+            </td>
             <td>
                 <strong>{{ player.name }}</strong>
                 {% if player.play_status == 'playing' %}
@@ -92,13 +116,13 @@
                 <div class="btn-group">
                     <a href="{% url 'player_schedule_print' player.id %}" class="btn btn-secondary btn-sm" target="_blank">📋 {% trans "Schedule" %}</a>
                     <a href="{% url 'player_edit' player.id %}" class="btn btn-secondary btn-sm">{% trans "Edit" %}</a>
-                    <a href="{% url 'player_delete' player.id %}" class="btn btn-danger btn-sm">{% trans "Delete" %}</a>
                 </div>
             </td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
+</form>
 {% else %}
 <div class="card" style="text-align:center; padding:3rem 2rem;">
     <div style="font-size:2rem; margin-bottom:0.5rem;">👤</div>
@@ -111,4 +135,34 @@
 </div>
 {% endif %}
 {% endwith %}
+
+<script>
+(function () {
+    var form      = document.getElementById('bulk-form');
+    var selectAll = document.getElementById('select-all');
+    var delBtn    = document.getElementById('bulk-delete-btn');
+    var countEl   = document.getElementById('bulk-count');
+    if (!form) return;
+
+    function update() {
+        var boxes   = form.querySelectorAll('input[name="player_ids"]');
+        var checked = form.querySelectorAll('input[name="player_ids"]:checked');
+        delBtn.style.visibility = checked.length ? 'visible' : 'hidden';
+        countEl.textContent  = checked.length;
+        selectAll.indeterminate = checked.length > 0 && checked.length < boxes.length;
+        selectAll.checked = boxes.length > 0 && checked.length === boxes.length;
+    }
+
+    selectAll.addEventListener('change', function () {
+        form.querySelectorAll('input[name="player_ids"]').forEach(function (cb) {
+            cb.checked = selectAll.checked;
+        });
+        update();
+    });
+
+    form.querySelectorAll('input[name="player_ids"]').forEach(function (cb) {
+        cb.addEventListener('change', update);
+    });
+})();
+</script>
 {% endblock %}
