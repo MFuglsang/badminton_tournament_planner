@@ -127,10 +127,8 @@ msgid "Name (e.g. U13, A, Beginner)"
 msgstr "Navn (f.eks. U13, A, Begynder)"
 
 #: players/templates/players/division_categories.html:30
-#, fuzzy
-#| msgid "Search name…"
 msgid "Type category name…"
-msgstr "Søg navn…"
+msgstr "Skriv kategorinavn…"
 
 #: players/templates/players/division_categories.html:33
 msgid "Add"
@@ -425,6 +423,10 @@ msgstr "Program – %(name)s"
 #: tournaments/templates/tournaments/tournament_wallchart_print.html:225
 msgid "Print / Save PDF"
 msgstr "Udskriv / Gem PDF"
+
+#: players/templates/players/player_schedule_print.html
+msgid "All tournaments"
+msgstr "Alle turneringer"
 
 #: players/templates/players/player_schedule_print.html:188
 #: tournaments/templates/tournaments/schedule_editor.html:46

@@ -524,7 +524,7 @@ def player_schedule_print(request, pk):
     # Find alle teams som spilleren er en del af
     teams = Team.objects.filter(Q(player1=player) | Q(player2=player))
     # Find alle kampe (med tidspunkt) for disse teams, sorteret efter tidspunkt
-    matches = list(
+    matches_qs = (
         Match.objects
         .filter(Q(team1__in=teams) | Q(team2__in=teams))
         .filter(scheduled_time__isnull=False)
@@ -533,6 +533,24 @@ def player_schedule_print(request, pk):
         .select_related('team1', 'team2', 'division', 'division__tournament', 'winner')
         .order_by('scheduled_time')
     )
+
+    # Collect all tournaments this player has matches in
+    all_tournament_ids = list(matches_qs.values_list('division__tournament_id', flat=True).distinct())
+    tournaments = list(Tournament.objects.filter(pk__in=all_tournament_ids).order_by('date', 'name'))
+
+    # Apply tournament filter from query string
+    selected_tournament_pk = request.GET.get('tournament')
+    selected_tournament = None
+    if selected_tournament_pk:
+        try:
+            selected_tournament = next((t for t in tournaments if t.pk == int(selected_tournament_pk)), None)
+        except (ValueError, TypeError):
+            pass
+    if selected_tournament:
+        matches_qs = matches_qs.filter(division__tournament=selected_tournament)
+
+    matches = list(matches_qs)
+
     # Annotate matches with seed display strings
     tournament_ids = set(m.division.tournament_id for m in matches)
     seed_lookup = {
@@ -547,12 +565,17 @@ def player_schedule_print(request, pk):
 
     # Brug logo fra den eneste turnering hvis alle kampe er fra samme turnering
     logo_tournament = None
-    if len(tournament_ids) == 1:
+    if selected_tournament:
+        logo_tournament = selected_tournament
+    elif len(tournament_ids) == 1:
         logo_tournament = matches[0].division.tournament if matches else None
+
     return render(request, 'players/player_schedule_print.html', {
         'player': player,
         'matches': matches,
         'logo_tournament': logo_tournament,
+        'tournaments': tournaments,
+        'selected_tournament': selected_tournament,
     })
 
 
