@@ -112,10 +112,69 @@ def player_upload(request):
         messages.error(request, _("Could not read the file. Please upload a valid Excel file (.xlsx)."))
         return redirect('player_list')
 
+    rows = iter(ws.rows)
+    raw_headers = next(rows, [])
+    headers = [str(c.value).strip().lower() if c.value is not None else '' for c in raw_headers]
+
+    # ── Structural validation: all 4 required columns must be present ──────
+    REQUIRED_COLUMNS = {'name', 'age', 'gender', 'division'}
+    missing = REQUIRED_COLUMNS - set(headers)
+    if missing:
+        wb.close()
+        messages.error(
+            request,
+            _("The spreadsheet is missing required columns: %(cols)s. Expected columns: name, age, gender, division.")
+            % {'cols': ', '.join(sorted(missing))},
+        )
+        return redirect('player_list')
+
     valid_divisions = set(
         DivisionCategory.objects.filter(owner=request.user).values_list('name', flat=True)
     )
 
+    created = 0
+    no_division = 0
+    row_errors = []  # list of already-translated error strings
+
+    for row_num, row in enumerate(rows, start=2):
+        vals = {headers[i]: (cell.value if cell.value is not None else '') for i, cell in enumerate(row) if i < len(headers)}
+
+        # Name: required non-empty string
+        raw_name = str(vals.get('name', '')).strip()
+        if not raw_name:
+            row_errors.append(
+                _("Row %(n)s: name is required.") % {'n': row_num}
+            )
+            continue
+        name = raw_name
+
+        # Age: blank → None; non-blank must be an integer between 1 and 100
+        raw_age = vals.get('age', '')
+        if raw_age == '' or raw_age is None:
+            age = None
+        else:
+            try:
+                age = int(raw_age)
+                if not (1 <= age <= 100):
+                    raise ValueError
+            except (ValueError, TypeError):
+                row_errors.append(
+                    _("Row %(n)s (%(name)s): age must be a whole number between 1 and 100.")
+                    % {'n': row_num, 'name': name}
+                )
+                continue
+
+        # Gender: must be M, K or F (single letter, case-insensitive)
+        raw_gender = str(vals.get('gender', '')).strip()
+        gender = _GENDER_MAP.get(raw_gender.lower())
+        if not gender:
+            row_errors.append(
+                _("Row %(n)s (%(name)s): gender must be M, K or F.")
+                % {'n': row_num, 'name': name}
+            )
+            continue
+
+        # Division: exact match required; unmatched values accepted but stored as empty
     rows = iter(ws.rows)
     # Use header row to find column positions by name (case-insensitive)
     raw_headers = next(rows, [])
@@ -171,6 +230,19 @@ def player_upload(request):
         parts.append(_("%(n)s player(s) added.") % {'n': created})
     if no_division:
         parts.append(_("%(n)s player(s) had an unrecognised division and were added without one.") % {'n': no_division})
+    if row_errors:
+        parts.append(
+            _("%(count)s row(s) had errors and were skipped: %(details)s")
+            % {'count': len(row_errors), 'details': " | ".join(row_errors)}
+        )
+
+    if created:
+        if row_errors:
+            messages.warning(request, " ".join(parts))
+        else:
+            messages.success(request, " ".join(parts))
+    else:
+        messages.error(request, " ".join(parts) if parts else _("No players were added."))
     if skipped:
         parts.append(_("%(n)s row(s) skipped — missing or unrecognised gender value (use M/K or M/F).") % {'n': skipped})
 

@@ -255,6 +255,31 @@ msgid "%(n)s row(s) skipped — missing or unrecognised gender value (use M/K or
 msgstr "%(n)s række(r) sprunget over — manglende eller ukendt kønsværdi (brug M/K eller M/F)."
 
 #: players/views.py
+#, python-format
+msgid "The spreadsheet is missing required columns: %(cols)s. Expected columns: name, age, gender, division."
+msgstr "Regnearket mangler påkrævede kolonner: %(cols)s. Forventede kolonner: name, age, gender, division."
+
+#: players/views.py
+#, python-format
+msgid "Row %(n)s: name is required."
+msgstr "Række %(n)s: navn er påkrævet."
+
+#: players/views.py
+#, python-format
+msgid "Row %(n)s (%(name)s): age must be a whole number between 1 and 100."
+msgstr "Række %(n)s (%(name)s): alder skal være et helt tal mellem 1 og 100."
+
+#: players/views.py
+#, python-format
+msgid "Row %(n)s (%(name)s): gender must be M, K or F."
+msgstr "Række %(n)s (%(name)s): køn skal være M, K eller F."
+
+#: players/views.py
+#, python-format
+msgid "%(count)s row(s) had errors and were skipped: %(details)s"
+msgstr "%(count)s række(r) havde fejl og blev sprunget over: %(details)s"
+
+#: players/views.py
 msgid "No players were added."
 msgstr "Ingen spillere blev tilføjet."
 
