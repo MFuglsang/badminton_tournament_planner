@@ -574,6 +574,104 @@ class PlayerUploadTest(TestCase):
         msgs = [str(m) for m in response.wsgi_request._messages]
         self.assertTrue(any('2' in m for m in msgs))
 
+    # ── structural validation ──────────────────────────────────────────────
+
+    def test_missing_column_aborts_entire_upload(self):
+        """If a required column is missing no players are created."""
+        data = _make_xlsx_bytes([('Alice', 20, 'K')], headers=('name', 'age', 'gender'))
+        f = _make_upload_file(data)
+        response = self.client.post(reverse('player_upload'), {'excel_file': f})
+        self.assertRedirects(response, reverse('player_list'))
+        self.assertEqual(Player.objects.filter(owner=self.user).count(), 0)
+        msgs = [str(m) for m in response.wsgi_request._messages]
+        self.assertTrue(any('missing' in m.lower() or 'mangler' in m.lower() for m in msgs))
+
+    def test_missing_multiple_columns_names_them_all(self):
+        data = _make_xlsx_bytes([('Alice',)], headers=('name',))
+        f = _make_upload_file(data)
+        response = self.client.post(reverse('player_upload'), {'excel_file': f})
+        msgs = [str(m) for m in response.wsgi_request._messages]
+        combined = ' '.join(msgs)
+        self.assertIn('age', combined)
+        self.assertIn('gender', combined)
+        self.assertIn('division', combined)
+
+    # ── row-level age validation ───────────────────────────────────────────
+
+    def test_age_above_100_skips_row_with_error(self):
+        data = _make_xlsx_bytes([('OldPlayer', 101, 'M', 'A')])
+        f = _make_upload_file(data)
+        self.client.post(reverse('player_upload'), {'excel_file': f})
+        self.assertFalse(Player.objects.filter(name='OldPlayer', owner=self.user).exists())
+
+    def test_age_zero_skips_row_with_error(self):
+        data = _make_xlsx_bytes([('ZeroAge', 0, 'M', 'A')])
+        f = _make_upload_file(data)
+        self.client.post(reverse('player_upload'), {'excel_file': f})
+        self.assertFalse(Player.objects.filter(name='ZeroAge', owner=self.user).exists())
+
+    def test_age_negative_skips_row_with_error(self):
+        data = _make_xlsx_bytes([('NegAge', -5, 'M', 'A')])
+        f = _make_upload_file(data)
+        self.client.post(reverse('player_upload'), {'excel_file': f})
+        self.assertFalse(Player.objects.filter(name='NegAge', owner=self.user).exists())
+
+    def test_age_text_skips_row_with_error(self):
+        data = _make_xlsx_bytes([('TextAge', 'twenty', 'M', 'A')])
+        f = _make_upload_file(data)
+        self.client.post(reverse('player_upload'), {'excel_file': f})
+        self.assertFalse(Player.objects.filter(name='TextAge', owner=self.user).exists())
+
+    def test_blank_age_stores_as_none(self):
+        data = _make_xlsx_bytes([('NoAge', '', 'M', 'A')])
+        f = _make_upload_file(data)
+        self.client.post(reverse('player_upload'), {'excel_file': f})
+        p = Player.objects.filter(name='NoAge', owner=self.user).first()
+        self.assertIsNotNone(p)
+        self.assertIsNone(p.age)
+
+    def test_age_100_is_valid(self):
+        data = _make_xlsx_bytes([('CentPlayer', 100, 'M', 'A')])
+        f = _make_upload_file(data)
+        self.client.post(reverse('player_upload'), {'excel_file': f})
+        self.assertTrue(Player.objects.filter(name='CentPlayer', owner=self.user).exists())
+
+    # ── row-level gender validation ────────────────────────────────────────
+
+    def test_unknown_gender_produces_error_message(self):
+        data = _make_xlsx_bytes([('Ghost', 20, 'X', 'A')])
+        f = _make_upload_file(data)
+        response = self.client.post(reverse('player_upload'), {'excel_file': f})
+        msgs = [str(m) for m in response.wsgi_request._messages]
+        self.assertTrue(any('Ghost' in m for m in msgs))
+
+    # ── row-level name validation ──────────────────────────────────────────
+
+    def test_empty_name_produces_error_message(self):
+        data = _make_xlsx_bytes([('', 20, 'M', 'A')])
+        f = _make_upload_file(data)
+        response = self.client.post(reverse('player_upload'), {'excel_file': f})
+        msgs = [str(m) for m in response.wsgi_request._messages]
+        self.assertTrue(any('name' in m.lower() or 'navn' in m.lower() for m in msgs))
+
+    # ── mixed valid and invalid rows ───────────────────────────────────────
+
+    def test_valid_rows_created_despite_invalid_rows(self):
+        data = _make_xlsx_bytes([
+            ('Alice', 20, 'K', 'A'),    # valid
+            ('BadAge', 999, 'M', 'A'),  # invalid age
+            ('Bob', 18, 'M', 'A'),      # valid
+        ])
+        f = _make_upload_file(data)
+        response = self.client.post(reverse('player_upload'), {'excel_file': f})
+        self.assertTrue(Player.objects.filter(name='Alice', owner=self.user).exists())
+        self.assertTrue(Player.objects.filter(name='Bob', owner=self.user).exists())
+        self.assertFalse(Player.objects.filter(name='BadAge', owner=self.user).exists())
+        msgs = [str(m) for m in response.wsgi_request._messages]
+        # Warning because some succeeded and some failed
+        self.assertTrue(any('2' in m for m in msgs))
+        self.assertTrue(any('BadAge' in m for m in msgs))
+
 
 # ---------------------------------------------------------------------------
 # player_delete – tournament guard
