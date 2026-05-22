@@ -4,6 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <title>{% blocktrans with name=player.name %}Schedule – {{ name }}{% endblocktrans %}</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x1F3F8;</text></svg>">
 <style>
   body {
     font-family: Arial, Helvetica, sans-serif;
@@ -163,6 +164,18 @@
 
 <div class="screen-header">
   <h1>{% blocktrans with name=player.name %}Schedule – {{ name }}{% endblocktrans %}</h1>
+  {% if tournaments|length > 1 %}
+  <form method="get" style="display:flex; align-items:center; gap:0.4rem;">
+    <label for="tournament-filter" style="font-size:0.85rem; white-space:nowrap;">🏆</label>
+    <select id="tournament-filter" name="tournament" onchange="this.form.submit()"
+            style="font-size:0.85rem; padding:0.35rem 0.6rem; border:1px solid #ccc; border-radius:4px;">
+      <option value="">{% trans "All tournaments" %}</option>
+      {% for t in tournaments %}
+      <option value="{{ t.pk }}" {% if selected_tournament.pk == t.pk %}selected{% endif %}>{{ t.name }}</option>
+      {% endfor %}
+    </select>
+  </form>
+  {% endif %}
   <button class="btn btn-primary" onclick="window.print()">🖨 {% trans "Print / Save PDF" %}</button>
   <a href="{% url 'player_list' %}" class="btn btn-secondary">← {% trans "Players" %}</a>
 </div>

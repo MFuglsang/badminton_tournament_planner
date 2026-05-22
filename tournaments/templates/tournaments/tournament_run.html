@@ -307,6 +307,11 @@
               {% if match.team1 and match.team2 %}
               <a href="{% url 'match_record_result' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="btn btn-secondary btn-sm">{% trans "Result" %}</a>
               <a href="{% url 'match_walkover' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="btn btn-secondary btn-sm" style="color:#d97706; border-color:#fde68a;">WO</a>
+              <form method="post" action="{% url 'match_postpone' match.pk %}" style="display:inline;">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{% url 'tournament_run' tournament.pk %}">
+                <button type="submit" class="btn btn-secondary btn-sm" style="color:#94a3b8;">{% trans "Postpone" %}</button>
+              </form>
               {% endif %}
               {% endif %}
             </span>
@@ -496,6 +501,11 @@
         <div style="margin-top:0.4rem;">
           <a href="{% url 'match_record_result' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="btn btn-primary btn-sm">{% trans "Result" %}</a>
           <a href="{% url 'match_walkover' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="btn btn-secondary btn-sm" style="color:#d97706; border-color:#fde68a;">WO</a>
+          <form method="post" action="{% url 'match_postpone' match.pk %}" style="display:inline;">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'tournament_run' tournament.pk %}">
+            <button type="submit" class="btn btn-secondary btn-sm" style="color:#94a3b8;">{% trans "Postpone" %}</button>
+          </form>
         </div>
       </div>
       {% endfor %}
