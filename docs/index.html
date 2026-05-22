@@ -63,14 +63,9 @@
       letter-spacing: -0.01em;
     }
     .header-brand .logo-icon {
-      background: rgba(255,255,255,0.15);
-      border-radius: 8px;
-      width: 34px;
-      height: 34px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.2rem;
+      height: 86px;
+      width: auto;
+      display: block;
     }
     nav { display: flex; gap: 0.15rem; align-items: center; }
     nav a {
@@ -116,7 +111,7 @@
     .hero {
       background: var(--green-900) url('img/background.jpg') center center / cover no-repeat;
       color: white;
-      padding: 5rem 2rem 5.5rem;
+      padding: 1.25rem 2rem 1.375rem;
       text-align: center;
       position: relative;
       overflow: hidden;
@@ -131,10 +126,13 @@
       pointer-events: none;
     }
     .hero-shuttlecock {
-      font-size: 3.5rem;
       margin-bottom: 1.2rem;
       display: block;
       position: relative;
+    }
+    .hero-shuttlecock img {
+      height: 360px;
+      width: auto;
     }
     .hero h1 {
       font-size: clamp(2rem, 5vw, 3.2rem);
@@ -678,7 +676,8 @@
     @media (max-width: 640px) {
       header { padding: 0 1rem; }
       nav { display: none; }
-      .hero { padding: 3.5rem 1.25rem 4rem; }
+      .hero { padding: 0.875rem 1.25rem 1rem; }
+      .hero-shuttlecock img { height: auto; max-width: 60vw; }
       .workflow-step { grid-template-columns: 40px 1fr; gap: 1rem; }
       .step-number { width: 40px; height: 40px; font-size: 1rem; }
       .access-grid { grid-template-columns: 1fr; gap: 1.5rem; }
@@ -693,8 +692,7 @@
 <!-- ── Navbar ────────────────────────────────────────────── -->
 <header>
   <div class="header-brand">
-    <span class="logo-icon">🏸</span>
-    Badminton Tournament Planner
+    <img class="logo-icon" src="img/logo_transp.png" alt="Badminton Tournament Planner" />
   </div>
   <nav>
     <a href="#hosting" class="nav-highlight" data-i18n="nav_hosting">Ready-to-use</a>
@@ -711,7 +709,7 @@
 
 <!-- ── Hero ─────────────────────────────────────────────── -->
 <div class="hero">
-  <span class="hero-shuttlecock">🏸</span>
+  <span class="hero-shuttlecock"><img src="img/logo_transp.png" alt="Badminton Tournament Planner" /></span>
   <h1 data-i18n="hero_h1">Run your <span>badminton tournament</span><br>from start to finish</h1>
   <p data-i18n="hero_p">Register players, build divisions, auto-generate schedules, track results live — all in one place.</p>
   <div class="hero-buttons">

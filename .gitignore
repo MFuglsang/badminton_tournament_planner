@@ -5,6 +5,10 @@ __pycache__/
 **/__pycache__/
 *.py[cod]
 *$py.class
+/backups/
+/pytest_cache/
+.pytest_cache/
+/development/
 
 # Virtualenvs
 .venv/
