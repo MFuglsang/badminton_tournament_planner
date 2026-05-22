@@ -10,3 +10,4 @@ db.sqlite3
 staticfiles/
 # Backup archives produced by the `backup` service
 /backups/
+/development/

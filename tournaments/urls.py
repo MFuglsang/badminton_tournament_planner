@@ -18,6 +18,7 @@ urlpatterns = [
     path('division/<int:pk>/reassign-groups/', views.division_reassign_groups, name='division_reassign_groups'),
     path('match/<int:pk>/result/', views.match_record_result, name='match_record_result'),
     path('match/<int:pk>/start/', views.match_start, name='match_start'),
+    path('match/<int:pk>/postpone/', views.match_postpone, name='match_postpone'),
     path('match/<int:pk>/walkover/', views.match_walkover, name='match_walkover'),
     path('match/<int:pk>/bracket-override/', views.match_bracket_override, name='match_bracket_override'),
     path('<int:pk>/scoresheet/', views.tournament_scoresheet, name='tournament_scoresheet'),

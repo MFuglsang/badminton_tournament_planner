@@ -851,6 +851,28 @@ def match_start(request, pk):
 
 
 @login_required
+def match_postpone(request, pk):
+    """Reset an in-progress match back to pending.
+
+    Args:
+        request: Django HTTP request.
+        pk: Primary key of the match.
+
+    Returns:
+        HttpResponseRedirect: Redirect to next URL or tournament detail.
+    """
+    match = get_object_or_404(Match, pk=pk, division__tournament__owner=request.user)
+    next_url = request.POST.get('next') or ''
+    if request.method == 'POST' and match.status == 'in_progress':
+        match.status = 'pending'
+        match.save(update_fields=['status'])
+        messages.success(request, _("Match #%(n)s has been reset to pending.") % {'n': match.match_number or match.pk})
+    if next_url:
+        return redirect(next_url)
+    return redirect('tournament_detail', pk=match.division.tournament.pk)
+
+
+@login_required
 def match_walkover(request, pk):
     """Record a walkover result for a match.
 

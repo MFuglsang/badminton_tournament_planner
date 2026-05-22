@@ -2695,12 +2695,21 @@ msgstr "Resultat gemt."
 msgid "Cannot start match: "
 msgstr "Kan ikke starte kamp: "
 
-#: tournaments/views.py:813
+#: tournaments/views.py
 #, python-format
 msgid "Match #%(n)s is now in progress."
 msgstr "Kamp #%(n)s er nu i gang."
 
-#: tournaments/views.py:844
+#: tournaments/views.py
+#, python-format
+msgid "Match #%(n)s has been reset to pending."
+msgstr "Kamp #%(n)s er sat tilbage til ikke-startet."
+
+#: tournaments/templates/tournaments/tournament_run.html
+msgid "Postpone"
+msgstr "Udskyd"
+
+#: tournaments/views.py
 #, python-format
 msgid "Walk-over recorded – %(winner)s wins."
 msgstr "Walk-over registreret – %(winner)s vinder."
