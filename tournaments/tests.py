@@ -3,7 +3,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from players.models import Player, Team
-from .models import Tournament, Division, Match, DivisionSeed
+from .models import Tournament, Division, Match, DivisionSeed, TournamentDay
 from .forms import MatchResultForm, _parse_score as _form_parse_score, _validate_set
 from .scheduler import generate_round_robin, generate_bracket, generate_schedule, advance_bracket, get_bracket_data
 from .standings import compute_standings, compute_group_standings, _parse_score, STANDINGS_CONFIG
@@ -47,6 +47,20 @@ def make_division(tournament=None, name="A Række", discipline='double', tournam
     return Division.objects.create(tournament=t, name=name, discipline=discipline, tournament_type=tournament_type)
 
 
+def make_day(tournament, day_number=1, date=None, start="09:00", end="22:00", courts=4, buffer=30):
+    """Opretter en TournamentDay på turneringen."""
+    import datetime as dt
+    return TournamentDay.objects.create(
+        tournament=tournament,
+        day_number=day_number,
+        date=date or dt.date.today(),
+        start_time=dt.time(*map(int, start.split(':'))),
+        end_time=dt.time(*map(int, end.split(':'))) if end else None,
+        court_count=courts,
+        buffer_minutes=buffer,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Model tests
 # ---------------------------------------------------------------------------
@@ -74,6 +88,154 @@ class DivisionModelTest(TestCase):
         t2 = make_team(r1=3, r2=4)
         d.teams.add(t1, t2)
         self.assertEqual(d.teams.count(), 2)
+
+
+# ---------------------------------------------------------------------------
+# TournamentDay model tests
+# ---------------------------------------------------------------------------
+
+class TournamentDayCleanTest(TestCase):
+    def test_end_time_before_start_time_raises(self):
+        import datetime as dt
+        from django.core.exceptions import ValidationError
+        t = make_tournament()
+        day = TournamentDay(
+            tournament=t, day_number=1, date=dt.date.today(),
+            start_time=dt.time(10, 0), end_time=dt.time(9, 0), court_count=4,
+        )
+        with self.assertRaises(ValidationError):
+            day.full_clean()
+
+    def test_equal_start_and_end_time_raises(self):
+        import datetime as dt
+        from django.core.exceptions import ValidationError
+        t = make_tournament()
+        day = TournamentDay(
+            tournament=t, day_number=1, date=dt.date.today(),
+            start_time=dt.time(9, 0), end_time=dt.time(9, 0), court_count=4,
+        )
+        with self.assertRaises(ValidationError):
+            day.full_clean()
+
+    def test_valid_day_no_error(self):
+        from django.core.exceptions import ValidationError
+        day = make_day(make_tournament())
+        try:
+            day.full_clean()
+        except ValidationError:
+            self.fail("full_clean() raised ValidationError on valid day")
+
+    def test_open_ended_day_no_error(self):
+        day = make_day(make_tournament(), end=None)
+        from django.core.exceptions import ValidationError
+        try:
+            day.full_clean()
+        except ValidationError:
+            self.fail("full_clean() raised ValidationError on open-ended day")
+
+
+class TournamentDayBufferTest(TestCase):
+    def test_negative_buffer_raises(self):
+        import datetime as dt
+        from django.core.exceptions import ValidationError
+        t = make_tournament()
+        day = TournamentDay(
+            tournament=t, day_number=1, date=dt.date.today(),
+            start_time=dt.time(9, 0), end_time=dt.time(22, 0),
+            court_count=4, buffer_minutes=-1,
+        )
+        with self.assertRaises(ValidationError):
+            day.full_clean()
+
+    def test_buffer_equal_to_window_raises(self):
+        import datetime as dt
+        from django.core.exceptions import ValidationError
+        t = make_tournament()
+        # 09:00–10:00 = 60 min vindue; buffer=60 skal fejle
+        day = TournamentDay(
+            tournament=t, day_number=1, date=dt.date.today(),
+            start_time=dt.time(9, 0), end_time=dt.time(10, 0),
+            court_count=4, buffer_minutes=60,
+        )
+        with self.assertRaises(ValidationError):
+            day.full_clean()
+
+    def test_buffer_less_than_window_ok(self):
+        import datetime as dt
+        from django.core.exceptions import ValidationError
+        t = make_tournament()
+        day = TournamentDay(
+            tournament=t, day_number=1, date=dt.date.today(),
+            start_time=dt.time(9, 0), end_time=dt.time(10, 0),
+            court_count=4, buffer_minutes=30,
+        )
+        try:
+            day.full_clean()
+        except ValidationError:
+            self.fail("full_clean() raised ValidationError for valid buffer")
+
+
+class TournamentDayUniqueTest(TestCase):
+    def test_duplicate_day_number_in_same_tournament_raises(self):
+        import datetime as dt
+        from django.db import IntegrityError
+        t = make_tournament()
+        make_day(t, day_number=1)
+        with self.assertRaises(IntegrityError):
+            make_day(t, day_number=1)
+
+    def test_same_day_number_in_different_tournaments_ok(self):
+        t1 = make_tournament()
+        t2 = make_tournament()
+        d1 = make_day(t1, day_number=1)
+        d2 = make_day(t2, day_number=1)
+        self.assertEqual(d1.day_number, 1)
+        self.assertEqual(d2.day_number, 1)
+
+
+class TournamentDayStrTest(TestCase):
+    def test_str_with_end_time(self):
+        day = make_day(make_tournament())
+        s = str(day)
+        self.assertIn("Dag 1", s)
+        self.assertIn("09:00", s)
+        self.assertIn("22:00", s)
+        self.assertIn("buffer", s)
+
+    def test_str_without_end_time(self):
+        day = make_day(make_tournament(), end=None)
+        s = str(day)
+        self.assertIn("Dag 1", s)
+        self.assertIn("løber over", s)
+
+
+class TournamentSyncDateTest(TestCase):
+    def test_sync_date_sets_date_from_first_day(self):
+        import datetime as dt
+        t = make_tournament()
+        make_day(t, day_number=1, date=dt.date(2026, 6, 1))
+        make_day(t, day_number=2, date=dt.date(2026, 6, 2))
+        t.sync_date()
+        self.assertEqual(t.date, dt.date(2026, 6, 1))
+
+    def test_sync_date_no_days_does_not_crash(self):
+        t = make_tournament()
+        try:
+            t.sync_date()
+        except Exception as e:
+            self.fail(f"sync_date() crashed with no days: {e}")
+
+
+class DivisionDayDeletionTest(TestCase):
+    def test_delete_day_nulls_division_fk(self):
+        t = make_tournament()
+        day = make_day(t)
+        d = make_division(tournament=t)
+        d.group_day = day
+        d.save()
+        day.delete()
+        d.refresh_from_db()
+        self.assertIsNone(d.group_day)
 
 
 class MatchModelTest(TestCase):
@@ -283,16 +445,12 @@ class TournamentCRUDViewTest(TestCase):
             'date': '2026-06-01',
             'division_model': 'mixed',
             'scoring_model': 'best_of_3_21',
-            'court_count': 6,
-            'start_time': '09:00',
             'single_match_duration': 30,
             'double_match_duration': 40,
             'player_break_time': 15,
         })
         tournament = Tournament.objects.get(name='Ny Turnering')
         self.assertRedirects(response, reverse("tournament_detail", args=[tournament.pk]))
-        self.assertEqual(tournament.court_count, 6)
-        self.assertIsNotNone(tournament.start_time)
 
     def test_tournament_create_invalid_stays_on_page(self):
         response = self.client.post(reverse("tournament_create"), {'name': ''})
@@ -311,8 +469,6 @@ class TournamentCRUDViewTest(TestCase):
             'date': '2026-07-01',
             'division_model': 'mixed',
             'scoring_model': 'best_of_3_21',
-            'court_count': 8,
-            'start_time': '10:00',
             'single_match_duration': 30,
             'double_match_duration': 40,
             'player_break_time': 15,
@@ -320,7 +476,6 @@ class TournamentCRUDViewTest(TestCase):
         self.assertRedirects(response, reverse("tournament_detail", args=[t.pk]))
         t.refresh_from_db()
         self.assertEqual(t.name, 'Opdateret')
-        self.assertEqual(t.court_count, 8)
 
     def test_tournament_edit_404_for_nonexistent(self):
         response = self.client.get(reverse("tournament_edit", args=[9999]))
@@ -488,17 +643,17 @@ class TournamentViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_schedule_generate_without_start_time_shows_warning(self):
-        # tournament from make_tournament has no start_time
+        # Turnering uden dage giver error-redirect
         response = self.client.post(
             reverse("tournament_generate_time_schedule", args=[self.tournament.pk])
         )
         self.assertRedirects(response, reverse("tournament_schedule", args=[self.tournament.pk]))
+        messages_list = list(response.wsgi_request._messages)
+        self.assertTrue(any('day' in str(m).lower() or 'dag' in str(m).lower() for m in messages_list))
 
     def test_schedule_generate_assigns_times(self):
         import datetime as dt
-        self.tournament.start_time = dt.time(9, 0)
-        self.tournament.court_count = 2
-        self.tournament.save()
+        make_day(self.tournament, courts=2)
         # generate match programme first
         self.client.post(reverse("division_generate_schedule", args=[self.division.pk]))
         response = self.client.post(
@@ -1133,8 +1288,7 @@ class TimeScheduleEdgeCaseTest(TestCase):
         self.assertTrue(any('locked' in str(m).lower() for m in messages_list))
 
     def test_generate_with_no_matches_shows_warning(self):
-        self.tournament.start_time = datetime.time(9, 0)
-        self.tournament.save()
+        make_day(self.tournament)
         # No matches generated → count=0 → warning
         response = self.client.post(
             reverse('tournament_generate_time_schedule', args=[self.tournament.pk])
@@ -1264,10 +1418,10 @@ class SchedulePlannerPlayoffTest(TestCase):
         self.tournament = Tournament.objects.create(
             name="TP", date=datetime.date(2026, 6, 1),
             division_model='mixed', scoring_model='best_of_3_21',
-            start_time=datetime.time(9, 0), court_count=2,
             player_break_time=15, single_match_duration=30,
             owner=self.user,
         )
+        make_day(self.tournament, courts=2)
         self.division = Division.objects.create(
             tournament=self.tournament, name="P", discipline='double',
             tournament_type='playoff', group_count=2, advance_count=1,
@@ -2240,8 +2394,6 @@ class TournamentEditViewTest(TestCase):
             'date': '2026-09-01',
             'division_model': 'mixed',
             'scoring_model': 'best_of_3_21',
-            'court_count': 6,
-            'start_time': '08:30',
             'single_match_duration': 30,
             'double_match_duration': 40,
             'player_break_time': 15,
@@ -2404,9 +2556,9 @@ class ScheduleEditorViewTest(TestCase):
         self.tournament = Tournament.objects.create(
             name="Editor T", date=datetime.date(2026, 6, 1),
             division_model='mixed', scoring_model='best_of_3_21',
-            start_time=datetime.time(9, 0), court_count=2,
             owner=self.user,
         )
+        make_day(self.tournament, courts=2)
 
     def test_editor_returns_200(self):
         response = self.client.get(reverse('schedule_editor', args=[self.tournament.pk]))
@@ -2450,9 +2602,9 @@ class ScheduleAPITest(TestCase):
         self.tournament = Tournament.objects.create(
             name="API T", date=datetime.date(2026, 6, 1),
             division_model='mixed', scoring_model='best_of_3_21',
-            start_time=datetime.time(9, 0), court_count=2,
             owner=self.user,
         )
+        make_day(self.tournament, courts=2)
         self.division = make_division(tournament=self.tournament)
         self.t1 = make_team(r1=1, r2=2)
         self.t2 = make_team(r1=3, r2=4)
