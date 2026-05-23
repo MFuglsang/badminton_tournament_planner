@@ -2982,6 +2982,10 @@ msgstr "Konfigurér mindst én turneringsdag inden brug af editoren."
 msgid "Today"
 msgstr "I dag"
 
+#: tournaments/templates/tournaments/tournament_schedule_print.html
+msgid "Day"
+msgstr "Dag"
+
 #~ msgid "Want to add multiple players at once?"
 #~ msgstr "Vil du tilføje flere spillere på én gang?"
 

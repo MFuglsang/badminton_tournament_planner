@@ -244,6 +244,7 @@
 </div>
 
 {% if wallchart_data %}
+{% with days_count=tournament.days.count %}
 <div class="division-grid">
 {% for dd in wallchart_data %}
 <div class="div-block">
@@ -284,7 +285,7 @@
           {% for match in group.matches %}
           <tr>
             <td class="col-no">{{ match.match_number }}</td>
-            <td class="col-time">{% if match.scheduled_time %}{{ match.scheduled_time|time:"H:i" }}{% else %}–{% endif %}</td>
+            <td class="col-time">{% if match.scheduled_time %}{% if days_count > 1 %}<span class="match-date">{{ match.scheduled_time|date:"j/n" }}</span> {% endif %}{{ match.scheduled_time|time:"H:i" }}{% else %}–{% endif %}</td>
             <td class="col-team">{{ match.team1.name }}{{ match.t1_seed }}</td>
             <td class="col-vs">{% trans "vs" %}</td>
             <td class="col-team">{{ match.team2.name }}{{ match.t2_seed }}</td>
@@ -316,7 +317,7 @@
         {% for match in dd.playoff_matches %}
         <tr>
           <td class="col-no">{{ match.match_number }}</td>
-          <td class="col-time">{% if match.scheduled_time %}{{ match.scheduled_time|time:"H:i" }}{% else %}–{% endif %}</td>
+          <td class="col-time">{% if match.scheduled_time %}{% if days_count > 1 %}<span class="match-date">{{ match.scheduled_time|date:"j/n" }}</span> {% endif %}{{ match.scheduled_time|time:"H:i" }}{% else %}–{% endif %}</td>
           <td class="col-team">
             {% if match.team1 %}{{ match.team1.name }}{{ match.t1_seed }}
             {% elif match.feeder1_num %}{% trans "W-match" %} #{{ match.feeder1_num }}
@@ -365,7 +366,7 @@
         <tr>
           <td class="col-no">{{ match.match_number }}</td>
           <td class="col-time">
-            {% if match.scheduled_time %}{{ match.scheduled_time|time:"H:i" }}{% else %}–{% endif %}
+            {% if match.scheduled_time %}{% if days_count > 1 %}<span class="match-date">{{ match.scheduled_time|date:"j/n" }}</span> {% endif %}{{ match.scheduled_time|time:"H:i" }}{% else %}–{% endif %}
           </td>
           <td class="col-team">
             {% if match.team1 %}{{ match.team1.name }}{{ match.t1_seed }}
@@ -404,6 +405,7 @@
 </div>
 {% endfor %}
 </div>
+{% endwith %}
 {% else %}
 <div style="max-width:960px; margin:2rem auto; text-align:center; color:#888; background:#fff; border-radius:8px; padding:3rem;">
   <div style="font-size:2rem; margin-bottom:.5rem;">📋</div>

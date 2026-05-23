@@ -318,6 +318,7 @@
 </div>
 
 {% if division_data %}
+  {% with days_count=tournament.days.count %}
   {% for dd in division_data %}
   <div class="division-section">
 
@@ -374,7 +375,7 @@
             <tr>
               <td class="match-no">{{ match.match_number }}</td>
               <td class="round-col">R{{ match.match_round }}</td>
-              {% if match.scheduled_time %}<td class="tid-col">{{ match.scheduled_time|time:"H:i" }}</td>{% elif group.matches.0.scheduled_time %}<td class="tid-col">–</td>{% endif %}
+              {% if match.scheduled_time %}<td class="tid-col">{% if days_count > 1 %}<span class="match-date">{{ match.scheduled_time|date:"j/n" }}</span> {% endif %}{{ match.scheduled_time|time:"H:i" }}</td>{% elif group.matches.0.scheduled_time %}<td class="tid-col">–</td>{% endif %}
               <td class="teams-col">{{ match.team1.name }}{{ match.t1_seed }}<span class="vs">vs</span>{{ match.team2.name }}{{ match.t2_seed }}</td>
             </tr>
             {% endfor %}
@@ -447,7 +448,7 @@
             <tr>
               <td class="match-no">{{ match.match_number }}</td>
               <td class="round-col">{{ match.bracket_label|default:"" }}</td>
-              {% if match.scheduled_time %}<td class="tid-col">{{ match.scheduled_time|time:"H:i" }}</td>{% elif dd.playoff_matches.0.scheduled_time %}<td class="tid-col">–</td>{% endif %}
+              {% if match.scheduled_time %}<td class="tid-col">{% if days_count > 1 %}<span class="match-date">{{ match.scheduled_time|date:"j/n" }}</span> {% endif %}{{ match.scheduled_time|time:"H:i" }}</td>{% elif dd.playoff_matches.0.scheduled_time %}<td class="tid-col">–</td>{% endif %}
               <td class="teams-col">
                 {% if match.team1 and match.team2 %}
                 {{ match.team1.name }}{{ match.t1_seed }}<span class="vs">vs</span>{{ match.team2.name }}{{ match.t2_seed }}
@@ -525,7 +526,7 @@
             <tr>
               <td class="match-no">{{ match.match_number }}</td>
               <td class="round-col">{{ match.bracket_label|default:"R"|add:match.match_round|stringformat:"s" }}</td>
-              {% if match.scheduled_time %}<td class="tid-col">{{ match.scheduled_time|time:"H:i" }}</td>{% elif dd.matches.0.scheduled_time %}<td class="tid-col">–</td>{% endif %}
+              {% if match.scheduled_time %}<td class="tid-col">{% if days_count > 1 %}<span class="match-date">{{ match.scheduled_time|date:"j/n" }}</span> {% endif %}{{ match.scheduled_time|time:"H:i" }}</td>{% elif dd.matches.0.scheduled_time %}<td class="tid-col">–</td>{% endif %}
               <td class="teams-col">
                 {% if match.team1 and match.team2 %}
                 {{ match.team1.name }}{{ match.t1_seed }}<span class="vs">vs</span>{{ match.team2.name }}{{ match.t2_seed }}
@@ -567,7 +568,7 @@
               <td class="match-no">{{ match.match_number }}</td>
               <td class="round-col">R{{ match.match_round }}</td>
               {% if match.scheduled_time %}
-              <td class="tid-col">{{ match.scheduled_time|time:"H:i" }}</td>
+              <td class="tid-col">{% if days_count > 1 %}<span class="match-date">{{ match.scheduled_time|date:"j/n" }}</span> {% endif %}{{ match.scheduled_time|time:"H:i" }}</td>
               {% elif dd.matches.0.scheduled_time %}
               <td class="tid-col">–</td>
               {% endif %}
@@ -595,6 +596,7 @@
 
   </div>
   {% endfor %}
+  {% endwith %}
 
 {% else %}
 <div class="empty-state">

@@ -3552,3 +3552,100 @@ class TranslationPhase3Test(TestCase):
             if m in translated and not translated[m].strip()
         ]
         self.assertFalse(empty, f"msgstr er tom for: {empty}")
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 – Print templates with day context
+# ---------------------------------------------------------------------------
+
+class PrintScheduleMultiDayTest(TestCase):
+    """tournament_schedule_print viser dag-overskrifter for flerdags-turneringer."""
+
+    def setUp(self):
+        self.user = make_user(username='pschedclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
+        self.division = make_division(tournament=self.tournament)
+        self.t1 = make_team('Alpha', r1=81, r2=82)
+        self.t2 = make_team('Beta', r1=83, r2=84)
+        self.division.teams.add(self.t1, self.t2)
+        self.day1 = make_day(
+            self.tournament, day_number=1,
+            date=datetime.date(2026, 7, 1), start='09:00', end='20:00',
+        )
+        self.day2 = make_day(
+            self.tournament, day_number=2,
+            date=datetime.date(2026, 7, 2), start='09:00', end='20:00',
+        )
+
+    def test_day_headers_shown_for_multiday(self):
+        Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2,
+            match_round=1, match_number=1,
+            scheduled_time='2026-07-01 10:00:00+00:00',
+        )
+        Match.objects.create(
+            division=self.division, team1=self.t2, team2=self.t1,
+            match_round=2, match_number=2,
+            scheduled_time='2026-07-02 10:00:00+00:00',
+        )
+        response = self.client.get(reverse('tournament_schedule_print', args=[self.tournament.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="day-sep"')
+
+    def test_no_day_headers_for_single_day(self):
+        self.day2.delete()
+        Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2,
+            match_round=1, match_number=1,
+            scheduled_time='2026-07-01 10:00:00+00:00',
+        )
+        response = self.client.get(reverse('tournament_schedule_print', args=[self.tournament.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'class="day-sep"')
+
+
+class PrintProgramDatesTest(TestCase):
+    """tournament_program_print viser dato pr. kamp for flerdags-turneringer."""
+
+    def setUp(self):
+        self.user = make_user(username='pprogclub')
+        self.client.force_login(self.user)
+
+    def test_match_dates_shown_for_multiday(self):
+        t = make_tournament(owner=self.user)
+        div = make_division(tournament=t)
+        t1 = make_team('Gamma', r1=91, r2=92)
+        t2 = make_team('Delta', r1=93, r2=94)
+        div.teams.add(t1, t2)
+        make_day(t, day_number=1, date=datetime.date(2026, 8, 1), start='09:00', end='20:00')
+        make_day(t, day_number=2, date=datetime.date(2026, 8, 2), start='09:00', end='20:00')
+        Match.objects.create(
+            division=div, team1=t1, team2=t2,
+            match_round=1, match_number=1,
+            scheduled_time='2026-08-01 10:00:00+00:00',
+        )
+        Match.objects.create(
+            division=div, team1=t2, team2=t1,
+            match_round=2, match_number=2,
+            scheduled_time='2026-08-02 10:00:00+00:00',
+        )
+        response = self.client.get(reverse('tournament_program_print', args=[t.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="match-date"')
+
+    def test_no_match_dates_for_single_day(self):
+        t = make_tournament(owner=self.user)
+        div = make_division(tournament=t)
+        t1 = make_team('Solo-A', r1=95, r2=96)
+        t2 = make_team('Solo-B', r1=97, r2=98)
+        div.teams.add(t1, t2)
+        make_day(t, day_number=1, date=datetime.date(2026, 8, 1), start='09:00', end='20:00')
+        Match.objects.create(
+            division=div, team1=t1, team2=t2,
+            match_round=1, match_number=1,
+            scheduled_time='2026-08-01 10:00:00+00:00',
+        )
+        response = self.client.get(reverse('tournament_program_print', args=[t.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'class="match-date"')

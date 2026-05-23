@@ -177,6 +177,13 @@
     <img src="{{ tournament.logo.url }}" alt="{{ tournament.name }} logo" class="sign-logo">
     {% endif %}
     <div class="sign-tournament-name">{{ tournament.name }}</div>
+    {% if tournament.days.count > 1 %}
+    <div class="sign-tournament-name" style="font-size:0.9rem; font-weight:400; letter-spacing:0.02em; color:#555; margin-top:-0.3rem;">
+      {% for day in tournament.days.all %}{{ day.date|date:"j. N" }}{% if not forloop.last %} – {% endif %}{% endfor %}
+    </div>
+    {% else %}
+    <div class="sign-tournament-name" style="font-size:0.9rem; font-weight:400; letter-spacing:0.02em; color:#555; margin-top:-0.3rem;">{{ tournament.date }}</div>
+    {% endif %}
     <div class="sign-divider"></div>
     <div class="sign-label">{% trans "Court" %}</div>
     <div class="sign-number">{{ court }}</div>
