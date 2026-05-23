@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -72,16 +73,6 @@ class Tournament(models.Model):
         default=15,
         verbose_name=_("Player break time")
     )
-    court_count = models.IntegerField(
-        default=4,
-        verbose_name=_("Number of courts"),
-        help_text=_("Number of courts available during the tournament"),
-    )
-    start_time = models.TimeField(
-        null=True, blank=True,
-        verbose_name=_("Start time"),
-        help_text=_("Time of first match"),
-    )
     schedule_locked = models.BooleanField(
         default=False,
         verbose_name=_("Schedule locked"),
@@ -101,6 +92,12 @@ class Tournament(models.Model):
         verbose_name=_("Club user"),
     )
 
+    def sync_date(self):
+        """Synkroniser tournament.date til første dags dato."""
+        first = self.days.order_by('date').first()
+        if first:
+            self.date = first.date
+
     def __str__(self):
         """Return a readable tournament label.
 
@@ -108,6 +105,94 @@ class Tournament(models.Model):
             str: Tournament name and scoring model.
         """
         return f"{self.name} ({self.scoring_model})"
+
+
+class TournamentDay(models.Model):
+    """Represent a single day within a multi-day tournament."""
+
+    tournament = models.ForeignKey(
+        Tournament, on_delete=models.CASCADE, related_name='days',
+        verbose_name=_("Tournament"),
+    )
+    day_number = models.PositiveIntegerField(
+        verbose_name=_("Day number"),
+        help_text=_("1-based display number for this day."),
+    )
+    date = models.DateField(verbose_name=_("Date"))
+    start_time = models.TimeField(verbose_name=_("Start time"))
+    end_time = models.TimeField(
+        null=True, blank=True,
+        verbose_name=_("End time"),
+        help_text=_(
+            "Leave blank for unlimited ending (day runs until all matches complete)."
+        ),
+    )
+    court_count = models.IntegerField(
+        default=4,
+        verbose_name=_("Number of courts"),
+        help_text=_("Number of courts available on this day."),
+    )
+    buffer_minutes = models.IntegerField(
+        default=30,
+        verbose_name=_("Buffer (minutes)"),
+        help_text=_(
+            "Time reserved at the end of the day to absorb delays. "
+            "Matches are not placed in this period."
+        ),
+    )
+
+    class Meta:
+        ordering = ['date', 'start_time']
+        unique_together = [('tournament', 'day_number')]
+        verbose_name = _("Tournament day")
+        verbose_name_plural = _("Tournament days")
+
+    def clean(self):
+        super().clean()
+        if self.day_number is not None and self.day_number < 1:
+            raise ValidationError(_("Day number must be 1 or greater."))
+        if self.buffer_minutes is not None and self.buffer_minutes < 0:
+            raise ValidationError(_("Buffer must not be negative."))
+        if self.end_time and self.start_time:
+            if self.end_time <= self.start_time:
+                raise ValidationError(_("End time must be after start time."))
+            start_mins = self.start_time.hour * 60 + self.start_time.minute
+            end_mins = self.end_time.hour * 60 + self.end_time.minute
+            if self.buffer_minutes is not None and self.buffer_minutes >= (end_mins - start_mins):
+                raise ValidationError(
+                    _("Buffer is larger than or equal to the available time window.")
+                )
+
+    def get_scheduled_match_count(self):
+        """Returnerer antal schedulerede matches på denne dag."""
+        from .models import Match
+        return Match.objects.filter(
+            division__tournament=self.tournament,
+            scheduled_time__date=self.date,
+            scheduled_time__isnull=False,
+        ).count()
+
+    def get_expected_match_count(self):
+        """Returnerer forventet antal matches baseret på tildelinger."""
+        count = 0
+        for div in self.group_divisions.all():
+            count += div.estimate_group_match_count()
+        for div in self.playoff_divisions.all():
+            count += div.estimate_playoff_match_count()
+        return count
+
+    def __str__(self):
+        if self.end_time:
+            return (
+                f"Dag {self.day_number} \u2013 {self.date} "
+                f"({self.start_time.strftime('%H:%M')}\u2013{self.end_time.strftime('%H:%M')}, "
+                f"{self.court_count} baner, {self.buffer_minutes} min. buffer)"
+            )
+        return (
+            f"Dag {self.day_number} \u2013 {self.date} "
+            f"(fra {self.start_time.strftime('%H:%M')}, {self.court_count} baner, l\u00f8ber over)"
+        )
+
 
 class Division(models.Model):
     """Represent a playable division within a tournament."""
@@ -145,6 +230,18 @@ class Division(models.Model):
         verbose_name=_("Schedule priority"),
         help_text=_("1 = schedule earliest · 10 = schedule latest. Use this to ensure younger divisions finish first."),
     )
+    group_day = models.ForeignKey(
+        'TournamentDay', null=True, blank=True,
+        related_name='group_divisions', on_delete=models.SET_NULL,
+        verbose_name=_("Group phase day"),
+        help_text=_("Day where group matches are played. Empty = scheduler decides freely."),
+    )
+    playoff_day = models.ForeignKey(
+        'TournamentDay', null=True, blank=True,
+        related_name='playoff_divisions', on_delete=models.SET_NULL,
+        verbose_name=_("Playoff day"),
+        help_text=_("Day where playoff matches are played. Empty = scheduler decides freely."),
+    )
     gold_count = models.IntegerField(
         default=1, verbose_name=_("Gold medals"),
         help_text=_("Number of teams awarded gold (typically 1)."),
@@ -158,6 +255,39 @@ class Division(models.Model):
         help_text=_("0, 1 or 2. Use 2 for bracket tournaments where both semi-final losers receive bronze."),
     )
     teams = models.ManyToManyField('players.Team', related_name='divisions', blank=True, verbose_name=_("Participants"))
+
+    def clean(self):
+        super().clean()
+        if (self.group_day_id and self.playoff_day_id and
+                self.group_day_id == self.playoff_day_id and
+                self.tournament_type == 'playoff'):
+            raise ValidationError(
+                _("Group phase day and playoff day cannot be the same day.")
+            )
+
+    def estimate_group_match_count(self):
+        """Estimerer antal gruppekampe i denne division."""
+        if self.tournament_type == 'tree':
+            return 0
+        groups = self.group_set.all()
+        if not groups.exists():
+            return 0
+        total = 0
+        for group in groups:
+            n = group.team_set.count()
+            if n > 1:
+                total += n * (n - 1) // 2
+        return total
+
+    def estimate_playoff_match_count(self):
+        """Estimerer antal slutspilskampe (worst-case: alle gruppevindere + single-elim)."""
+        if self.tournament_type == 'group':
+            return 0
+        groups = self.group_set.all()
+        if not groups.exists():
+            return 0
+        n = groups.count()
+        return max(0, n - 1) if n > 1 else 0
 
     def __str__(self):
         """Return a readable division label.

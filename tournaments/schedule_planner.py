@@ -34,7 +34,7 @@ def generate_time_schedule(tournament):
     Requires tournament.start_time and tournament.date to be set.
     Returns the number of matches scheduled, or 0 if prerequisites are missing.
     """
-    if not tournament.start_time:
+    if not tournament.days.exists():
         return 0
 
     from .models import Match
@@ -64,10 +64,12 @@ def _schedule_greedy(tournament, matches):
     Assigns each match the earliest available court slot that respects player
     break times, playoff barriers, and priority ordering.
     """
-    naive_start = datetime.combine(tournament.date, tournament.start_time)
+    first_day = tournament.days.order_by('date', 'start_time').first()
+    naive_start = datetime.combine(first_day.date, first_day.start_time)
     start_dt = timezone.make_aware(naive_start) if timezone.is_naive(naive_start) else naive_start
+    court_count = first_day.court_count
 
-    court_free = [start_dt] * tournament.court_count
+    court_free = [start_dt] * court_count
     player_free = {}
     bracket_slot_end = {}
     playoff_group_end = {}
