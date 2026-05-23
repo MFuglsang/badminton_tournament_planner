@@ -2926,6 +2926,62 @@ msgstr ""
 msgid "Match numbers sorted by schedule – %(n)s matches numbered from 1."
 msgstr "Kampnumre sorteret efter spilleplan – %(n)s kampe nummereret fra 1."
 
+#: tournaments/templates/tournaments/tournament_detail.html
+msgid "Days"
+msgstr "Dage"
+
+#: tournaments/templates/tournaments/tournament_detail.html
+msgid "courts"
+msgstr "baner"
+
+#: tournaments/templates/tournaments/tournament_detail.html
+msgid "No days configured."
+msgstr "Ingen dage konfigureret."
+
+#: tournaments/templates/tournaments/tournament_detail.html
+msgid "Day assignment"
+msgstr "Dag-tildeling"
+
+#: tournaments/templates/tournaments/tournament_detail.html
+msgid "Group phase"
+msgstr "Gruppespil"
+
+#: tournaments/templates/tournaments/tournament_detail.html
+msgid "Playoff phase"
+msgstr "Slutspil"
+
+#: tournaments/templates/tournaments/tournament_detail.html
+msgid "Not assigned"
+msgstr "Ikke tildelt"
+
+#: tournaments/templates/tournaments/tournament_form.html
+msgid "Day #"
+msgstr "Dag #"
+
+#: tournaments/templates/tournaments/tournament_form.html
+msgid "Buffer (min)"
+msgstr "Buffer (min)"
+
+#: tournaments/templates/tournaments/tournament_form.html
+msgid "Add day"
+msgstr "Tilføj dag"
+
+#: tournaments/templates/tournaments/schedule.html
+msgid ""
+"No days configured. Add at least one tournament day before generating the "
+"time schedule."
+msgstr ""
+"Ingen dage konfigureret. Tilføj mindst én turneringsdag inden generering af "
+"tidsprogrammet."
+
+#: tournaments/templates/tournaments/schedule_editor.html
+msgid "Configure at least one tournament day before using the editor."
+msgstr "Konfigurér mindst én turneringsdag inden brug af editoren."
+
+#: tournaments/templates/tournaments/tournament_run.html
+msgid "Today"
+msgstr "I dag"
+
 #~ msgid "Want to add multiple players at once?"
 #~ msgstr "Vil du tilføje flere spillere på én gang?"
 

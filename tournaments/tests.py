@@ -3294,3 +3294,261 @@ class PublicViewLanguageTest(TestCase):
     def test_public_schedule_activates_club_language_without_cookie(self):
         response = self.client.get(reverse('public_schedule', args=[self.tournament.pk]))
         self.assertEqual(response.status_code, 200)
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — Frontend tests
+# ---------------------------------------------------------------------------
+
+class TournamentFormDaysTest(TestCase):
+    """Formset for TournamentDays renderes korrekt og gemmes ved POST."""
+
+    def setUp(self):
+        self.user = make_user()
+        self.client.force_login(self.user)
+
+    def test_create_form_get_contains_formset(self):
+        """GET tournament_create skal indeholde days-management-form."""
+        response = self.client.get(reverse('tournament_create'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id_days-TOTAL_FORMS')
+
+    def test_create_post_with_two_days_saves_both(self):
+        """POST med to dage opretter turneringen med begge TournamentDay-objekter."""
+        import datetime as dt
+        data = {
+            'name': 'Fase3 Todages',
+            'date': '2026-08-01',
+            'division_model': 'mixed',
+            'scoring_model': 'best_of_3_21',
+            'single_match_duration': 30,
+            'double_match_duration': 40,
+            'player_break_time': 15,
+            'days-TOTAL_FORMS': '2',
+            'days-INITIAL_FORMS': '0',
+            'days-MIN_NUM_FORMS': '1',
+            'days-MAX_NUM_FORMS': '1000',
+            'days-0-day_number': '1',
+            'days-0-date': '2026-08-01',
+            'days-0-start_time': '09:00',
+            'days-0-end_time': '22:00',
+            'days-0-court_count': '6',
+            'days-0-buffer_minutes': '30',
+            'days-0-DELETE': '',
+            'days-1-day_number': '2',
+            'days-1-date': '2026-08-02',
+            'days-1-start_time': '09:00',
+            'days-1-end_time': '18:00',
+            'days-1-court_count': '4',
+            'days-1-buffer_minutes': '30',
+            'days-1-DELETE': '',
+        }
+        response = self.client.post(reverse('tournament_create'), data)
+        self.assertEqual(response.status_code, 302)
+        from tournaments.models import Tournament, TournamentDay
+        t = Tournament.objects.get(name='Fase3 Todages')
+        self.assertEqual(t.days.count(), 2)
+        self.assertEqual(t.days.get(day_number=1).court_count, 6)
+        self.assertEqual(t.days.get(day_number=2).court_count, 4)
+
+    def test_edit_form_get_contains_existing_days(self):
+        """GET tournament_edit skal vise eksisterende dage i formsettet."""
+        t = make_tournament(owner=self.user)
+        make_day(t, day_number=1)
+        make_day(t, day_number=2, date=__import__('datetime').date(2026, 8, 2))
+        response = self.client.get(reverse('tournament_edit', args=[t.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id_days-TOTAL_FORMS')
+        # To dage = INITIAL_FORMS skal være 2
+        self.assertContains(response, 'value="2"')
+
+
+class DivisionDayAssignmentUITest(TestCase):
+    """Dag-tildeling-UI vises korrekt for flerdages turneringer."""
+
+    def setUp(self):
+        self.user = make_user()
+        self.client.force_login(self.user)
+
+    def test_day_assignment_shown_for_multiday_tournament(self):
+        """Detail-siden for en flerdages turnering viser dag-tildeling-sektion."""
+        import datetime as dt
+        t = make_tournament(owner=self.user)
+        make_day(t, day_number=1)
+        make_day(t, day_number=2, date=dt.date(2026, 8, 2))
+        from tournaments.models import Division
+        Division.objects.create(
+            tournament=t, name='HS', discipline='single',
+            tournament_type='group', schedule_priority=5,
+        )
+        response = self.client.get(reverse('tournament_detail', args=[t.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Day assignment')
+
+    def test_day_assignment_hidden_for_single_day_tournament(self):
+        """Detail-siden for en endags-turnering viser IKKE dag-tildeling."""
+        t = make_tournament(owner=self.user)
+        make_day(t, day_number=1)
+        from tournaments.models import Division
+        Division.objects.create(
+            tournament=t, name='HS', discipline='single',
+            tournament_type='group', schedule_priority=5,
+        )
+        response = self.client.get(reverse('tournament_detail', args=[t.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Day assignment')
+
+
+class ScheduleViewDayHeaderTest(TestCase):
+    """_schedule_matches.html viser dag-headers for flerdages tidsprogram."""
+
+    def setUp(self):
+        self.user = make_user()
+        self.client.force_login(self.user)
+
+    def _make_scheduled_tournament(self):
+        import datetime as dt
+        t = make_tournament(owner=self.user)
+        day1 = make_day(t, day_number=1, date=dt.date(2026, 8, 1))
+        day2 = make_day(t, day_number=2, date=dt.date(2026, 8, 2))
+        from tournaments.models import Division, Match
+        div = Division.objects.create(
+            tournament=t, name='HS', discipline='single',
+            tournament_type='group', schedule_priority=5,
+            group_day=day1,
+        )
+        from django.utils import timezone
+        m1 = Match.objects.create(
+            division=div, match_round=1, phase='group', match_number=1,
+            scheduled_time=timezone.make_aware(
+                dt.datetime.combine(dt.date(2026, 8, 1), dt.time(10, 0))
+            ),
+        )
+        m2 = Match.objects.create(
+            division=div, match_round=2, phase='group', match_number=2,
+            scheduled_time=timezone.make_aware(
+                dt.datetime.combine(dt.date(2026, 8, 2), dt.time(10, 0))
+            ),
+        )
+        return t, day1, day2
+
+    def test_schedule_shows_day_headers_for_multiday(self):
+        """Time schedule-siden viser dag-headers når kampe er på flere dage."""
+        t, day1, day2 = self._make_scheduled_tournament()
+        response = self.client.get(reverse('tournament_schedule', args=[t.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="sched-day-header"')
+
+    def test_schedule_no_day_headers_for_single_day(self):
+        """Time schedule-siden viser IKKE dag-headers for endags-turneringer."""
+        import datetime as dt
+        t = make_tournament(owner=self.user)
+        make_day(t)
+        from tournaments.models import Division, Match
+        from django.utils import timezone
+        div = Division.objects.create(
+            tournament=t, name='DS', discipline='double',
+            tournament_type='group', schedule_priority=5,
+        )
+        Match.objects.create(
+            division=div, match_round=1, phase='group', match_number=1,
+            scheduled_time=timezone.make_aware(
+                dt.datetime.combine(dt.date.today(), dt.time(10, 0))
+            ),
+        )
+        response = self.client.get(reverse('tournament_schedule', args=[t.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'class="sched-day-header"')
+
+
+class ScheduleEditorNoDaysWarningTest(TestCase):
+    """schedule_editor viser advarsel når turneringen ikke har nogen dage."""
+
+    def setUp(self):
+        self.user = make_user()
+        self.client.force_login(self.user)
+
+    def test_editor_shows_warning_without_days(self):
+        t = make_tournament(owner=self.user)
+        # Ingen dage
+        response = self.client.get(reverse('schedule_editor', args=[t.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Configure at least one tournament day')
+
+    def test_editor_shows_grid_with_days(self):
+        t = make_tournament(owner=self.user)
+        make_day(t)
+        response = self.client.get(reverse('schedule_editor', args=[t.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'editor-grid')
+
+
+class TournamentRunDayNavTest(TestCase):
+    """tournament_run viser dag-navigation ved flerdages turneringer."""
+
+    def setUp(self):
+        self.user = make_user()
+        self.client.force_login(self.user)
+
+    def test_run_shows_day_nav_for_multiday(self):
+        import datetime as dt
+        t = make_tournament(owner=self.user)
+        make_day(t, day_number=1)
+        make_day(t, day_number=2, date=dt.date(2026, 8, 2))
+        response = self.client.get(reverse('tournament_run', args=[t.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'day-nav-bar')
+
+    def test_run_no_day_nav_for_single_day(self):
+        t = make_tournament(owner=self.user)
+        make_day(t, day_number=1)
+        response = self.client.get(reverse('tournament_run', args=[t.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'day-nav-bar')
+
+    def test_run_no_day_nav_without_days(self):
+        t = make_tournament(owner=self.user)
+        response = self.client.get(reverse('tournament_run', args=[t.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'day-nav-bar')
+
+
+class TranslationPhase3Test(TestCase):
+    """Alle Phase 3-relaterede msgid har ikke-tomme dansk msgstr."""
+
+    REQUIRED_MSGIDS = [
+        # Fase 1 — modelstrenge
+        "Day number",
+        "Buffer (minutes)",
+        "End time must be after start time.",
+        "Buffer is larger than or equal to the available time window.",
+        # Fase 2 — view/scheduler-strenge
+        "Day assignment saved.",
+        "Warning: schedule may be incomplete despite forced run.",
+        "Configure at least one tournament day before generating the time schedule.",
+        # Fase 3 — template-strenge
+        "No days configured.",
+        "Day assignment",
+        "Not assigned",
+        "Group phase",
+        "Playoff phase",
+        "Add day",
+        "Today",
+    ]
+
+    def test_all_required_msgids_translated(self):
+        import polib
+        from pathlib import Path
+        from django.conf import settings
+        po_path = Path(settings.BASE_DIR) / 'locale' / 'da' / 'LC_MESSAGES' / 'django.po'
+        if not po_path.exists():
+            self.skipTest('django.po not found')
+        po = polib.pofile(str(po_path))
+        translated = {e.msgid: e.msgstr for e in po if not e.obsolete}
+        missing = [m for m in self.REQUIRED_MSGIDS if m not in translated]
+        self.assertFalse(missing, f"msgid mangler i .po: {missing}")
+        empty = [
+            m for m in self.REQUIRED_MSGIDS
+            if m in translated and not translated[m].strip()
+        ]
+        self.assertFalse(empty, f"msgstr er tom for: {empty}")
