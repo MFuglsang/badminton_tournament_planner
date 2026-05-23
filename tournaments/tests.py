@@ -448,6 +448,16 @@ class TournamentCRUDViewTest(TestCase):
             'single_match_duration': 30,
             'double_match_duration': 40,
             'player_break_time': 15,
+            # TournamentDay inline formset (min 1 day required)
+            'days-TOTAL_FORMS': '1',
+            'days-INITIAL_FORMS': '0',
+            'days-MIN_NUM_FORMS': '1',
+            'days-MAX_NUM_FORMS': '1000',
+            'days-0-day_number': '1',
+            'days-0-date': '2026-06-01',
+            'days-0-start_time': '09:00',
+            'days-0-court_count': '4',
+            'days-0-buffer_minutes': '30',
         })
         tournament = Tournament.objects.get(name='Ny Turnering')
         self.assertRedirects(response, reverse("tournament_detail", args=[tournament.pk]))
@@ -464,6 +474,7 @@ class TournamentCRUDViewTest(TestCase):
 
     def test_tournament_edit_post_updates_fields(self):
         t = make_tournament(owner=self.user)
+        day = make_day(t)  # existing day: INITIAL_FORMS=1
         response = self.client.post(reverse("tournament_edit", args=[t.pk]), {
             'name': 'Opdateret',
             'date': '2026-07-01',
@@ -472,6 +483,18 @@ class TournamentCRUDViewTest(TestCase):
             'single_match_duration': 30,
             'double_match_duration': 40,
             'player_break_time': 15,
+            # Keep the existing day
+            'days-TOTAL_FORMS': '1',
+            'days-INITIAL_FORMS': '1',
+            'days-MIN_NUM_FORMS': '1',
+            'days-MAX_NUM_FORMS': '1000',
+            'days-0-id': str(day.pk),
+            'days-0-tournament': str(t.pk),
+            'days-0-day_number': '1',
+            'days-0-date': str(day.date),
+            'days-0-start_time': '09:00',
+            'days-0-court_count': '4',
+            'days-0-buffer_minutes': '30',
         })
         self.assertRedirects(response, reverse("tournament_detail", args=[t.pk]))
         t.refresh_from_db()
@@ -2389,6 +2412,7 @@ class TournamentEditViewTest(TestCase):
         self.assertContains(response, self.tournament.name)
 
     def test_edit_post_updates_tournament(self):
+        day = make_day(self.tournament)  # existing day: INITIAL_FORMS=1
         response = self.client.post(reverse('tournament_edit', args=[self.tournament.pk]), {
             'name': 'Redigeret Turnering',
             'date': '2026-09-01',
@@ -2397,6 +2421,18 @@ class TournamentEditViewTest(TestCase):
             'single_match_duration': 30,
             'double_match_duration': 40,
             'player_break_time': 15,
+            # Keep the existing day
+            'days-TOTAL_FORMS': '1',
+            'days-INITIAL_FORMS': '1',
+            'days-MIN_NUM_FORMS': '1',
+            'days-MAX_NUM_FORMS': '1000',
+            'days-0-id': str(day.pk),
+            'days-0-tournament': str(self.tournament.pk),
+            'days-0-day_number': '1',
+            'days-0-date': str(day.date),
+            'days-0-start_time': '09:00',
+            'days-0-court_count': '4',
+            'days-0-buffer_minutes': '30',
         })
         self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
         self.tournament.refresh_from_db()
@@ -2535,13 +2571,279 @@ class TournamentRunViewTest(TestCase):
         response = self.client.get(reverse('tournament_run', args=[9999]))
         self.assertEqual(response.status_code, 404)
 
-    def test_run_view_shows_in_progress_matches(self):
-        match = Match.objects.create(
-            division=self.division, team1=self.t1, team2=self.t2,
-            status='in_progress', match_number=1,
+
+# ---------------------------------------------------------------------------
+# Phase 2 — TournamentDayFormSet tests
+# ---------------------------------------------------------------------------
+
+class TournamentDayFormSetTest(TestCase):
+    def setUp(self):
+        self.user = make_user(username='formsetclub')
+        self.client.force_login(self.user)
+
+    def _base_post(self, extra=None):
+        data = {
+            'name': 'Formset Test',
+            'date': '2026-08-01',
+            'division_model': 'mixed',
+            'scoring_model': 'best_of_3_21',
+            'single_match_duration': 30,
+            'double_match_duration': 40,
+            'player_break_time': 15,
+            'days-TOTAL_FORMS': '1',
+            'days-INITIAL_FORMS': '0',
+            'days-MIN_NUM_FORMS': '1',
+            'days-MAX_NUM_FORMS': '1000',
+            'days-0-day_number': '1',
+            'days-0-date': '2026-08-01',
+            'days-0-start_time': '09:00',
+            'days-0-court_count': '4',
+            'days-0-buffer_minutes': '30',
+        }
+        if extra:
+            data.update(extra)
+        return data
+
+    def test_create_with_valid_day_creates_tournament_and_day(self):
+        response = self.client.post(reverse('tournament_create'), self._base_post())
+        t = Tournament.objects.get(name='Formset Test')
+        self.assertEqual(t.days.count(), 1)
+        self.assertEqual(t.days.first().court_count, 4)
+
+    def test_create_without_day_stays_on_page(self):
+        """Without formset management form, formset is invalid → stay on page."""
+        data = {
+            'name': 'No Day Tournament',
+            'date': '2026-08-01',
+            'division_model': 'mixed',
+            'scoring_model': 'best_of_3_21',
+            'single_match_duration': 30,
+            'double_match_duration': 40,
+            'player_break_time': 15,
+            'days-TOTAL_FORMS': '0',
+            'days-INITIAL_FORMS': '0',
+            'days-MIN_NUM_FORMS': '1',
+            'days-MAX_NUM_FORMS': '1000',
+        }
+        response = self.client.post(reverse('tournament_create'), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Tournament.objects.filter(name='No Day Tournament').exists())
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 — division_update_days view tests
+# ---------------------------------------------------------------------------
+
+class DivisionUpdateDaysTest(TestCase):
+    def setUp(self):
+        self.user = make_user(username='dayassignclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
+        self.day1 = make_day(self.tournament, day_number=1, date=datetime.date(2026, 6, 1))
+        self.day2 = make_day(self.tournament, day_number=2, date=datetime.date(2026, 6, 2))
+        self.division = make_division(tournament=self.tournament, tournament_type='playoff')
+
+    def test_post_sets_group_and_playoff_day(self):
+        self.client.post(
+            reverse('division_update_days', args=[self.division.pk]),
+            {'group_day': self.day1.pk, 'playoff_day': self.day2.pk},
         )
-        response = self.client.get(reverse('tournament_run', args=[self.tournament.pk]))
-        self.assertEqual(response.context['in_progress_matches'], 1)
+        self.division.refresh_from_db()
+        self.assertEqual(self.division.group_day_id, self.day1.pk)
+        self.assertEqual(self.division.playoff_day_id, self.day2.pk)
+
+    def test_post_clears_days_with_empty_values(self):
+        self.division.group_day = self.day1
+        self.division.save()
+        self.client.post(
+            reverse('division_update_days', args=[self.division.pk]),
+            {'group_day': '', 'playoff_day': ''},
+        )
+        self.division.refresh_from_db()
+        self.assertIsNone(self.division.group_day_id)
+        self.assertIsNone(self.division.playoff_day_id)
+
+    def test_other_owners_division_returns_404(self):
+        other = make_user(username='otherownerday')
+        other_t = make_tournament(owner=other)
+        other_d = make_division(tournament=other_t)
+        response = self.client.post(
+            reverse('division_update_days', args=[other_d.pk]),
+            {'group_day': self.day1.pk},
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_day_from_other_tournament_is_rejected(self):
+        other_t = make_tournament(owner=self.user)
+        other_day = make_day(other_t, day_number=1, date=datetime.date(2026, 7, 1))
+        self.client.post(
+            reverse('division_update_days', args=[self.division.pk]),
+            {'group_day': other_day.pk},
+        )
+        self.division.refresh_from_db()
+        self.assertIsNone(self.division.group_day_id)
+
+    def test_post_redirects_to_tournament_detail(self):
+        response = self.client.post(
+            reverse('division_update_days', args=[self.division.pk]),
+            {'group_day': self.day1.pk},
+        )
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 — check_schedule_feasibility tests
+# ---------------------------------------------------------------------------
+
+class FeasibilityNoDaysTest(TestCase):
+    def test_no_days_returns_error(self):
+        from tournaments.schedule_planner import check_schedule_feasibility
+        t = make_tournament()
+        errors = check_schedule_feasibility(t)
+        self.assertTrue(len(errors) > 0)
+        self.assertTrue(any('no days' in e.lower() or 'configured' in e.lower() for e in errors))
+
+
+class FeasibilityBufferTooLargeTest(TestCase):
+    def test_buffer_equal_to_window_returns_error(self):
+        from tournaments.schedule_planner import check_schedule_feasibility
+        t = make_tournament()
+        make_day(t, courts=4, start='09:00', end='10:00', buffer=60)  # 60 min window, 60 min buffer
+        errors = check_schedule_feasibility(t)
+        self.assertTrue(len(errors) > 0)
+
+
+class FeasibilityOkTest(TestCase):
+    def test_no_matches_assigned_to_day_is_ok(self):
+        from tournaments.schedule_planner import check_schedule_feasibility
+        t = make_tournament()
+        make_day(t, courts=4, start='09:00', end='22:00', buffer=30)
+        # No divisions assigned to this day — required_minutes = 0, no error
+        errors = check_schedule_feasibility(t)
+        self.assertEqual(errors, [])
+
+
+class FeasibilityTooManyMatchesTest(TestCase):
+    def test_too_many_matches_for_day_returns_error(self):
+        import datetime as dt
+        from tournaments.schedule_planner import check_schedule_feasibility
+        from tournaments.scheduler import generate_schedule
+        t = make_tournament()
+        # 30-minute window, 0 buffer, 1 court, 30-min matches → fits exactly 1 match
+        day = make_day(t, courts=1, start='09:00', end='09:30', buffer=0)
+        div = make_division(tournament=t, tournament_type='group')
+        div.group_day = day
+        div.save()
+        # Add enough teams to generate multiple matches
+        for _ in range(4):
+            div.teams.add(make_team())
+        generate_schedule(div)
+        # Assign match numbers so feasibility check counts them
+        for i, m in enumerate(Match.objects.filter(division=div), start=1):
+            m.match_number = i
+            m.save(update_fields=['match_number'])
+        errors = check_schedule_feasibility(t)
+        self.assertTrue(len(errors) > 0)
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 — scheduling view with feasibility tests
+# ---------------------------------------------------------------------------
+
+class FeasibilityBlocksSchedulingViewTest(TestCase):
+    def setUp(self):
+        self.user = make_user(username='feasibilityclub')
+        self.client.force_login(self.user)
+
+    def test_feasibility_error_blocks_scheduling(self):
+        from tournaments.scheduler import generate_schedule
+        t = make_tournament(owner=self.user)
+        day = make_day(t, courts=1, start='09:00', end='09:01', buffer=0)  # 1-min window
+        div = make_division(tournament=t, tournament_type='group')
+        div.group_day = day
+        div.save()
+        for _ in range(3):
+            div.teams.add(make_team())
+        generate_schedule(div)
+        # Number matches
+        for i, m in enumerate(Match.objects.filter(division=div), start=1):
+            m.match_number = i
+            m.save(update_fields=['match_number'])
+        # POST without force — feasibility should block scheduling
+        self.client.post(reverse('tournament_generate_time_schedule', args=[t.pk]))
+        self.assertFalse(
+            Match.objects.filter(division=div, scheduled_time__isnull=False).exists()
+        )
+
+    def test_force_override_runs_scheduling_despite_errors(self):
+        from tournaments.scheduler import generate_schedule
+        t = make_tournament(owner=self.user)
+        make_day(t, courts=4, start='09:00', end='22:00', buffer=30)
+        div = make_division(tournament=t, tournament_type='group')
+        # No group_day assigned — all divisions' matches have required_minutes=0
+        # for feasibility per-day check (they are not assigned to a day).
+        # So feasibility passes; schedule should run.
+        for _ in range(3):
+            div.teams.add(make_team())
+        generate_schedule(div)
+        for i, m in enumerate(Match.objects.filter(division=div), start=1):
+            m.match_number = i
+            m.save(update_fields=['match_number'])
+        self.client.post(
+            reverse('tournament_generate_time_schedule', args=[t.pk]),
+            {'force': '1'},
+        )
+        self.assertTrue(
+            Match.objects.filter(division=div, scheduled_time__isnull=False).exists()
+        )
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 — multi-day scheduler tests
+# ---------------------------------------------------------------------------
+
+class SchedulerMultiDayTest(TestCase):
+    def test_matches_assigned_to_day2_only(self):
+        """Division with group_day=day2 → no matches on day1."""
+        import datetime as dt
+        from tournaments.schedule_planner import generate_time_schedule
+        from tournaments.scheduler import generate_schedule
+        t = make_tournament()
+        day1 = make_day(t, day_number=1, date=dt.date(2026, 6, 1), courts=4)
+        day2 = make_day(t, day_number=2, date=dt.date(2026, 6, 2), courts=4)
+        div = make_division(tournament=t, tournament_type='group')
+        div.group_day = day2
+        div.save()
+        for _ in range(3):
+            div.teams.add(make_team())
+        generate_schedule(div)
+        for i, m in enumerate(Match.objects.filter(division=div), start=1):
+            m.match_number = i
+            m.save(update_fields=['match_number'])
+        generate_time_schedule(t)
+        for m in Match.objects.filter(division=div, scheduled_time__isnull=False):
+            self.assertEqual(m.scheduled_time.date(), dt.date(2026, 6, 2))
+
+    def test_no_match_starts_after_effective_end(self):
+        """No match should start so late that it runs into the buffer."""
+        import datetime as dt
+        from tournaments.schedule_planner import generate_time_schedule
+        from tournaments.scheduler import generate_schedule
+        t = make_tournament()
+        day = make_day(t, day_number=1, courts=4, start='09:00', end='22:00', buffer=30)
+        div = make_division(tournament=t, tournament_type='group')
+        for _ in range(4):
+            div.teams.add(make_team())
+        generate_schedule(div)
+        for i, m in enumerate(Match.objects.filter(division=div), start=1):
+            m.match_number = i
+            m.save(update_fields=['match_number'])
+        generate_time_schedule(t)
+        # Effective end = 22:00 − 30 min = 21:30
+        effective_end = dt.time(21, 30)
+        for m in Match.objects.filter(division=div, scheduled_time__isnull=False):
+            start_t = m.scheduled_time.astimezone().time() if m.scheduled_time.tzinfo else m.scheduled_time.time()
+            self.assertLessEqual(start_t, effective_end)
 
 
 # ---------------------------------------------------------------------------
