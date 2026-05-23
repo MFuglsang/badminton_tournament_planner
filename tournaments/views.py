@@ -1546,6 +1546,18 @@ def tournament_run(request, pk):
     completed_matches = sum(dd['completed_count'] for dd in division_data)
     in_progress_matches = sum(dd['in_progress_count'] for dd in division_data)
 
+    import datetime as _dt
+    today_date = _dt.date.today()
+
+    # Build day_anchor_pks: {day_pk: first division_pk that has matches on that day}
+    # Used by the template to place day section headers before the right division block.
+    day_anchor_pks = {}
+    for dd in division_data:  # already in priority order
+        div = dd['division']
+        for day_pk in [div.group_day_id, div.playoff_day_id]:
+            if day_pk and day_pk not in day_anchor_pks:
+                day_anchor_pks[day_pk] = div.pk
+
     return render(request, 'tournaments/tournament_run.html', {
         'tournament': tournament,
         'division_data': division_data,
@@ -1554,6 +1566,8 @@ def tournament_run(request, pk):
         'total_matches': total_matches,
         'completed_matches': completed_matches,
         'in_progress_matches': in_progress_matches,
+        'today_date': today_date,
+        'day_anchor_pks': day_anchor_pks,
     })
 
 

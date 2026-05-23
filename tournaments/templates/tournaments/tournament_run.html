@@ -228,6 +228,47 @@
 
 <div class="run-layout">
 
+  {# ── Sticky dag-nav (kun ved flerdages turneringer) ─── #}
+  {% with days=tournament.days.all %}
+  {% if days|length > 1 %}
+  <style>
+  .day-nav-bar {
+    display: flex; gap: 0.35rem; flex-wrap: wrap;
+    padding: 0.55rem 0.75rem; background: #f0fdf4;
+    border: 1px solid #bbf7d0; border-radius: 8px;
+    margin-bottom: 1rem; position: sticky; top: 62px; z-index: 10;
+  }
+  .day-nav-link {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    padding: 0.3rem 0.7rem; border-radius: 20px; font-size: 0.8rem;
+    font-weight: 600; text-decoration: none;
+    color: #16692c; background: #fff; border: 1px solid #bbf7d0;
+    transition: background 0.12s, border-color 0.12s;
+  }
+  .day-nav-link:hover { background: #dcfce7; border-color: #86efac; }
+  .day-nav-link.day-today { background: #16692c; color: #fff; border-color: #16692c; }
+  .day-section-header {
+    font-size: 0.82rem; font-weight: 700; color: #0d4f22;
+    background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px;
+    padding: 0.5rem 0.9rem; margin-bottom: 0.75rem;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+  .day-section-header .today-badge {
+    background: #16692c; color: #fff; border-radius: 10px;
+    font-size: 0.68rem; padding: 0.1rem 0.5rem; font-weight: 700;
+  }
+  </style>
+  <nav class="day-nav-bar" style="grid-column:1/-1;">
+    {% for day in days %}
+    <a href="#day-{{ day.pk }}" class="day-nav-link {% if day.date == today_date %}day-today{% endif %}">
+      {% trans "Day" %} {{ day.day_number }} – {{ day.date|date:"j. N" }}
+      {% if day.date == today_date %}<span>📍</span>{% endif %}
+    </a>
+    {% endfor %}
+  </nav>
+  {% endif %}
+  {% endwith %}
+
   {# ── Main column: divisions ─── #}
   <div class="run-main">
     <div class="match-search-wrap">
@@ -238,6 +279,20 @@
     </div>
     {% for dd in division_data %}
     {% with division=dd.division %}
+    {# ── Dag-anker: vis header når denne division er første for en ny dag ─── #}
+    {% if tournament.days.count > 1 %}
+    {% for day_pk, first_div_pk in day_anchor_pks.items %}
+    {% if first_div_pk == division.pk %}
+    {% for day in tournament.days.all %}{% if day.pk == day_pk %}
+    <div id="day-{{ day.pk }}" class="day-section-header" style="grid-column:1/-1;">
+      {% trans "Day" %} {{ day.day_number }} – {{ day.date|date:"l j. F" }}
+      {% if day.start_time %}({{ day.start_time|time:"H:i" }}{% if day.end_time %}–{{ day.end_time|time:"H:i" }}{% endif %}){% endif %}
+      {% if day.date == today_date %}<span class="today-badge">{% trans "Today" %}</span>{% endif %}
+    </div>
+    {% endif %}{% endfor %}
+    {% endif %}
+    {% endfor %}
+    {% endif %}
     <div class="division-block">
       <div class="rd-header" onclick="rdToggle(this)">
         <span class="run-div-title">{{ division.name }}</span>
@@ -569,6 +624,21 @@
 {% endblock %}
 
 {% block extra_js %}
+<script>
+// Auto-scroll til dagens dag-anker ved pageload
+(function () {
+  var todayAnchor = document.querySelector('.day-nav-link.day-today');
+  if (todayAnchor) {
+    var href = todayAnchor.getAttribute('href');
+    if (href) {
+      var target = document.querySelector(href);
+      if (target) {
+        setTimeout(function () { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 200);
+      }
+    }
+  }
+}());
+</script>
 <script>
 function rdToggle(header) {
   var body = header.nextElementSibling;

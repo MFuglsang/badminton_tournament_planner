@@ -32,9 +32,9 @@
     </div>
 </div>
 
-{% if not tournament.start_time %}
+{% if not tournament.days.exists %}
 <div class="flash flash-warning">
-    {% trans "The tournament does not have a time schedule yet." %}
+    {% trans "No days configured. Add at least one tournament day before generating the time schedule." %}
 </div>
 {% endif %}
 
