@@ -7,11 +7,11 @@
 /* ── Run-page layout ─── */
 .run-layout {
   display: grid;
-  grid-template-columns: 1fr 320px;
+  grid-template-columns: 1fr 260px;
   gap: 1.25rem;
   align-items: start;
 }
-@media (max-width: 900px) {
+@media (max-width: 860px) {
   .run-layout { grid-template-columns: 1fr; }
   .run-sidebar { order: -1; }
 }
@@ -34,7 +34,7 @@
 .panels-row {
   position: sticky; top: 70px;
 }
-@media (max-width: 900px) {
+@media (max-width: 860px) {
   .panels-row { position: static; }
 }
 .next-panel-header {
@@ -111,6 +111,7 @@
   padding: 0.55rem 0.9rem; font-size: 0.78rem; font-weight: 600; cursor: pointer;
   border: none; background: none; color: #64748b; border-bottom: 2px solid transparent;
   margin-bottom: -1px; transition: color 0.15s, border-color 0.15s;
+  min-width: 5.5rem; text-align: center;
 }
 .run-tab:hover { color: #16692c; }
 .run-tab.active { color: #16692c; border-bottom-color: #16692c; }
@@ -121,10 +122,10 @@
 /* ── Matches table on run page ─── */
 .run-match-row {
   display: grid;
-  grid-template-columns: 2.5rem 3rem auto 1fr auto;
+  grid-template-columns: 2.5rem 3rem 1fr auto auto;
   gap: 0.3rem 0.6rem;
   align-items: center;
-  padding: 0.55rem 0;
+  padding: 0.65rem 0;
   border-bottom: 1px solid #f1f5f9;
   font-size: 0.84rem;
 }
@@ -134,7 +135,7 @@
 .run-match-teams { font-weight: 600; line-height: 1.35; }
 .run-match-teams .vs { color: #94a3b8; font-weight: 400; font-size: 0.78rem; margin: 0 0.25rem; }
 .run-match-score { color: #374151; white-space: nowrap; font-size: 0.8rem; }
-.run-match-actions { display: flex; gap: 0.3rem; justify-content: flex-end; flex-wrap: wrap; }
+.run-match-actions { display: flex; column-gap: 0.3rem; row-gap: 0.5rem; justify-content: flex-end; flex-wrap: wrap; }
 
 /* Status colours on rows */
 .row-in-progress { background: #eff6ff; }
@@ -553,7 +554,7 @@
           {{ match.team1.name }}{{ match.t1_seed }}<br>
           <span style="color:#94a3b8; font-size:0.75rem;">vs</span> {{ match.team2.name }}{{ match.t2_seed }}
         </div>
-        <div style="margin-top:0.4rem;">
+        <div style="margin-top:0.4rem; display:flex; flex-wrap:wrap; gap:0.35rem;">
           <a href="{% url 'match_record_result' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="btn btn-primary btn-sm">{% trans "Result" %}</a>
           <a href="{% url 'match_walkover' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="btn btn-secondary btn-sm" style="color:#d97706; border-color:#fde68a;">WO</a>
           <form method="post" action="{% url 'match_postpone' match.pk %}" style="display:inline;">
@@ -658,6 +659,8 @@ document.querySelectorAll('.run-tabs').forEach(function(tabBar) {
   var divPk = tabBar.dataset.div;
   tabBar.querySelectorAll('.run-tab').forEach(function(tab) {
     tab.addEventListener('click', function() {
+      // Capture position of this tab bar before content change
+      var rectBefore = tabBar.getBoundingClientRect();
       // Deactivate all tabs and panels for this division
       tabBar.querySelectorAll('.run-tab').forEach(function(t) { t.classList.remove('active'); });
       document.querySelectorAll('[data-panel][data-div="' + divPk + '"]').forEach(function(p) { p.classList.remove('active'); });
@@ -665,6 +668,9 @@ document.querySelectorAll('.run-tabs').forEach(function(tabBar) {
       tab.classList.add('active');
       var panel = document.querySelector('[data-panel="' + tab.dataset.tab + '"][data-div="' + divPk + '"]');
       if (panel) panel.classList.add('active');
+      // Compensate scroll so the tab bar stays in the same viewport position
+      var rectAfter = tabBar.getBoundingClientRect();
+      window.scrollBy(0, rectAfter.top - rectBefore.top);
     });
   });
 });

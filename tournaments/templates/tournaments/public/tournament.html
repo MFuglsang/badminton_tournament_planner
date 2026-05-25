@@ -38,7 +38,7 @@
 {# ── Stilling: normale grupper ─── #}
 {% if standings %}
 <h3>{% trans "Standings" %}</h3>
-<div class="pub-table-wrap"><table style="max-width:600px;">
+<div class="pub-table-wrap"><table>
     <thead>
         <tr><th>#</th><th>{% if division.discipline == 'single' %}{% trans "Player" %}{% else %}{% trans "Pair" %}{% endif %}</th><th>{% trans "Matches" %}</th><th>{% trans "Won" %}</th><th>{% trans "Lost" %}</th><th>{% trans "Points" %}</th></tr>
     </thead>
@@ -73,7 +73,7 @@
 {% for g_num, g_rows in dd.group_standings %}
 <div style="margin-bottom:1rem; overflow-x:auto; -webkit-overflow-scrolling:touch;">
     <div style="font-weight:700; font-size:0.9rem; color:#16692c; margin-bottom:0.35rem;">{% blocktrans with n=g_num %}Group {{ n }}{% endblocktrans %}</div>
-    <table style="max-width:600px;">
+    <table>
         <thead>
             <tr><th>#</th><th>{% if division.discipline == 'single' %}{% trans "Player" %}{% else %}{% trans "Pair" %}{% endif %}</th><th>{% trans "Matches" %}</th><th>{% trans "Won" %}</th><th>{% trans "Lost" %}</th><th>{% trans "Points" %}</th></tr>
         </thead>

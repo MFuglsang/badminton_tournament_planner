@@ -2,7 +2,7 @@
 {% load i18n %}
 {% block title %}{% if form.instance.pk %}{% trans "Edit team" %}{% else %}{% trans "Add team" %}{% endif %}{% endblock %}
 {% block content %}
-<div style="max-width:560px;">
+<div class="content-col-sm">
     <h1>{% if form.instance.pk %}{% blocktrans with name=team.name %}Edit {{ name }}{% endblocktrans %}{% else %}{% trans "Add team" %}{% endif %}</h1>
     <div class="card">
         <form method="post">

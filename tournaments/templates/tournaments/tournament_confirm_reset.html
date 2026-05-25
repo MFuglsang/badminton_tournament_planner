@@ -2,7 +2,7 @@
 {% load i18n %}
 {% block title %}{% trans "Reset match programme" %}{% endblock %}
 {% block content %}
-<div style="max-width:500px; margin:0 auto;">
+<div class="content-col-sm">
     <div class="card">
         <h1 style="color:#B02A37;">{% trans "Confirm reset" %}</h1>
         <p>{% blocktrans with name=tournament.name %}Are you sure you want to reset the match programme for <strong>{{ name }}</strong>?{% endblocktrans %}</p>

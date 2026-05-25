@@ -1727,51 +1727,55 @@ def schedule_editor(request, pk):
         .count()
     )
 
-    # Build grid: {slot_str: {court_str: match}}
-    # Slots are derived from the first tournament day's start_time
+    # Build grid: {slot_key: {court_str: match}}
+    # Slot keys use "YYYY-MM-DD HH:MM" so multi-day times don't collide.
+    # Slots are generated only within each day's start_time → end_time window.
     slots = []
-    grid = {}   # slot_label → {court: match}
+    grid = {}
+    day_headers = {}  # slot_key → day label (first slot of each day)
 
-    first_day = tournament.days.order_by('date', 'start_time').first()
-    _court_count = first_day.court_count if first_day else 4
-    if first_day:
-        naive_start = datetime.combine(first_day.date, first_day.start_time)
-        start_dt = timezone.make_aware(naive_start) if timezone.is_naive(naive_start) else naive_start
-        # Determine how many slots to show
-        if scheduled:
-            last_end = max(
-                m.scheduled_time + _match_duration_td(m, tournament) for m in scheduled
-            )
-            total_minutes = int((last_end - start_dt).total_seconds() / 60) + slot_interval * 4
-        else:
-            total_minutes = slot_interval * 20  # show 20 empty slots by default
+    days = list(tournament.days.order_by('date', 'start_time'))
+    if days:
+        from .schedule_planner import _build_day_windows
+        day_windows = _build_day_windows(days)
+        _court_count = max(w['court_count'] for w in day_windows)
+        slot_td = timedelta(minutes=slot_interval)
+        multi_day = len(days) > 1
 
-        n_slots = max(4, (total_minutes + slot_interval - 1) // slot_interval)
-
-        for i in range(n_slots):
-            slot_dt = start_dt + timedelta(minutes=i * slot_interval)
-            label = slot_dt.strftime("%H:%M")
-            slots.append(label)
-            grid[label] = {str(c): None for c in range(1, _court_count + 1)}
+        for w in day_windows:
+            current = w['start']
+            day_obj = w['day']
+            first_in_day = True
+            while current < w['end']:
+                key = current.strftime("%Y-%m-%d %H:%M")
+                slots.append(key)
+                grid[key] = {str(c): None for c in range(1, _court_count + 1)}
+                if first_in_day:
+                    first_in_day = False
+                    if multi_day:
+                        day_headers[key] = f"Dag {day_obj.day_number} \u2013 {day_obj.date.strftime('%d. %b')}"
+                current += slot_td
 
         # Place scheduled matches into the nearest slot row
-        for m in scheduled:
-            offset_min = int((m.scheduled_time - start_dt).total_seconds() / 60)
-            slot_idx = round(offset_min / slot_interval)
-            slot_idx = max(0, min(len(slots) - 1, slot_idx))
-            court = m.court or '1'
-            label = slots[slot_idx]
-            if court not in grid[label]:
-                grid[label][court] = m
-            elif grid[label][court] is None:
-                grid[label][court] = m
-            else:
-                # Court collision in same slot: add to a spill-over slot if available
-                for j in range(slot_idx + 1, len(slots)):
-                    alt_label = slots[j]
-                    if grid[alt_label].get(court) is None:
-                        grid[alt_label][court] = m
-                        break
+        if slots and scheduled:
+            slot_dts = {}
+            for key in slots:
+                naive = datetime.strptime(key, "%Y-%m-%d %H:%M")
+                slot_dts[key] = timezone.make_aware(naive) if timezone.is_naive(naive) else naive
+
+            for m in scheduled:
+                best_key = min(slots, key=lambda k: abs((m.scheduled_time - slot_dts[k]).total_seconds()))
+                court = str(m.court or '1')
+                if grid[best_key].get(court) is None:
+                    grid[best_key][court] = m
+                else:
+                    idx = slots.index(best_key)
+                    for j in range(idx + 1, len(slots)):
+                        if grid[slots[j]].get(court) is None:
+                            grid[slots[j]][court] = m
+                            break
+    else:
+        _court_count = 4
 
     courts = [str(c) for c in range(1, _court_count + 1)]
 
@@ -1780,6 +1784,7 @@ def schedule_editor(request, pk):
         'slots': slots,
         'courts': courts,
         'grid': grid,
+        'day_headers': day_headers,
         'unscheduled_count': unscheduled_count,
         'slot_interval': slot_interval,
     })
@@ -1797,7 +1802,7 @@ def schedule_suggestions(request, pk):
     court_str = request.GET.get('court', '')
     try:
         slot_interval = max(5, int(request.GET.get('interval', 30)))
-        naive_dt = datetime.combine(tournament.date, datetime.strptime(time_str, "%H:%M").time())
+        naive_dt = datetime.strptime(time_str, "%Y-%m-%d %H:%M")
         slot_dt = timezone.make_aware(naive_dt) if timezone.is_naive(naive_dt) else naive_dt
     except (ValueError, TypeError):
         return JsonResponse({'error': 'Invalid time'}, status=400)
@@ -1894,9 +1899,9 @@ def schedule_assign(request, pk):
     try:
         data = json.loads(request.body)
         match_id = int(data['match_id'])
-        time_str = data['time']      # "HH:MM"
+        time_str = data['time']      # "YYYY-MM-DD HH:MM"
         court_str = str(data['court'])
-        naive_dt = datetime.combine(tournament.date, datetime.strptime(time_str, "%H:%M").time())
+        naive_dt = datetime.strptime(time_str, "%Y-%m-%d %H:%M")
         slot_dt = timezone.make_aware(naive_dt) if timezone.is_naive(naive_dt) else naive_dt
     except (KeyError, ValueError, TypeError):
         return JsonResponse({'error': _('Invalid data.')}, status=400)

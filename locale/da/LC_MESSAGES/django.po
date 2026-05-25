@@ -2813,6 +2813,12 @@ msgstr "Dag #"
 msgid "Buffer (min)"
 msgstr "Buffer (min)"
 
+msgid "Buffer explanation"
+msgstr "Buffer forklaring"
+
+msgid "The last match must finish at least this many minutes before the end time. Example: end time 17:00, buffer 15 min → last match must end by 16:45."
+msgstr "Den sidste kamp skal senest være slut dette antal minutter før sluttid. Eksempel: sluttid 17:00, buffer 15 min → sidste kamp skal slutte senest 16:45."
+
 #: tournaments/templates/tournaments/tournament_form.html
 msgid "Add day"
 msgstr "Tilføj dag"
