@@ -53,9 +53,18 @@
   </thead>
   <tbody>
     {% for slot in slots %}
+    {% with day_label=day_headers|dict_get:slot %}
+    {% if day_label %}
+    <tr>
+      <td colspan="{{ courts|length|add:1 }}" style="padding:.45rem .75rem; background:#0d4f22; color:#fff; font-size:.8rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em;">
+        {{ day_label }}
+      </td>
+    </tr>
+    {% endif %}
+    {% endwith %}
     <tr data-slot="{{ slot }}">
       <td style="padding:.4rem .75rem; border-bottom:1px solid #e5e7eb; font-weight:500; color:#374151; white-space:nowrap; background:#f8fafc;">
-        {{ slot }}
+        {{ slot|slice:"11:" }}
       </td>
       {% for court in courts %}
       {% with match=grid|dict_get:slot|dict_get:court %}
@@ -204,7 +213,7 @@
   function openPanel(slot, court) {
     pendingSlot  = slot;
     pendingCourt = court;
-    document.getElementById('panel-title').textContent    = `{% trans "Court" %} ${court} · ${slot}`;
+    document.getElementById('panel-title').textContent    = `{% trans "Court" %} ${court} · ${slot.slice(-5)}`;
     document.getElementById('panel-subtitle').textContent = '{% trans "Only matches without conflicts are shown" %}';
     document.getElementById('panel-loading').style.display = 'block';
     document.getElementById('panel-empty').style.display   = 'none';

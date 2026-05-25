@@ -2,7 +2,7 @@
 {% load i18n %}
 {% block title %}{% trans "Delete" %} {{ type }}{% endblock %}
 {% block content %}
-<div style="max-width:500px; margin:0 auto;">
+<div class="content-col-sm">
     <div class="card">
         <h1 style="color:#B02A37;">{% trans "Confirm deletion" %}</h1>
         <p>{% blocktrans with obj=object t=type %}Are you sure you want to delete {{ t }} <strong>{{ obj }}</strong>?{% endblocktrans %}</p>
