@@ -81,8 +81,15 @@
 <p style="color:#64748b; font-size:0.85rem; margin: -0.75rem 0 1.5rem; display:flex; flex-wrap:wrap; gap:0.4rem 1.25rem; align-items:center;">
     <span><strong>{% trans "Date" %}:</strong> {{ tournament.date }}</span>
     <span><strong>{% trans "Scoring" %}:</strong> {{ tournament.get_scoring_model_display }}</span>
-    <span><strong>{% trans "Courts" %}:</strong> {{ tournament.court_count }}</span>
-    <span><strong>{% trans "Start" %}:</strong> {{ tournament.start_time|time:"H:i"|default:"–" }}</span>
+    {% with days=tournament.days.all %}
+    {% if days %}
+    <span><strong>{% trans "Days" %}:</strong>
+        {% for day in days %}{% trans "Day" %} {{ day.day_number }} ({{ day.court_count }} {% trans "courts" %}, {{ day.start_time|time:"H:i" }}{% if day.end_time %}–{{ day.end_time|time:"H:i" }}{% endif %}){% if not forloop.last %} · {% endif %}{% endfor %}
+    </span>
+    {% else %}
+    <span style="color:#b91c1c;"><strong>{% trans "Days" %}:</strong> {% trans "No days configured." %}</span>
+    {% endif %}
+    {% endwith %}
     {% if total_matches %}
     <span><strong>{% trans "Matches" %}:</strong>
         {{ completed_matches }}&thinsp;/&thinsp;{{ total_matches }} {% trans "completed" %}
@@ -251,6 +258,56 @@ var MATCH_LOOKUP = {
         <a href="{% url 'division_delete' division.pk %}" class="btn btn-danger btn-sm" onclick="event.stopPropagation();" style="margin-left:0.5rem;">{% trans "Delete" %}</a>
     </summary>
     <div class="division-body">
+
+{# ── Dag-tildeling ────────────────────────────────────────────────────── #}
+{% with days=tournament.days.all %}
+{% if days|length > 1 %}
+<details style="margin-bottom:1rem;">
+    <summary style="cursor:pointer; font-weight:600; color:#16692c; padding:0.4rem 0;">
+        📅 {% trans "Day assignment" %}
+        <span style="font-weight:400; color:#64748b; font-size:0.82rem; margin-left:0.5rem;">
+            {% if division.group_day %}{% trans "Group phase" %}: {% trans "Day" %} {{ division.group_day.day_number }}{% endif %}
+            {% if division.playoff_day %} · {% trans "Playoff phase" %}: {% trans "Day" %} {{ division.playoff_day.day_number }}{% endif %}
+            {% if not division.group_day and not division.playoff_day %}{% trans "Not assigned" %}{% endif %}
+        </span>
+    </summary>
+    <div class="card" style="margin-top:0.5rem; max-width:500px;">
+        <form method="post" action="{% url 'division_update_days' division.pk %}">
+            {% csrf_token %}
+            <div style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end;">
+            {% if division.tournament_type == 'group' or division.tournament_type == 'playoff' %}
+            <div class="form-group" style="margin:0; min-width:180px;">
+                <label style="font-size:0.82rem; font-weight:600;">{% trans "Group phase" %}</label>
+                <select name="group_day" style="width:100%;">
+                    <option value="">— {% trans "Not assigned" %} —</option>
+                    {% for day in days %}
+                    <option value="{{ day.pk }}"{% if division.group_day_id == day.pk %} selected{% endif %}>
+                        {% trans "Day" %} {{ day.day_number }} – {{ day.date }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            {% if division.tournament_type == 'playoff' or division.tournament_type == 'tree' %}
+            <div class="form-group" style="margin:0; min-width:180px;">
+                <label style="font-size:0.82rem; font-weight:600;">{% trans "Playoff phase" %}</label>
+                <select name="playoff_day" style="width:100%;">
+                    <option value="">— {% trans "Not assigned" %} —</option>
+                    {% for day in days %}
+                    <option value="{{ day.pk }}"{% if division.playoff_day_id == day.pk %} selected{% endif %}>
+                        {% trans "Day" %} {{ day.day_number }} – {{ day.date }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <button type="submit" class="btn btn-primary btn-sm">{% trans "Save" %}</button>
+            </div>
+        </form>
+    </div>
+</details>
+{% endif %}
+{% endwith %}
 
 {# ── Vælg deltagere ────────────────────────────────────────────────────── #}
 <details {% if not division.teams.all %}open{% endif %} style="margin-bottom:1rem;">

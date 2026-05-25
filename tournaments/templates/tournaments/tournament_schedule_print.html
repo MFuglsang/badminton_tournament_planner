@@ -108,6 +108,17 @@
     border-bottom: none;
   }
 
+  /* Day separator row */
+  .day-sep td {
+    background: #0e4d20;
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.95rem;
+    padding: 0.5rem 0.75rem;
+    letter-spacing: 0.03em;
+    border-top: 3px solid #0a3d18;
+  }
+
   .col-no    { font-weight: 700; color: #16692c; white-space: nowrap; }
   .col-time  { font-weight: 700; white-space: nowrap; }
   .col-court { color: #444; white-space: nowrap; text-align: center; font-weight: 600; }
@@ -157,6 +168,7 @@
     thead tr { background: #000; }
     .col-no  { color: #000; }
     .time-sep td { background: #eee; color: #000; border-top: 1.5pt solid #aaa; }
+    .day-sep td { background: #000; border-top: 2pt solid #000; }
     tbody tr:nth-child(even) { background: #f5f5f5; }
     /* avoid splitting a time-block across pages */
     tr.time-sep { page-break-before: auto; break-before: auto; }
@@ -201,7 +213,15 @@
     </tr>
   </thead>
   <tbody>
-    {% regroup matches by scheduled_time as time_groups %}
+    {% with days_count=tournament.days.count %}
+    {% regroup matches by scheduled_time.date as day_groups %}
+    {% for day_group in day_groups %}
+    {% if days_count > 1 %}
+    <tr class="day-sep">
+      <td colspan="4">{% for day in tournament.days.all %}{% if day.date == day_group.grouper %}{% trans "Day" %} {{ day.day_number }} – {% endif %}{% endfor %}{{ day_group.grouper|date:"l j. F" }}</td>
+    </tr>
+    {% endif %}
+    {% regroup day_group.list by scheduled_time as time_groups %}
     {% for tg in time_groups %}
     <tr class="time-sep time-row">
       <td colspan="4" class="time-sep-content">
@@ -227,6 +247,8 @@
     </tr>
     {% endfor %}
     {% endfor %}
+    {% endfor %}
+    {% endwith %}
   </tbody>
 </table>
 </div>

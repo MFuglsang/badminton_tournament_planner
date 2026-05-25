@@ -47,19 +47,82 @@
     </div>
 
     <div class="card">
-        <h2 style="margin-top:0; font-size:1.05rem; color:#16692c;">{% trans "Time schedule" %}</h2>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
-            <div class="form-group">
-                <label for="{{ form.court_count.id_for_label }}">{% trans "Number of courts" %}</label>
-                {{ form.court_count }}
-                {% if form.court_count.errors %}<ul class="errorlist">{% for e in form.court_count.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-            </div>
-            <div class="form-group">
-                <label for="{{ form.start_time.id_for_label }}">{% trans "Start time" %}</label>
-                {{ form.start_time }}
-                {% if form.start_time.errors %}<ul class="errorlist">{% for e in form.start_time.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-            </div>
+        <h2 style="margin-top:0; font-size:1.05rem; color:#16692c;">{% trans "Tournament days" %}</h2>
+        {% if day_formset.non_form_errors %}
+        <ul class="errorlist">{% for e in day_formset.non_form_errors %}<li>{{ e }}</li>{% endfor %}</ul>
+        {% endif %}
+        {{ day_formset.management_form }}
+        <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; font-size:0.85rem; min-width:480px;">
+            <thead>
+                <tr style="border-bottom:2px solid #e2e8f0;">
+                    <th style="text-align:left; padding:0.3rem 0.5rem; font-size:0.75rem; color:#64748b; white-space:nowrap;">{% trans "Day #" %}</th>
+                    <th style="text-align:left; padding:0.3rem 0.5rem; font-size:0.75rem; color:#64748b;">{% trans "Date" %}</th>
+                    <th style="text-align:left; padding:0.3rem 0.5rem; font-size:0.75rem; color:#64748b;">{% trans "Start" %}</th>
+                    <th style="text-align:left; padding:0.3rem 0.5rem; font-size:0.75rem; color:#64748b;">{% trans "End" %}</th>
+                    <th style="text-align:left; padding:0.3rem 0.5rem; font-size:0.75rem; color:#64748b;">{% trans "Courts" %}</th>
+                    <th style="text-align:left; padding:0.3rem 0.5rem; font-size:0.75rem; color:#64748b;">{% trans "Buffer (min)" %}</th>
+                </tr>
+            </thead>
+            <tbody id="day-formset-container">
+                {% for form in day_formset %}
+                <tr class="day-form-row">
+                    <td style="padding:0.35rem 0.5rem;">{{ form.id }}{{ form.day_number }}{% if form.day_number.errors %}<ul class="errorlist">{% for e in form.day_number.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}</td>
+                    <td style="padding:0.35rem 0.5rem;">{{ form.date }}{% if form.date.errors %}<ul class="errorlist">{% for e in form.date.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}</td>
+                    <td style="padding:0.35rem 0.5rem;">{{ form.start_time }}{% if form.start_time.errors %}<ul class="errorlist">{% for e in form.start_time.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}</td>
+                    <td style="padding:0.35rem 0.5rem;">{{ form.end_time }}{% if form.end_time.errors %}<ul class="errorlist">{% for e in form.end_time.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}</td>
+                    <td style="padding:0.35rem 0.5rem;">{{ form.court_count }}{% if form.court_count.errors %}<ul class="errorlist">{% for e in form.court_count.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}</td>
+                    <td style="padding:0.35rem 0.5rem;">{{ form.buffer_minutes }}{% if form.buffer_minutes.errors %}<ul class="errorlist">{% for e in form.buffer_minutes.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}</td>
+                </tr>
+                <tr class="day-form-row" style="border-bottom:2px solid #e2e8f0;">
+                    <td colspan="6" style="padding:0.2rem 0.5rem 0.4rem; text-align:right; background:#fafafa;">
+                        <label style="font-size:0.78rem; color:#b91c1c; cursor:pointer; display:inline-flex; align-items:center; gap:0.3rem;">
+                            {{ form.DELETE }} {% trans "Delete day" %}
+                        </label>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
         </div>
+        <button type="button" id="add-day-btn" class="btn btn-secondary" style="margin-top:0.75rem; font-size:0.85rem;">+ {% trans "Add day" %}</button>
+        {# Empty form template for JS cloning – uses __prefix__ placeholder #}
+        {% with empty=day_formset.empty_form %}
+        <template id="day-form-template">
+            <tr class="day-form-row">
+                <td style="padding:0.35rem 0.5rem;">{{ empty.id }}{{ empty.day_number }}</td>
+                <td style="padding:0.35rem 0.5rem;">{{ empty.date }}</td>
+                <td style="padding:0.35rem 0.5rem;">{{ empty.start_time }}</td>
+                <td style="padding:0.35rem 0.5rem;">{{ empty.end_time }}</td>
+                <td style="padding:0.35rem 0.5rem;">{{ empty.court_count }}</td>
+                <td style="padding:0.35rem 0.5rem;">{{ empty.buffer_minutes }}</td>
+            </tr>
+            <tr class="day-form-row" style="border-bottom:2px solid #e2e8f0;">
+                <td colspan="6" style="padding:0.2rem 0.5rem 0.4rem; text-align:right; background:#fafafa;">
+                    <label style="font-size:0.78rem; color:#b91c1c; cursor:pointer; display:inline-flex; align-items:center; gap:0.3rem;">
+                        {{ empty.DELETE }} {% trans "Delete day" %}
+                    </label>
+                </td>
+            </tr>
+        </template>
+        {% endwith %}
+        <script>
+        (function () {
+            var container  = document.getElementById('day-formset-container');
+            var totalInput = document.getElementById('id_days-TOTAL_FORMS');
+            var template   = document.getElementById('day-form-template');
+            document.getElementById('add-day-btn').addEventListener('click', function () {
+                var idx  = parseInt(totalInput.value, 10);
+                var html = template.innerHTML.replace(/__prefix__/g, idx);
+                var tmp  = document.createElement('tbody');
+                tmp.innerHTML = html;
+                while (tmp.firstElementChild) {
+                    container.appendChild(tmp.firstElementChild);
+                }
+                totalInput.value = idx + 1;
+            });
+        }());
+        </script>
     </div>
 
     <div class="card">

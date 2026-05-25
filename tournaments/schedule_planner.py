@@ -1,24 +1,26 @@
 """
-Time-slot scheduling for tournaments.
+Time-slot scheduling for multi-day tournaments.
 
 Assigns scheduled_time and court to each match using a greedy algorithm.
 
   Constraints honoured:
-    * At most court_count matches run simultaneously.
+    * At most court_count matches run simultaneously per day.
     * A player's matches cannot overlap; consecutive matches must be
       separated by at least player_break_time minutes.
     * Playoff-phase matches cannot start before all group-phase matches
-      in the same division have finished (+ one break period).
+      in the same division (on the same or earlier day) have finished
+      (+ one break period).
     * Bracket placeholder matches cannot start before both their feeder
       matches have finished (+ one break period).
     * Higher-priority divisions are scheduled before lower-priority ones.
+    * When a division has group_day / playoff_day set, matches are
+      constrained to that day's time window.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from django.utils import timezone
 
 # Granularity of the time grid in minutes.
-# All durations are rounded up to the nearest multiple of this value.
 _SLOT_MINUTES = 5
 
 
@@ -27,14 +29,77 @@ def _to_slots(minutes):
     return (int(minutes) + _SLOT_MINUTES - 1) // _SLOT_MINUTES
 
 
+# ---------------------------------------------------------------------------
+# Day-window helpers
+# ---------------------------------------------------------------------------
+
+def _build_day_windows(days):
+    """Build list of day-window dicts from an ordered TournamentDay iterable."""
+    windows = []
+    for d in days:
+        naive_start = datetime.combine(d.date, d.start_time)
+        start = timezone.make_aware(naive_start) if timezone.is_naive(naive_start) else naive_start
+        if d.end_time:
+            naive_end = datetime.combine(d.date, d.end_time)
+            end = timezone.make_aware(naive_end) if timezone.is_naive(naive_end) else naive_end
+        else:
+            # Open-ended day: use 23:59:59 as scheduler ceiling
+            naive_end = datetime.combine(d.date, time(23, 59, 59))
+            end = timezone.make_aware(naive_end) if timezone.is_naive(naive_end) else naive_end
+        windows.append({
+            'day': d,
+            'start': start,
+            'end': end,
+            'buffer': timedelta(minutes=d.buffer_minutes),
+            'court_count': d.court_count,
+        })
+    return windows
+
+
+def _get_allowed_windows(match, day_windows):
+    """Return the subset of day_windows this match is allowed to be scheduled in."""
+    phase = getattr(match, 'phase', 'group')
+    if phase == 'group' and match.division.group_day_id:
+        filtered = [w for w in day_windows if w['day'].pk == match.division.group_day_id]
+        return filtered or day_windows
+    elif phase == 'playoff' and match.division.playoff_day_id:
+        filtered = [w for w in day_windows if w['day'].pk == match.division.playoff_day_id]
+        return filtered or day_windows
+    return day_windows
+
+
+def _find_earliest_slot(allowed_windows, earliest, duration_minutes, court_free):
+    """Return (slot_datetime, day_pk, court_num) or (None, None, None) if no fit."""
+    duration = timedelta(minutes=duration_minutes)
+    best_slot = None
+    best_day_pk = None
+    best_court = None
+
+    for w in allowed_windows:
+        effective_end = w['end'] - w['buffer']
+        for c in range(1, w['court_count'] + 1):
+            court_key = (w['day'].pk, c)
+            slot = max(court_free.get(court_key, w['start']), earliest)
+            if slot + duration <= effective_end:
+                if best_slot is None or slot < best_slot:
+                    best_slot = slot
+                    best_day_pk = w['day'].pk
+                    best_court = c
+
+    return best_slot, best_day_pk, best_court
+
+
+# ---------------------------------------------------------------------------
+# Main entry point
+# ---------------------------------------------------------------------------
+
 def generate_time_schedule(tournament):
     """
     Assign scheduled_time and court to all numbered matches in *tournament*.
 
-    Requires tournament.start_time and tournament.date to be set.
     Returns the number of matches scheduled, or 0 if prerequisites are missing.
     """
-    if not tournament.start_time:
+    if not tournament.days.exists():
         return 0
 
     from .models import Match
@@ -43,46 +108,52 @@ def generate_time_schedule(tournament):
         Match.objects
         .filter(division__tournament=tournament)
         .exclude(match_number=None)
-        .exclude(walkover=True)  # exclude auto-bye matches (team1=X, team2=None, walkover=True)
+        .exclude(walkover=True)
         .order_by('division__schedule_priority', 'match_round', 'division', 'match_number')
-        .select_related('division', 'team1__player1', 'team1__player2',
-                        'team2__player1', 'team2__player2')
+        .select_related(
+            'division',
+            'division__group_day',
+            'division__playoff_day',
+            'team1__player1', 'team1__player2',
+            'team2__player1', 'team2__player2',
+        )
     )
     if not matches:
         return 0
 
-    return _schedule_greedy(tournament, matches)
+    days = list(tournament.days.order_by('date', 'start_time'))
+    return _schedule_greedy(tournament, matches, days)
 
 
 # ---------------------------------------------------------------------------
 # Greedy scheduler
 # ---------------------------------------------------------------------------
 
-def _schedule_greedy(tournament, matches):
-    """
-    Greedy time-slot scheduler.
-    Assigns each match the earliest available court slot that respects player
-    break times, playoff barriers, and priority ordering.
-    """
-    naive_start = datetime.combine(tournament.date, tournament.start_time)
-    start_dt = timezone.make_aware(naive_start) if timezone.is_naive(naive_start) else naive_start
+def _schedule_greedy(tournament, matches, days):
+    """Multi-day greedy scheduler. Returns number of scheduled matches."""
+    day_windows = _build_day_windows(days)
+    if not day_windows:
+        return 0
 
-    court_free = [start_dt] * tournament.court_count
-    player_free = {}
-    bracket_slot_end = {}
-    playoff_group_end = {}
+    # court_free[(day_pk, court_num)] = next free datetime for that court
+    court_free = {
+        (w['day'].pk, c): w['start']
+        for w in day_windows
+        for c in range(1, w['court_count'] + 1)
+    }
+
+    player_free = {}        # player_pk → datetime
+    bracket_slot_end = {}   # (div_id, round, slot) → datetime
+    playoff_group_end = {}  # (div_id, day_pk) → datetime
     break_td = timedelta(minutes=tournament.player_break_time)
 
-    # Priority ordering: track the minimum end time of each priority group
-    # so that the next (lower) priority group cannot start before the first
-    # match of the previous group has finished.
     current_priority_group = None
     current_group_ends = []
-    priority_floor = start_dt
+    priority_floor = day_windows[0]['start']
 
     updated = []
     for match in matches:
-        # When priority group changes, update the floor for the new group
+        # Update priority floor when priority group changes
         p = match.division.schedule_priority
         if p != current_priority_group:
             if current_group_ends:
@@ -91,19 +162,20 @@ def _schedule_greedy(tournament, matches):
             current_group_ends = []
 
         is_placeholder = (match.team1 is None)
-        duration = (
+        duration_minutes = (
             tournament.single_match_duration
             if match.division.discipline == 'single'
             else tournament.double_match_duration
         )
+        player_pks = []
 
         if is_placeholder:
             r = match.match_round
             s = match.bracket_slot
             div_id = match.division_id
-            feeder_end_1 = bracket_slot_end.get((div_id, r - 1, 2 * s - 1), start_dt)
-            feeder_end_2 = bracket_slot_end.get((div_id, r - 1, 2 * s), start_dt)
-            player_earliest = max(feeder_end_1, feeder_end_2) + break_td
+            feeder_end_1 = bracket_slot_end.get((div_id, r - 1, 2 * s - 1), priority_floor)
+            feeder_end_2 = bracket_slot_end.get((div_id, r - 1, 2 * s), priority_floor)
+            earliest = max(feeder_end_1, feeder_end_2) + break_td
         else:
             player_pks = [
                 pk for pk in [
@@ -115,56 +187,142 @@ def _schedule_greedy(tournament, matches):
                 if pk
             ]
             if player_pks:
-                player_earliest = max(
-                    (player_free.get(pk, start_dt - break_td) + break_td for pk in player_pks)
+                earliest = max(
+                    player_free.get(pk, priority_floor - break_td) + break_td
+                    for pk in player_pks
                 )
             else:
-                player_earliest = start_dt
+                earliest = priority_floor
 
-        if getattr(match, 'phase', 'group') == 'playoff':
-            group_done = playoff_group_end.get(match.division_id, start_dt)
-            player_earliest = max(player_earliest, group_done + break_td)
+        phase = getattr(match, 'phase', 'group')
+        if phase == 'playoff':
+            target_day_pk = match.division.playoff_day_id
+            if target_day_pk:
+                group_end = playoff_group_end.get((match.division_id, target_day_pk), priority_floor)
+            else:
+                # No assigned day — take the latest group-end across all days
+                group_end = max(
+                    (v for (div_id, _dpk), v in playoff_group_end.items()
+                     if div_id == match.division_id),
+                    default=priority_floor,
+                )
+            earliest = max(earliest, group_end + break_td)
 
-        # Enforce priority floor: lower-priority matches wait for the first
-        # match of all higher-priority groups to have finished.
-        player_earliest = max(player_earliest, priority_floor)
+        earliest = max(earliest, priority_floor)
 
-        best_time = None
-        best_court_free = None
-        best_court_idx = 0
-        for idx, court_time in enumerate(court_free):
-            slot = max(court_time, player_earliest)
-            if (
-                best_time is None
-                or slot < best_time
-                or (slot == best_time and court_time > best_court_free)
-            ):
-                best_time = slot
-                best_court_free = court_time
-                best_court_idx = idx
+        # Find slot in allowed windows; overflow to all windows if needed
+        allowed = _get_allowed_windows(match, day_windows)
+        slot, day_pk, court = _find_earliest_slot(allowed, earliest, duration_minutes, court_free)
+        if slot is None:
+            slot, day_pk, court = _find_earliest_slot(day_windows, earliest, duration_minutes, court_free)
+        if slot is None:
+            continue  # truly unschedulable — skip
 
-        match.scheduled_time = best_time
-        match.court = str(best_court_idx + 1)
+        # Clamp priority_floor to the chosen day's start
+        current_window = next((w for w in day_windows if w['day'].pk == day_pk), day_windows[0])
+        priority_floor = max(priority_floor, current_window['start'])
+
+        match.scheduled_time = slot
+        match.court = str(court)
         updated.append(match)
 
-        end_time = best_time + timedelta(minutes=duration)
-        court_free[best_court_idx] = end_time
+        end_time = slot + timedelta(minutes=duration_minutes)
+        court_free[(day_pk, court)] = end_time  # court available immediately after match
 
         if not is_placeholder:
             for pk in player_pks:
                 player_free[pk] = end_time
 
-        if getattr(match, 'phase', 'group') == 'group':
-            prev = playoff_group_end.get(match.division_id, start_dt)
-            if end_time > prev:
-                playoff_group_end[match.division_id] = end_time
+        if phase == 'group':
+            key = (match.division_id, day_pk)
+            playoff_group_end[key] = max(playoff_group_end.get(key, end_time), end_time)
 
         if match.bracket_slot is not None:
             bracket_slot_end[(match.division_id, match.match_round, match.bracket_slot)] = end_time
 
         current_group_ends.append(end_time)
 
-    for m in updated:
-        m.save(update_fields=['scheduled_time', 'court'])
-
+    from .models import Match as MatchModel
+    MatchModel.objects.bulk_update(updated, ['scheduled_time', 'court'])
     return len(updated)
+
+
+# ---------------------------------------------------------------------------
+# Feasibility check (pre-flight)
+# ---------------------------------------------------------------------------
+
+def check_schedule_feasibility(tournament):
+    """
+    Return a list of error strings that block scheduling.
+    An empty list means scheduling can proceed.
+
+    NOTE: walk-overs are intentionally NOT excluded — no discount is given.
+    """
+    from django.utils.translation import gettext as _
+    from .models import Match
+
+    if not tournament.days.exists():
+        return [_(
+            "The tournament has no days configured. "
+            "Add at least one day before scheduling."
+        )]
+
+    errors = []
+    for day in tournament.days.order_by('date', 'start_time'):
+        end_t = day.end_time or time(23, 59, 59)
+        window_minutes = (
+            end_t.hour * 60 + end_t.minute
+            - day.start_time.hour * 60 - day.start_time.minute
+        )
+        effective_per_court = window_minutes - day.buffer_minutes
+        if effective_per_court <= 0:
+            errors.append(
+                _("Day %(n)s: buffer (%(buf)d min.) is greater than or equal to the time window.") % {
+                    'n': day.day_number, 'buf': day.buffer_minutes,
+                }
+            )
+            continue
+
+        available_court_minutes = effective_per_court * day.court_count
+        required_minutes = 0
+
+        for division in tournament.divisions.filter(group_day=day):
+            duration = (
+                tournament.single_match_duration
+                if division.discipline == 'single'
+                else tournament.double_match_duration
+            )
+            count = Match.objects.filter(
+                division=division, phase='group',
+            ).exclude(match_number=None).count()
+            required_minutes += count * duration
+
+        for division in tournament.divisions.filter(playoff_day=day):
+            duration = (
+                tournament.single_match_duration
+                if division.discipline == 'single'
+                else tournament.double_match_duration
+            )
+            count = Match.objects.filter(
+                division=division, phase='playoff',
+            ).exclude(match_number=None).count()
+            required_minutes += count * duration
+
+        if required_minutes == 0:
+            continue
+
+        if required_minutes > available_court_minutes:
+            errors.append(
+                _(
+                    "Day %(n)s (%(date)s): matches require %(req)d court-minutes "
+                    "but only %(avail)d are available (incl. %(buf)d min. buffer)."
+                ) % {
+                    'n': day.day_number,
+                    'date': day.date,
+                    'req': required_minutes,
+                    'avail': int(available_court_minutes),
+                    'buf': day.buffer_minutes,
+                }
+            )
+
+    return errors

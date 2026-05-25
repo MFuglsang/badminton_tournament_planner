@@ -19,9 +19,9 @@
   </div>
 </div>
 
-{% if not tournament.start_time %}
+{% if not slots %}
 <div class="flash flash-warning">
-  {% trans "Set a start time for the tournament to use the editor." %}
+  {% trans "Configure at least one tournament day before using the editor." %}
 </div>
 {% else %}
 

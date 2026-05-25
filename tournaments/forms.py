@@ -1,9 +1,10 @@
 import re
 
 from django import forms
+from django.forms import inlineformset_factory
 from django.db.models import F
 from django.utils.translation import gettext_lazy as _
-from .models import Match, Division, Tournament
+from .models import Match, Division, Tournament, TournamentDay
 from players.models import Player, Team
 
 
@@ -60,13 +61,12 @@ class TournamentForm(forms.ModelForm):
         model = Tournament
         fields = [
             'name', 'date', 'division_model',
-            'scoring_model', 'court_count', 'start_time',
+            'scoring_model',
             'single_match_duration', 'double_match_duration', 'player_break_time',
             'logo',
         ]
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date'}),
-            'start_time': forms.TimeInput(attrs={'type': 'time'}),
         }
 
     def clean_logo(self):
@@ -430,3 +430,30 @@ class WalkoverForm(forms.Form):
             if match.team2:
                 pks.append(match.team2.pk)
             self.fields['winner'].queryset = Team.objects.filter(pk__in=pks)
+
+
+# ---------------------------------------------------------------------------
+# TournamentDay forms
+# ---------------------------------------------------------------------------
+
+class TournamentDayForm(forms.ModelForm):
+    """Form for creating and editing a single TournamentDay."""
+
+    class Meta:
+        model = TournamentDay
+        fields = ['day_number', 'date', 'start_time', 'end_time', 'court_count', 'buffer_minutes']
+        widgets = {
+            'day_number':     forms.NumberInput(attrs={'style': 'width:3.5rem'}),
+            'date':           forms.DateInput(attrs={'type': 'date'}),
+            'start_time':     forms.TimeInput(attrs={'type': 'time'}),
+            'end_time':       forms.TimeInput(attrs={'type': 'time'}),
+            'court_count':    forms.NumberInput(attrs={'style': 'width:3.5rem'}),
+            'buffer_minutes': forms.NumberInput(attrs={'style': 'width:4rem'}),
+        }
+
+
+TournamentDayFormSet = inlineformset_factory(
+    Tournament, TournamentDay,
+    form=TournamentDayForm,
+    extra=0, can_delete=True, min_num=1, validate_min=True,
+)

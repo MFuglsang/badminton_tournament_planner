@@ -1,6 +1,7 @@
 import json
 from datetime import datetime, timedelta
 
+from django.db import transaction
 from django.db.models import F, Max, Q
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
@@ -9,8 +10,8 @@ from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
-from .models import Tournament, Division, Match, DivisionSeed
-from .forms import MatchResultForm, DivisionForm, TournamentForm, get_participants_form, WalkoverForm
+from .models import Tournament, Division, Match, DivisionSeed, TournamentDay
+from .forms import MatchResultForm, DivisionForm, TournamentForm, TournamentDayFormSet, get_participants_form, WalkoverForm
 from .standings import compute_standings, compute_group_standings
 from players.models import Team
 from .scheduler import generate_schedule, advance_bracket, fill_playoff_bracket_from_group, get_bracket_data, regenerate_playoff_with_groups, _seeding_order, _bracket_placeholder_label
@@ -77,15 +78,22 @@ def tournament_create(request):
     """
     if request.method == 'POST':
         form = TournamentForm(request.POST, request.FILES)
-        if form.is_valid():
-            tournament = form.save(commit=False)
-            tournament.owner = request.user
-            tournament.save()
+        day_formset = TournamentDayFormSet(request.POST, instance=Tournament(), prefix='days')
+        if form.is_valid() and day_formset.is_valid():
+            with transaction.atomic():
+                tournament = form.save(commit=False)
+                tournament.owner = request.user
+                tournament.save()
+                day_formset.instance = tournament
+                day_formset.save()
+                tournament.sync_date()
+                tournament.save(update_fields=['date'])
             messages.success(request, _("Tournament \"%(name)s\" has been created.") % {'name': tournament.name})
             return redirect('tournament_detail', pk=tournament.pk)
     else:
         form = TournamentForm()
-    return render(request, 'tournaments/tournament_form.html', {'form': form})
+        day_formset = TournamentDayFormSet(instance=Tournament(), prefix='days')
+    return render(request, 'tournaments/tournament_form.html', {'form': form, 'day_formset': day_formset})
 
 
 @login_required
@@ -102,13 +110,20 @@ def tournament_edit(request, pk):
     tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
     if request.method == 'POST':
         form = TournamentForm(request.POST, request.FILES, instance=tournament)
-        if form.is_valid():
-            form.save()
+        day_formset = TournamentDayFormSet(request.POST, instance=tournament, prefix='days')
+        if form.is_valid() and day_formset.is_valid():
+            with transaction.atomic():
+                form.save()
+                day_formset.save()
+                tournament.refresh_from_db()
+                tournament.sync_date()
+                tournament.save(update_fields=['date'])
             messages.success(request, _("Tournament \"%(name)s\" has been updated.") % {'name': tournament.name})
             return redirect('tournament_detail', pk=tournament.pk)
     else:
         form = TournamentForm(instance=tournament)
-    return render(request, 'tournaments/tournament_form.html', {'form': form, 'tournament': tournament})
+        day_formset = TournamentDayFormSet(instance=tournament, prefix='days')
+    return render(request, 'tournaments/tournament_form.html', {'form': form, 'tournament': tournament, 'day_formset': day_formset})
 
 
 @login_required
@@ -173,9 +188,18 @@ def tournament_export(request, pk):
             "single_match_duration": tournament.single_match_duration,
             "double_match_duration": tournament.double_match_duration,
             "player_break_time": tournament.player_break_time,
-            "court_count": tournament.court_count,
-            "start_time": str(tournament.start_time) if tournament.start_time else None,
             "schedule_locked": tournament.schedule_locked,
+            "days": [
+                {
+                    "day_number": d.day_number,
+                    "date": str(d.date),
+                    "start_time": str(d.start_time),
+                    "end_time": str(d.end_time) if d.end_time else None,
+                    "court_count": d.court_count,
+                    "buffer_minutes": d.buffer_minutes,
+                }
+                for d in tournament.days.order_by('day_number')
+            ],
         },
         "players": [
             {
@@ -319,10 +343,33 @@ def _do_tournament_import(request, data):
         single_match_duration=td['single_match_duration'],
         double_match_duration=td['double_match_duration'],
         player_break_time=td['player_break_time'],
-        court_count=td['court_count'],
-        start_time=parse_time(td['start_time']) if td.get('start_time') else None,
         schedule_locked=td.get('schedule_locked', False),
     )
+
+    # Opret TournamentDay fra eksporteret days-liste eller legacy court_count/start_time
+    from .models import TournamentDay
+    from django.utils.dateparse import parse_time as _parse_time, parse_date as _parse_date
+    if td.get('days'):
+        for day_data in td['days']:
+            TournamentDay.objects.create(
+                tournament=tournament,
+                day_number=day_data['day_number'],
+                date=_parse_date(day_data['date']),
+                start_time=_parse_time(day_data['start_time']),
+                end_time=_parse_time(day_data['end_time']) if day_data.get('end_time') else None,
+                court_count=day_data.get('court_count', 4),
+                buffer_minutes=day_data.get('buffer_minutes', 30),
+            )
+    elif td.get('start_time') and td.get('court_count'):
+        # Legacy JSON: opret én dag fra de gamle felter
+        import datetime as _dt
+        TournamentDay.objects.create(
+            tournament=tournament,
+            day_number=1,
+            date=_dt.date.fromisoformat(td['date']),
+            start_time=_parse_time(td['start_time']),
+            court_count=td['court_count'],
+        )
 
     # Players: dedup by (name, gender, division) for this owner
     player_map = {}  # old_id → Player instance
@@ -604,6 +651,33 @@ def division_update_seeds(request, pk):
                     pass
         messages.success(request, _("Seeding for \"%(name)s\" has been saved.") % {'name': division.name})
     return redirect('tournament_detail', pk=division.tournament.pk)
+
+
+@login_required
+def division_update_days(request, pk):
+    """Update group_day and playoff_day assignments for a division.
+
+    Args:
+        request: Django HTTP request.
+        pk: Primary key of the division.
+
+    Returns:
+        HttpResponseRedirect: Redirect to tournament detail.
+    """
+    division = get_object_or_404(Division, pk=pk, tournament__owner=request.user)
+    if request.method == 'POST':
+        valid_day_pks = set(division.tournament.days.values_list('pk', flat=True))
+        raw_group = request.POST.get('group_day') or None
+        raw_playoff = request.POST.get('playoff_day') or None
+
+        group_day_id = int(raw_group) if raw_group and int(raw_group) in valid_day_pks else None
+        playoff_day_id = int(raw_playoff) if raw_playoff and int(raw_playoff) in valid_day_pks else None
+
+        division.group_day_id = group_day_id
+        division.playoff_day_id = playoff_day_id
+        division.save(update_fields=['group_day', 'playoff_day'])
+        messages.success(request, _("Day assignment saved."))
+    return redirect('tournament_detail', pk=division.tournament_id)
 
 
 @login_required
@@ -1058,7 +1132,9 @@ def tournament_wallchart(request, pk):
 def tournament_court_signs(request, pk):
     """Printable A3 court-number signs — one page per court."""
     tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
-    courts = list(range(1, tournament.court_count + 1))
+    first_day = tournament.days.order_by('date', 'start_time').first()
+    court_count = first_day.court_count if first_day else 4
+    courts = list(range(1, court_count + 1))
     return render(request, 'tournaments/tournament_court_signs_print.html', {
         'tournament': tournament,
         'courts': courts,
@@ -1470,6 +1546,18 @@ def tournament_run(request, pk):
     completed_matches = sum(dd['completed_count'] for dd in division_data)
     in_progress_matches = sum(dd['in_progress_count'] for dd in division_data)
 
+    import datetime as _dt
+    today_date = _dt.date.today()
+
+    # Build day_anchor_pks: {day_pk: first division_pk that has matches on that day}
+    # Used by the template to place day section headers before the right division block.
+    day_anchor_pks = {}
+    for dd in division_data:  # already in priority order
+        div = dd['division']
+        for day_pk in [div.group_day_id, div.playoff_day_id]:
+            if day_pk and day_pk not in day_anchor_pks:
+                day_anchor_pks[day_pk] = div.pk
+
     return render(request, 'tournaments/tournament_run.html', {
         'tournament': tournament,
         'division_data': division_data,
@@ -1478,6 +1566,8 @@ def tournament_run(request, pk):
         'total_matches': total_matches,
         'completed_matches': completed_matches,
         'in_progress_matches': in_progress_matches,
+        'today_date': today_date,
+        'day_anchor_pks': day_anchor_pks,
     })
 
 
@@ -1530,18 +1620,28 @@ def tournament_generate_time_schedule(request, pk):
     Returns:
         HttpResponseRedirect: Redirect to tournament schedule.
     """
+    from .schedule_planner import check_schedule_feasibility
     tournament = get_object_or_404(Tournament, pk=pk, owner=request.user)
     if request.method == 'POST':
         if tournament.schedule_locked:
             messages.error(request, _("The schedule is locked and cannot be changed."))
-        elif not tournament.start_time:
-            messages.error(request, _("Set a start time on the tournament before generating the time schedule."))
+        elif not tournament.days.exists():
+            messages.error(request, _("Configure at least one tournament day before generating the time schedule."))
         else:
-            count = generate_time_schedule(tournament)
-            if count:
-                messages.success(request, _("Time schedule generated for %(n)s matches.") % {'n': count})
+            force = request.POST.get('force') == '1'
+            errors = check_schedule_feasibility(tournament)
+            if errors and not force:
+                for err in errors:
+                    messages.error(request, err)
             else:
-                messages.warning(request, _("No matches to schedule. Generate match programmes for divisions first."))
+                if errors and force:
+                    messages.warning(request, _("Warning: schedule may be incomplete despite forced run."))
+                with transaction.atomic():
+                    count = generate_time_schedule(tournament)
+                if count:
+                    messages.success(request, _("Time schedule generated for %(n)s matches.") % {'n': count})
+                else:
+                    messages.warning(request, _("No matches to schedule. Generate match programmes for divisions first."))
     return redirect('tournament_schedule', pk=pk)
 
 
@@ -1628,14 +1728,15 @@ def schedule_editor(request, pk):
     )
 
     # Build grid: {slot_str: {court_str: match}}
-    # Slots are derived from tournament.start_time; show from first to last match + buffer
+    # Slots are derived from the first tournament day's start_time
     slots = []
     grid = {}   # slot_label → {court: match}
 
-    if tournament.start_time:
-        naive_start = datetime.combine(tournament.date, tournament.start_time)
+    first_day = tournament.days.order_by('date', 'start_time').first()
+    _court_count = first_day.court_count if first_day else 4
+    if first_day:
+        naive_start = datetime.combine(first_day.date, first_day.start_time)
         start_dt = timezone.make_aware(naive_start) if timezone.is_naive(naive_start) else naive_start
-
         # Determine how many slots to show
         if scheduled:
             last_end = max(
@@ -1651,7 +1752,7 @@ def schedule_editor(request, pk):
             slot_dt = start_dt + timedelta(minutes=i * slot_interval)
             label = slot_dt.strftime("%H:%M")
             slots.append(label)
-            grid[label] = {str(c): None for c in range(1, tournament.court_count + 1)}
+            grid[label] = {str(c): None for c in range(1, _court_count + 1)}
 
         # Place scheduled matches into the nearest slot row
         for m in scheduled:
@@ -1672,7 +1773,7 @@ def schedule_editor(request, pk):
                         grid[alt_label][court] = m
                         break
 
-    courts = [str(c) for c in range(1, tournament.court_count + 1)]
+    courts = [str(c) for c in range(1, _court_count + 1)]
 
     return render(request, 'tournaments/schedule_editor.html', {
         'tournament': tournament,

@@ -19,8 +19,18 @@
     {% trans "No matches match the search." %}
 </div>
 
-{# ── Match list ─── #}
-{% regroup matches by scheduled_time as time_groups %}
+{# ── Match list – grouped by day then time ─── #}
+{% regroup matches by scheduled_time.date as day_groups %}
+{% for day_group in day_groups %}
+{% if day_groups|length > 1 %}
+<div class="sched-day-header" id="sched-day-{{ forloop.counter }}">
+    {% with days=tournament.days.all %}
+    {% for day in days %}{% if day.date == day_group.grouper %}{% trans "Day" %} {{ day.day_number }} – {{ day_group.grouper|date:"l j. F" }}{% if day.end_time %} ({{ day.start_time|time:"H:i" }}–{{ day.end_time|time:"H:i" }}){% endif %}{% endif %}{% endfor %}
+    {% if not tournament.days.all %}{{ day_group.grouper|date:"l j. F" }}{% endif %}
+    {% endwith %}
+</div>
+{% endif %}
+{% regroup day_group.list by scheduled_time as time_groups %}
 {% for group in time_groups %}
 <div class="sched-timeslot">
     <div class="sched-time-label">{{ group.grouper|time:"H:i" }}</div>
@@ -75,7 +85,8 @@
     {% endfor %}
     </div>
 </div>
-{% endfor %}
+{% endfor %}{# time_groups #}
+{% endfor %}{# day_groups #}
 
 {% else %}
 <div class="card" style="text-align:center; color:#94a3b8; padding:3rem 2rem;">
@@ -85,6 +96,18 @@
 {% endif %}
 
 <style>
+.sched-day-header {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #0d4f22;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 6px;
+    padding: 0.45rem 0.9rem;
+    margin: 1.1rem 0 0.5rem;
+    letter-spacing: 0.01em;
+}
+.sched-day-header:first-child { margin-top: 0; }
 .sched-timeslot {
     display: flex;
     gap: 1rem;
