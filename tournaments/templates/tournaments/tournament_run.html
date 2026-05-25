@@ -7,7 +7,7 @@
 /* ── Run-page layout ─── */
 .run-layout {
   display: grid;
-  grid-template-columns: 1fr 220px;
+  grid-template-columns: 1fr 260px;
   gap: 1.25rem;
   align-items: start;
 }
@@ -125,7 +125,7 @@
   grid-template-columns: 2.5rem 3rem 1fr auto auto;
   gap: 0.3rem 0.6rem;
   align-items: center;
-  padding: 0.55rem 0;
+  padding: 0.65rem 0;
   border-bottom: 1px solid #f1f5f9;
   font-size: 0.84rem;
 }
@@ -135,7 +135,7 @@
 .run-match-teams { font-weight: 600; line-height: 1.35; }
 .run-match-teams .vs { color: #94a3b8; font-weight: 400; font-size: 0.78rem; margin: 0 0.25rem; }
 .run-match-score { color: #374151; white-space: nowrap; font-size: 0.8rem; }
-.run-match-actions { display: flex; gap: 0.3rem; justify-content: flex-end; flex-wrap: wrap; }
+.run-match-actions { display: flex; column-gap: 0.3rem; row-gap: 0.5rem; justify-content: flex-end; flex-wrap: wrap; }
 
 /* Status colours on rows */
 .row-in-progress { background: #eff6ff; }
@@ -554,7 +554,7 @@
           {{ match.team1.name }}{{ match.t1_seed }}<br>
           <span style="color:#94a3b8; font-size:0.75rem;">vs</span> {{ match.team2.name }}{{ match.t2_seed }}
         </div>
-        <div style="margin-top:0.4rem;">
+        <div style="margin-top:0.4rem; display:flex; flex-wrap:wrap; gap:0.35rem;">
           <a href="{% url 'match_record_result' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="btn btn-primary btn-sm">{% trans "Result" %}</a>
           <a href="{% url 'match_walkover' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="btn btn-secondary btn-sm" style="color:#d97706; border-color:#fde68a;">WO</a>
           <form method="post" action="{% url 'match_postpone' match.pk %}" style="display:inline;">
