@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 {% load i18n %}
+{% load static %}
 <html lang="{{ LANGUAGE_CODE }}">
 <head>
     <meta charset="UTF-8">
@@ -44,12 +45,8 @@
             display: flex; align-items: center; gap: 0.6rem;
             font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em;
         }
-        .header-brand a { color: white; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; }
-        .header-brand .logo-icon {
-            background: rgba(255,255,255,0.15); border-radius: 8px;
-            width: 34px; height: 34px; display:flex; align-items:center; justify-content:center;
-            font-size: 1.1rem;
-        }
+        .header-brand a { color: white; text-decoration: none; display: flex; align-items: center; }
+        .header-brand img { height: 46px; }
         nav { display: flex; gap: 0.15rem; align-items: center; }
         nav a {
             color: rgba(255,255,255,0.78);
@@ -329,8 +326,7 @@
 <body>
     <header>
         <div class="header-brand">
-            <div class="logo-icon">🏸</div>
-            <a href="/">Badminton Tournament Planner</a>
+            <a href="/"><img src="{% static 'img/logo_transp.png' %}" alt="Badminton Tournament Planner"></a>
         </div>
         <button class="nav-toggle" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">
             <span></span><span></span><span></span>

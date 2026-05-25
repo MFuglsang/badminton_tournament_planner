@@ -1,5 +1,6 @@
 {% extends 'base_public.html' %}
 {% load i18n %}
+{% load static %}
 {% block title %}{% trans "Log in" %} – Badminton Tournament Planner{% endblock %}
 
 {% block extra_head %}
@@ -19,8 +20,7 @@ body > .container { background: transparent; }
 <div style="min-height:80vh; display:flex; align-items:center; justify-content:center;">
   <div class="card" style="width:100%; max-width:400px;">
     <div style="text-align:center; margin-bottom:1.5rem;">
-      <div style="font-size:2.5rem; margin-bottom:0.5rem;">🏸</div>
-      <h1 style="margin:0; font-size:1.4rem;">Badminton Tournament Planner</h1>
+      <img src="{% static 'img/logo_transp.png' %}" alt="Badminton Tournament Planner" style="height:80px; margin-bottom:0.75rem;">
       <p style="color:#64748b; margin:0.4rem 0 0; font-size:0.9rem;">{% trans "Log in with your club credentials" %}</p>
     </div>
 
