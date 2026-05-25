@@ -66,7 +66,7 @@ class TournamentForm(forms.ModelForm):
             'logo',
         ]
         widgets = {
-            'date': forms.DateInput(attrs={'type': 'date'}),
+            'date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
         }
 
     def clean_logo(self):
@@ -444,7 +444,7 @@ class TournamentDayForm(forms.ModelForm):
         fields = ['day_number', 'date', 'start_time', 'end_time', 'court_count', 'buffer_minutes']
         widgets = {
             'day_number':     forms.NumberInput(attrs={'style': 'width:3.5rem'}),
-            'date':           forms.DateInput(attrs={'type': 'date'}),
+            'date':           forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
             'start_time':     forms.TimeInput(attrs={'type': 'time'}),
             'end_time':       forms.TimeInput(attrs={'type': 'time'}),
             'court_count':    forms.NumberInput(attrs={'style': 'width:3.5rem'}),
