@@ -443,9 +443,12 @@ class TournamentDayForm(forms.ModelForm):
         model = TournamentDay
         fields = ['day_number', 'date', 'start_time', 'end_time', 'court_count', 'buffer_minutes']
         widgets = {
-            'date':       forms.DateInput(attrs={'type': 'date'}),
-            'start_time': forms.TimeInput(attrs={'type': 'time'}),
-            'end_time':   forms.TimeInput(attrs={'type': 'time'}),
+            'day_number':     forms.NumberInput(attrs={'style': 'width:3.5rem'}),
+            'date':           forms.DateInput(attrs={'type': 'date'}),
+            'start_time':     forms.TimeInput(attrs={'type': 'time'}),
+            'end_time':       forms.TimeInput(attrs={'type': 'time'}),
+            'court_count':    forms.NumberInput(attrs={'style': 'width:3.5rem'}),
+            'buffer_minutes': forms.NumberInput(attrs={'style': 'width:4rem'}),
         }
 
 

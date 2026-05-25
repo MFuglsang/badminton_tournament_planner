@@ -147,10 +147,9 @@ msgid "Delete"
 msgstr "Slet"
 
 #: players/templates/players/division_categories.html:56
-#, fuzzy, python-format
-#| msgid "Delete tournament"
+#, python-format
 msgid "Delete category %(name)s?"
-msgstr "Slet turnering"
+msgstr "Slet kategori %(name)s?"
 
 #: players/templates/players/division_categories.html:69
 msgid "No categories yet."
@@ -246,10 +245,8 @@ msgid "Upload Excel"
 msgstr "Upload Excel"
 
 #: players/templates/players/player_list.html:18
-#, fuzzy
-#| msgid "Download Excel template"
 msgid "Download template"
-msgstr "Download Excel-skabelon"
+msgstr "Download skabelon"
 
 #: players/templates/players/player_list.html:27
 #: players/templates/players/team_list.html:12
@@ -541,17 +538,15 @@ msgstr ""
 
 # ── Views – flash messages ──────────────────────────────────────────────
 #: players/views.py:264
-#, fuzzy, python-format
-#| msgid "Rest period for %(name)s has been cleared."
+#, python-format
 msgid "Player \"%(name)s\" has been created."
-msgstr "Hvileperiode for %(name)s er slettet."
+msgstr "Spiller \"%(name)s\" er oprettet."
 
 # ── Views – flash messages ──────────────────────────────────────────────
 #: players/views.py:286
-#, fuzzy, python-format
-#| msgid "Rest period for %(name)s has been cleared."
+#, python-format
 msgid "Player \"%(name)s\" has been updated."
-msgstr "Hvileperiode for %(name)s er slettet."
+msgstr "Spiller \"%(name)s\" er opdateret."
 
 #: players/views.py:311
 #, python-format
@@ -562,10 +557,9 @@ msgstr ""
 
 # ── Views – flash messages ──────────────────────────────────────────────
 #: players/views.py:316
-#, fuzzy, python-format
-#| msgid "Rest period for %(name)s has been cleared."
+#, python-format
 msgid "Player \"%(name)s\" has been deleted."
-msgstr "Hvileperiode for %(name)s er slettet."
+msgstr "Spiller \"%(name)s\" er slettet."
 
 #: players/views.py:326
 msgid "No players selected."
@@ -618,38 +612,33 @@ msgstr "Spiller 2"
 
 # ── Views – flash messages ──────────────────────────────────────────────
 #: players/views.py:455
-#, fuzzy, python-format
-#| msgid "Rest period for %(name)s has been cleared."
+#, python-format
 msgid "Team \"%(name)s\" has been created."
-msgstr "Hvileperiode for %(name)s er slettet."
+msgstr "Par \"%(name)s\" er oprettet."
 
 # ── Views – flash messages ──────────────────────────────────────────────
 #: players/views.py:481
-#, fuzzy, python-format
-#| msgid "Rest period for %(name)s has been cleared."
+#, python-format
 msgid "Team \"%(name)s\" has been updated."
-msgstr "Hvileperiode for %(name)s er slettet."
+msgstr "Par \"%(name)s\" er opdateret."
 
 # ── Views – flash messages ──────────────────────────────────────────────
 #: players/views.py:506
-#, fuzzy, python-format
-#| msgid "Rest period for %(name)s has been cleared."
+#, python-format
 msgid "Team \"%(name)s\" has been deleted."
-msgstr "Hvileperiode for %(name)s er slettet."
+msgstr "Par \"%(name)s\" er slettet."
 
 # ── Views – flash messages ──────────────────────────────────────────────
 #: players/views.py:596
-#, fuzzy, python-format
-#| msgid "Rest period for %(name)s has been cleared."
+#, python-format
 msgid "Category \"%(name)s\" has been added."
-msgstr "Hvileperiode for %(name)s er slettet."
+msgstr "Kategori \"%(name)s\" er tilføjet."
 
 # ── Views – flash messages ──────────────────────────────────────────────
 #: players/views.py:620
-#, fuzzy, python-format
-#| msgid "Rest period for %(name)s has been cleared."
+#, python-format
 msgid "Category \"%(name)s\" has been deleted."
-msgstr "Hvileperiode for %(name)s er slettet."
+msgstr "Kategori \"%(name)s\" er slettet."
 
 #: players/views.py:644
 #, python-format
@@ -818,10 +807,8 @@ msgid "The logo file is too large (max %(mb)d MB)."
 msgstr ""
 
 #: tournaments/forms.py:108
-#, fuzzy
-#| msgid "The file could not be read as JSON."
 msgid "The logo could not be read as a valid image."
-msgstr "Filen kunne ikke læses som JSON."
+msgstr "Logoet kunne ikke læses som et gyldigt billede."
 
 #: tournaments/forms.py:118
 #, python-format
@@ -1149,8 +1136,6 @@ msgid "Pending"
 msgstr "Afventer"
 
 #: tournaments/models.py:305
-#, fuzzy
-#| msgid "In progress"
 msgid "In Progress"
 msgstr "I gang"
 
@@ -1209,10 +1194,8 @@ msgid "Group stage"
 msgstr "Gruppespil"
 
 #: tournaments/models.py:324
-#, fuzzy
-#| msgid "Group + playoff bracket"
 msgid "Playoff bracket"
-msgstr "Gruppe + slutspilsbracket"
+msgstr "Slutspilsbracket"
 
 #: tournaments/models.py:325
 #: tournaments/templates/tournaments/public/tournament.html:155
@@ -1286,16 +1269,12 @@ msgid "Round %(n)s"
 msgstr "Runde %(n)s"
 
 #: tournaments/templates/tournaments/_schedule_matches.html:9
-#, fuzzy
-#| msgid "Search name…"
 msgid "Search player…"
-msgstr "Søg navn…"
+msgstr "Søg spiller…"
 
 #: tournaments/templates/tournaments/_schedule_matches.html:19
-#, fuzzy
-#| msgid "No matches generated."
 msgid "No matches match the search."
-msgstr "Ingen kampe genereret."
+msgstr "Ingen kampe matcher søgningen."
 
 #: tournaments/templates/tournaments/_schedule_matches.html:44
 #: tournaments/templates/tournaments/_schedule_matches.html:62
@@ -1307,12 +1286,10 @@ msgid "Match in progress"
 msgstr "Kamp i gang"
 
 #: tournaments/templates/tournaments/_schedule_matches.html:83
-#, fuzzy
-#| msgid ""
-#| "No matches to schedule. Generate match programmes for divisions first."
 msgid ""
 "No schedule yet. Generate match programmes for all divisions, then press \\"
-msgstr "Ingen kampe at planlægge. Generer kamprogrammer for rækker først."
+msgstr ""
+"Ingen spilleplan endnu. Generér kamprogrammer for alle rækker, og tryk \\"
 
 #: tournaments/templates/tournaments/bigscreen.html:218
 #: tournaments/templates/tournaments/tournament_run.html:517
@@ -1362,16 +1339,12 @@ msgid "or"
 msgstr "eller"
 
 #: tournaments/templates/tournaments/division_medals.html:86
-#, fuzzy
-#| msgid "Reset to automatic"
 msgid "Reset to automatic calculation?"
-msgstr "Nulstil til automatisk"
+msgstr "Nulstil til automatisk beregning?"
 
 #: tournaments/templates/tournaments/division_medals.html:86
-#, fuzzy
-#| msgid "Reset to automatic"
 msgid "reset to automatic"
-msgstr "Nulstil til automatisk"
+msgstr "nulstil til automatisk"
 
 #: tournaments/templates/tournaments/division_medals.html:92
 msgid ""
@@ -1496,10 +1469,8 @@ msgid "Division:"
 msgstr "Række:"
 
 #: tournaments/templates/tournaments/match_result_form.html:58
-#, fuzzy
-#| msgid "Round"
 msgid "Round:"
-msgstr "Runde"
+msgstr "Runde:"
 
 #: tournaments/templates/tournaments/match_result_form.html:79
 msgid "Set scores"
@@ -1603,8 +1574,6 @@ msgstr "Turneringen har endnu ikke en spilleplan."
 #: tournaments/templates/tournaments/tournament_program_print.html:313
 #: tournaments/templates/tournaments/tournament_schedule_print.html:184
 #: tournaments/templates/tournaments/tournament_wallchart_print.html:239
-#, fuzzy
-#| msgid "Scoring model"
 msgid "Scoring"
 msgstr "Pointmodel"
 
@@ -1641,10 +1610,8 @@ msgstr[1] ""
 #: tournaments/templates/tournaments/public/tournament.html:40
 #: tournaments/templates/tournaments/tournament_detail.html:382
 #: tournaments/templates/tournaments/tournament_run.html:261
-#, fuzzy
-#| msgid "Group standings"
 msgid "Standings"
-msgstr "Gruppestillinger"
+msgstr "Stillinger"
 
 #: tournaments/templates/tournaments/public/tournament.html:43
 #: tournaments/templates/tournaments/public/tournament.html:78
@@ -1658,10 +1625,8 @@ msgstr "Spiller"
 
 #: tournaments/templates/tournaments/public/tournament.html:43
 #: tournaments/templates/tournaments/public/tournament.html:78
-#, fuzzy
-#| msgid "Pair type"
 msgid "Pair"
-msgstr "Partype"
+msgstr "Par"
 
 #: tournaments/templates/tournaments/public/tournament.html:43
 #: tournaments/templates/tournaments/public/tournament.html:78
@@ -1696,10 +1661,8 @@ msgstr "Point"
 
 #: tournaments/templates/tournaments/public/tournament.html:56
 #: tournaments/templates/tournaments/public/tournament.html:92
-#, fuzzy
-#| msgid "Number of courts"
 msgid "Player on court"
-msgstr "Antal baner"
+msgstr "Spiller på bane"
 
 #: tournaments/templates/tournaments/public/tournament.html:72
 #: tournaments/templates/tournaments/tournament_detail.html:413
@@ -1707,10 +1670,9 @@ msgid "Group standings"
 msgstr "Gruppestillinger"
 
 #: tournaments/templates/tournaments/public/tournament.html:75
-#, fuzzy, python-format
-#| msgid "Group stage"
+#, python-format
 msgid "Group %(n)s"
-msgstr "Gruppespil"
+msgstr "Gruppe %(n)s"
 
 #: tournaments/templates/tournaments/public/tournament.html:88
 #: tournaments/templates/tournaments/tournament_detail.html:426
@@ -1730,10 +1692,8 @@ msgid "Playoff"
 msgstr "Slutspil"
 
 #: tournaments/templates/tournaments/public/tournament.html:110
-#, fuzzy
-#| msgid "Tournament run"
 msgid "Tournament bracket"
-msgstr "Afvikling"
+msgstr "Turneringsbracket"
 
 #: tournaments/templates/tournaments/public/tournament.html:132
 #: tournaments/templates/tournaments/tournament_detail.html:461
@@ -1762,10 +1722,8 @@ msgid "G%(n)s"
 msgstr "G%(n)s"
 
 #: tournaments/templates/tournaments/public/tournament.html:203
-#, fuzzy
-#| msgid "The tournament does not have a time schedule yet."
 msgid "This tournament has no divisions yet."
-msgstr "Turneringen har endnu ikke en spilleplan."
+msgstr "Turneringen har endnu ingen rækker."
 
 #: tournaments/templates/tournaments/schedule.html:11
 #: tournaments/templates/tournaments/schedule_editor.html:11
@@ -1782,16 +1740,12 @@ msgid "Generate new"
 msgstr "Generer ny"
 
 #: tournaments/templates/tournaments/schedule.html:19
-#, fuzzy
-#| msgid "Generate new"
 msgid "Generate"
-msgstr "Generer ny"
+msgstr "Generér"
 
 #: tournaments/templates/tournaments/schedule.html:19
-#, fuzzy
-#| msgid "Time schedule"
 msgid "time schedule"
-msgstr "Spilleplan"
+msgstr "spilleplan"
 
 #: tournaments/templates/tournaments/schedule.html:24
 msgid "Lock schedule"
@@ -1812,10 +1766,8 @@ msgid "Manual editor"
 msgstr "Manuel editor"
 
 #: tournaments/templates/tournaments/schedule.html:43
-#, fuzzy
-#| msgid "No available matches for this time slot."
 msgid "Some matches are missing a time slot. Click \\"
-msgstr "Ingen tilgængelige kampe til dette tidspunkt."
+msgstr "Nogle kampe mangler et tidspunkt. Klik \\"
 
 #: tournaments/templates/tournaments/schedule.html:52
 msgid "Optimising time schedule…"
@@ -1923,10 +1875,8 @@ msgstr ""
 "turneringen. Kampene og resultaterne bevares."
 
 #: tournaments/templates/tournaments/schedule_editor.html:153
-#, fuzzy
-#| msgid "Reset times"
 msgid "Reset"
-msgstr "Nulstil tider"
+msgstr "Nulstil"
 
 #: tournaments/templates/tournaments/schedule_editor.html:208
 msgid "Only matches without conflicts are shown"
@@ -2033,10 +1983,8 @@ msgstr "Spillere, par og rækker bevares. Denne handling kan ikke fortrydes."
 #: tournaments/templates/tournaments/tournament_court_signs_print.html:5
 #: tournaments/templates/tournaments/tournament_court_signs_print.html:168
 #: tournaments/templates/tournaments/tournament_detail.html:47
-#, fuzzy
-#| msgid "Courts"
 msgid "Court signs"
-msgstr "Baner"
+msgstr "Bane-skilte"
 
 #: tournaments/templates/tournaments/tournament_detail.html:32
 msgid "General"
@@ -2061,10 +2009,8 @@ msgid "Export backup"
 msgstr "Eksporter backup"
 
 #: tournaments/templates/tournaments/tournament_detail.html:43
-#, fuzzy
-#| msgid "Match programme"
 msgid "Print programme"
-msgstr "Kampprogram"
+msgstr "Udskriv program"
 
 # ── Wallchart / program print templates ─────────────────────────────────
 #: tournaments/templates/tournaments/tournament_detail.html:46
@@ -2086,21 +2032,13 @@ msgid "Rebuild playoff labels"
 msgstr "Genopbyg slutspilsetiketter"
 
 #: tournaments/templates/tournaments/tournament_detail.html:61
-#, fuzzy
-#| msgid ""
-#| "Match numbers sorted by schedule – %(n)s matches numbered from 1 (%(u)s "
-#| "without time placed last)."
 msgid ""
 "Renumber matches by schedule order? Matches without a time are placed last."
-msgstr ""
-"Kampnumre sorteret efter spilleplan – %(n)s kampe nummereret fra 1 (%(u)s "
-"uden tid placeret sidst)."
+msgstr "Omnummerer kampe efter spilleplan? Kampe uden tid placeres sidst."
 
 #: tournaments/templates/tournaments/tournament_detail.html:62
-#, fuzzy
-#| msgid "Time schedule"
 msgid "Renumber by schedule"
-msgstr "Spilleplan"
+msgstr "Nummerer efter spilleplan"
 
 #: tournaments/templates/tournaments/tournament_detail.html:88
 msgid "completed"
@@ -2111,10 +2049,8 @@ msgid "missing"
 msgstr "mangler"
 
 #: tournaments/templates/tournaments/tournament_detail.html:92
-#, fuzzy
-#| msgid "earliest done"
 msgid "all done"
-msgstr "tidligst færdig"
+msgstr "alle færdige"
 
 #: tournaments/templates/tournaments/tournament_detail.html:105
 msgid "Create new division"
@@ -2129,20 +2065,16 @@ msgid "Create division"
 msgstr "Opret række"
 
 #: tournaments/templates/tournaments/tournament_detail.html:182
-#, fuzzy
-#| msgid "Go to match"
 msgid "Jump to match #…"
-msgstr "Gå til kamp"
+msgstr "Gå til kamp #…"
 
 #: tournaments/templates/tournaments/tournament_detail.html:187
 msgid "Go to match"
 msgstr "Gå til kamp"
 
 #: tournaments/templates/tournaments/tournament_detail.html:212
-#, fuzzy
-#| msgid "No teams found."
 msgid "not found."
-msgstr "Ingen par fundet."
+msgstr "Ikke fundet."
 
 #: tournaments/templates/tournaments/tournament_detail.html:240
 msgid "participant(s)"
@@ -2175,16 +2107,12 @@ msgstr "Mangler du nogen?"
 
 # ── Templates – players ─────────────────────────────────────────────────
 #: tournaments/templates/tournaments/tournament_detail.html:304
-#, fuzzy
-#| msgid "Add player"
 msgid "Add player here"
-msgstr "Tilføj spiller"
+msgstr "Tilføj spiller her"
 
 #: tournaments/templates/tournaments/tournament_detail.html:307
-#, fuzzy
-#| msgid "No tournaments available yet."
 msgid "No players available."
-msgstr "Ingen turneringer tilgængelige endnu."
+msgstr "Ingen spillere tilgængelige."
 
 #: tournaments/templates/tournaments/tournament_detail.html:307
 #: tournaments/templates/tournaments/tournament_detail.html:330
@@ -2193,22 +2121,16 @@ msgstr "og kom tilbage."
 
 # ── Templates – teams ───────────────────────────────────────────────────
 #: tournaments/templates/tournaments/tournament_detail.html:327
-#, fuzzy
-#| msgid "Add team"
 msgid "Add team here"
-msgstr "Tilføj par"
+msgstr "Tilføj par her"
 
 #: tournaments/templates/tournaments/tournament_detail.html:330
-#, fuzzy
-#| msgid "No tournaments available yet."
 msgid "No teams available."
-msgstr "Ingen turneringer tilgængelige endnu."
+msgstr "Ingen par tilgængelige."
 
 #: tournaments/templates/tournaments/tournament_detail.html:333
-#, fuzzy
-#| msgid "Save result"
 msgid "Save registration"
-msgstr "Gem resultat"
+msgstr "Gem tilmelding"
 
 #: tournaments/templates/tournaments/tournament_detail.html:347
 #, python-format
@@ -2224,10 +2146,8 @@ msgid "Seeded players do not meet in the first round."
 msgstr "Seedede spillere mødes ikke i første runde."
 
 #: tournaments/templates/tournaments/tournament_detail.html:348
-#, fuzzy
-#| msgid "Seeded players are distributed in separate groups."
 msgid "Seeded players are distributed in separate groups (snake draw)."
-msgstr "Seedede spillere fordeles i separate grupper ."
+msgstr "Seedede spillere fordeles i separate grupper (snake draw)."
 
 #: tournaments/templates/tournaments/tournament_detail.html:349
 msgid "Unseeded players are distributed randomly."
@@ -2238,10 +2158,8 @@ msgid "Seed #"
 msgstr "Seed #"
 
 #: tournaments/templates/tournaments/tournament_detail.html:374
-#, fuzzy
-#| msgid "Seeding"
 msgid "Save seeding"
-msgstr "Seedning"
+msgstr "Gem seedning"
 
 #: tournaments/templates/tournaments/tournament_detail.html:385
 #: tournaments/templates/tournaments/tournament_detail.html:419
@@ -2299,16 +2217,12 @@ msgstr "Slutspilstræ"
 #: tournaments/templates/tournaments/tournament_program_print.html:420
 #: tournaments/templates/tournaments/tournament_program_print.html:501
 #: tournaments/templates/tournaments/tournament_run.html:461
-#, fuzzy
-#| msgid "Pending"
 msgid "Pending…"
-msgstr "Afventer"
+msgstr "Afventer…"
 
 #: tournaments/templates/tournaments/tournament_detail.html:488
-#, fuzzy
-#| msgid "Reset match programme"
 msgid "Generate match programme"
-msgstr "Nulstil kampprogram"
+msgstr "Generér kampprogram"
 
 #: tournaments/templates/tournaments/tournament_detail.html:492
 msgid "Score sheets (PDF)"
@@ -2323,48 +2237,34 @@ msgid "Click \\"
 msgstr "Klik \\"
 
 #: tournaments/templates/tournaments/tournament_detail.html:528
-#, fuzzy
-#| msgid "Reset match programme"
 msgid "Save draw and regenerate match programme"
-msgstr "Nulstil kampprogram"
+msgstr "Gem lodtrækning og generér kampprogram"
 
 #: tournaments/templates/tournaments/tournament_detail.html:539
-#, fuzzy
-#| msgid "No upcoming matches"
 msgid "Group matches"
-msgstr "Ingen kommende kampe"
+msgstr "Gruppekampe"
 
 #: tournaments/templates/tournaments/tournament_detail.html:579
 #: tournaments/templates/tournaments/tournament_detail.html:632
-#, fuzzy
-#| msgid "Register result"
 msgid "Edit result"
-msgstr "Registrer resultat"
+msgstr "Rediger resultat"
 
 #: tournaments/templates/tournaments/tournament_detail.html:582
-#, fuzzy
-#| msgid "Edit player"
 msgid "Awaiting players"
-msgstr "Rediger spiller"
+msgstr "Afventer spillere"
 
 #: tournaments/templates/tournaments/tournament_detail.html:596
 #: tournaments/templates/tournaments/tournament_program_print.html:435
-#, fuzzy
-#| msgid "Playoff"
 msgid "Playoff matches"
-msgstr "Slutspil"
+msgstr "Slutspilskampe"
 
 #: tournaments/templates/tournaments/tournament_detail.html:635
-#, fuzzy
-#| msgid "Group stage"
 msgid "Awaiting group stage"
-msgstr "Gruppespil"
+msgstr "Afventer gruppespil"
 
 #: tournaments/templates/tournaments/tournament_detail.html:649
-#, fuzzy
-#| msgid "No matches have been completed yet."
 msgid "No matches scheduled yet."
-msgstr "Ingen kampe er afsluttet endnu."
+msgstr "Ingen kampe planlagt endnu."
 
 #: tournaments/templates/tournaments/tournament_detail.html:658
 msgid "No divisions created yet. Use the form above to create the first."
@@ -2386,10 +2286,9 @@ msgstr "Opret turnering"
 
 # ── blocktrans strings ──────────────────────────────────────────────────
 #: tournaments/templates/tournaments/tournament_form.html:6
-#, fuzzy, python-format
-#| msgid "Edit %(name)s"
+#, python-format
 msgid "Edit: %(name)s"
-msgstr "Rediger %(name)s"
+msgstr "Rediger: %(name)s"
 
 #: tournaments/templates/tournaments/tournament_form.html:13
 msgid "Basic information"
@@ -2429,16 +2328,12 @@ msgstr "Gem ændringer"
 
 # ── Templates – tournaments ─────────────────────────────────────────────
 #: tournaments/templates/tournaments/tournament_import.html:3
-#, fuzzy
-#| msgid "Create tournament"
 msgid "Import tournament"
-msgstr "Opret turnering"
+msgstr "Importer turnering"
 
 #: tournaments/templates/tournaments/tournament_import.html:6
-#, fuzzy
-#| msgid "Import backup"
 msgid "Import tournament from backup"
-msgstr "Importer backup"
+msgstr "Importer turnering fra backup"
 
 #: tournaments/templates/tournaments/tournament_import.html:9
 msgid ""
@@ -2455,10 +2350,8 @@ msgid "Backup file (.json)"
 msgstr "Backupfil (.json)"
 
 #: tournaments/templates/tournaments/tournament_import.html:19
-#, fuzzy
-#| msgid "Import backup"
 msgid "Import"
-msgstr "Importer backup"
+msgstr "Importer"
 
 #: tournaments/templates/tournaments/tournament_list.html:9
 msgid "Import backup"
@@ -2535,39 +2428,29 @@ msgid "Planning"
 msgstr "Planlægning"
 
 #: tournaments/templates/tournaments/tournament_run.html:220
-#, fuzzy
-#| msgid "Matches played"
 msgid "matches completed"
-msgstr "Spillede kampe"
+msgstr "kampe afsluttet"
 
 #: tournaments/templates/tournaments/tournament_run.html:221
 #: tournaments/templates/tournaments/tournament_run.html:246
-#, fuzzy
-#| msgid "In progress"
 msgid "in progress"
-msgstr "I gang"
+msgstr "i gang"
 
 #: tournaments/templates/tournaments/tournament_run.html:222
-#, fuzzy
-#| msgid "No matches have been completed yet."
 msgid "All matches completed"
-msgstr "Ingen kampe er afsluttet endnu."
+msgstr "Alle kampe afsluttet"
 
 #: tournaments/templates/tournaments/tournament_run.html:235
 msgid "Search match number or player name…"
 msgstr "Søg kampnummer eller spillernavn…"
 
 #: tournaments/templates/tournaments/tournament_run.html:236
-#, fuzzy
-#| msgid "Clear filter"
 msgid "Clear search"
-msgstr "Ryd filter"
+msgstr "Ryd søgning"
 
 #: tournaments/templates/tournaments/tournament_run.html:247
-#, fuzzy
-#| msgid "Pending"
 msgid "pending"
-msgstr "Afventer"
+msgstr "afventer"
 
 #: tournaments/templates/tournaments/tournament_run.html:248
 msgid "done"
@@ -2578,10 +2461,9 @@ msgid "Done"
 msgstr "Færdig"
 
 #: tournaments/templates/tournaments/tournament_run.html:252
-#, fuzzy, python-format
-#| msgid "Schedule – %(name)s"
+#, python-format
 msgid "Medals for %(name)s"
-msgstr "Program – %(name)s"
+msgstr "Medaljer for %(name)s"
 
 #: tournaments/templates/tournaments/tournament_run.html:297
 msgid "A player is busy or resting"
@@ -2594,10 +2476,8 @@ msgstr "Optaget"
 # ── Wallchart / program print templates ─────────────────────────────────
 #: tournaments/templates/tournaments/tournament_run.html:308
 #: tournaments/templates/tournaments/tournament_run.html:502
-#, fuzzy
-#| msgid "Result chart"
 msgid "Result"
-msgstr "Resultattavle"
+msgstr "Resultat"
 
 #: tournaments/templates/tournaments/tournament_run.html:313
 #: tournaments/templates/tournaments/tournament_run.html:507
@@ -2605,57 +2485,44 @@ msgid "Postpone"
 msgstr "Udskyd"
 
 #: tournaments/templates/tournaments/tournament_run.html:327
-#, fuzzy
-#| msgid "Completed"
 msgid "Completed matches"
-msgstr "Afsluttet"
+msgstr "Afsluttede kampe"
 
 #: tournaments/templates/tournaments/tournament_run.html:361
 #: tournaments/templates/tournaments/tournament_wallchart_print.html:399
-#, fuzzy
-#| msgid "No matches generated."
 msgid "No matches generated yet."
-msgstr "Ingen kampe genereret."
+msgstr "Ingen kampe genereret endnu."
 
 #: tournaments/templates/tournaments/tournament_run.html:456
-#, fuzzy
-#| msgid "Change team in bracket"
 msgid "Change team manually"
-msgstr "Skift hold i slutspillet"
+msgstr "Skift hold manuelt"
 
 #: tournaments/templates/tournaments/tournament_run.html:456
 msgid "Change"
 msgstr "Skift"
 
 #: tournaments/templates/tournaments/tournament_run.html:545
-#, fuzzy
-#| msgid "No matches have been completed yet."
 msgid "All matches completed!"
-msgstr "Ingen kampe er afsluttet endnu."
+msgstr "Alle kampe afsluttet!"
 
 #: tournaments/templates/tournaments/tournament_run.html:547
-#, fuzzy
-#| msgid "No upcoming matches"
 msgid "No upcoming matches with a time."
-msgstr "Ingen kommende kampe"
+msgstr "Ingen kommende kampe med et tidspunkt."
 
 #: tournaments/templates/tournaments/tournament_run.html:548
-#, fuzzy
-#| msgid "Reset time schedule?"
 msgid "Generate time schedule to see times."
-msgstr "Nulstil spilleplan?"
+msgstr "Generér spilleplan for at se tider."
 
 #: tournaments/templates/tournaments/tournament_run.html:556
 msgid "Quick links"
 msgstr "Hurtige links"
 
 #: tournaments/templates/tournaments/tournament_schedule_print.html:208
-#, fuzzy, python-format
-#| msgid "%(count)s medal"
+#, python-format
 msgid "%(counter)s match"
 msgid_plural "%(counter)s matches"
-msgstr[0] "%(count)s medalje"
-msgstr[1] "%(count)s medalje"
+msgstr[0] "%(counter)s kamp"
+msgstr[1] "%(counter)s kampe"
 
 #: tournaments/templates/tournaments/tournament_schedule_print.html:219
 #, python-format
@@ -2663,16 +2530,12 @@ msgid "Winner of match %(f1)s vs winner of match %(f2)s"
 msgstr "Vinder af kamp %(f1)s vs vinder af kamp %(f2)s"
 
 #: tournaments/templates/tournaments/tournament_schedule_print.html:236
-#, fuzzy
-#| msgid "No matches generated."
 msgid "No scheduled matches yet."
-msgstr "Ingen kampe genereret."
+msgstr "Ingen planlagte kampe endnu."
 
 #: tournaments/templates/tournaments/tournament_schedule_print.html:237
-#, fuzzy
-#| msgid "Make sure the tournament has a time schedule generated."
 msgid "Generate the match programme and time schedule under"
-msgstr "Sørg for at turneringen har en genereret spilleplan."
+msgstr "Generér kampprogram og spilleplan under"
 
 #: tournaments/templates/tournaments/tournament_wallchart_print.html:322
 #: tournaments/templates/tournaments/tournament_wallchart_print.html:328
@@ -2683,17 +2546,15 @@ msgstr "V-kamp"
 
 # ── Views – flash messages ──────────────────────────────────────────────
 #: tournaments/views.py:91
-#, fuzzy, python-format
-#| msgid "Rest period for %(name)s has been cleared."
+#, python-format
 msgid "Tournament \"%(name)s\" has been created."
-msgstr "Hvileperiode for %(name)s er slettet."
+msgstr "Turnering \"%(name)s\" er oprettet."
 
 # ── Views – flash messages ──────────────────────────────────────────────
 #: tournaments/views.py:121
-#, fuzzy, python-format
-#| msgid "Rest period for %(name)s has been cleared."
+#, python-format
 msgid "Tournament \"%(name)s\" has been updated."
-msgstr "Hvileperiode for %(name)s er slettet."
+msgstr "Turnering \"%(name)s\" er opdateret."
 
 #: tournaments/views.py:143
 msgid "You must type DELETE TOURNAMENT to confirm."
@@ -2701,10 +2562,9 @@ msgstr "Du skal skrive SLET TURNERING for at bekræfte."
 
 # ── Views – flash messages ──────────────────────────────────────────────
 #: tournaments/views.py:147
-#, fuzzy, python-format
-#| msgid "Rest period for %(name)s has been cleared."
+#, python-format
 msgid "Tournament \"%(name)s\" has been deleted."
-msgstr "Hvileperiode for %(name)s er slettet."
+msgstr "Turnering \"%(name)s\" er slettet."
 
 #: tournaments/views.py:298
 #, python-format
@@ -2734,31 +2594,27 @@ msgstr ""
 
 # ── Views – flash messages ──────────────────────────────────────────────
 #: tournaments/views.py:592
-#, fuzzy, python-format
-#| msgid "Rest period for %(name)s has been cleared."
+#, python-format
 msgid "Division \"%(name)s\" has been created."
-msgstr "Hvileperiode for %(name)s er slettet."
+msgstr "Række \"%(name)s\" er oprettet."
 
 # ── Views – flash messages ──────────────────────────────────────────────
 #: tournaments/views.py:620
-#, fuzzy, python-format
-#| msgid "Rest period for %(name)s has been cleared."
+#, python-format
 msgid "Players in \"%(name)s\" have been updated."
-msgstr "Hvileperiode for %(name)s er slettet."
+msgstr "Spillere i \"%(name)s\" er opdateret."
 
 # ── Views – flash messages ──────────────────────────────────────────────
 #: tournaments/views.py:623
-#, fuzzy, python-format
-#| msgid "Rest period for %(name)s has been cleared."
+#, python-format
 msgid "Teams in \"%(name)s\" have been updated."
-msgstr "Hvileperiode for %(name)s er slettet."
+msgstr "Par i \"%(name)s\" er opdateret."
 
 # ── Views – flash messages ──────────────────────────────────────────────
 #: tournaments/views.py:652
-#, fuzzy, python-format
-#| msgid "Rest period for %(name)s has been cleared."
+#, python-format
 msgid "Seeding for \"%(name)s\" has been saved."
-msgstr "Hvileperiode for %(name)s er slettet."
+msgstr "Seedning for \"%(name)s\" er gemt."
 
 #: tournaments/views.py:679
 msgid "Day assignment saved."
@@ -2799,16 +2655,13 @@ msgstr "Ingen kampe genereret."
 
 # ── Views – flash messages ──────────────────────────────────────────────
 #: tournaments/views.py:763
-#, fuzzy, python-format
-#| msgid "Rest period for %(name)s has been cleared."
+#, python-format
 msgid "Division \"%(name)s\" has been deleted."
-msgstr "Hvileperiode for %(name)s er slettet."
+msgstr "Række \"%(name)s\" er slettet."
 
 #: tournaments/views.py:767
-#, fuzzy
-#| msgid "Division"
 msgid "division"
-msgstr "Række"
+msgstr "række"
 
 #: tournaments/views.py:840
 #, python-format
@@ -2897,10 +2750,8 @@ msgstr "Alle kampe slettet og kampnummertæller nulstillet."
 
 #: tournaments/views.py:1878 tournaments/views.py:1910
 #: tournaments/views.py:1932
-#, fuzzy
-#| msgid "The schedule is now locked."
 msgid "The schedule is locked."
-msgstr "Spilleplanen er nu låst."
+msgstr "Spilleplanen er låst."
 
 #: tournaments/views.py:1969
 #, python-format
@@ -2985,6 +2836,10 @@ msgstr "I dag"
 #: tournaments/templates/tournaments/tournament_schedule_print.html
 msgid "Day"
 msgstr "Dag"
+
+#: tournaments/templates/tournaments/tournament_form.html
+msgid "Delete day"
+msgstr "Slet dag"
 
 #~ msgid "Want to add multiple players at once?"
 #~ msgstr "Vil du tilføje flere spillere på én gang?"
