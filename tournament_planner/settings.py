@@ -193,6 +193,17 @@ LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/tournaments/'
 LOGOUT_REDIRECT_URL = '/login/'
 
+# ── Club tier player limits ──────────────────────────────────────────────────
+# How many players each tier may register.
+# Override per environment via CLUB_TIER_LIMIT_SMALL / _MEDIUM / _LARGE.
+# Clubs needing more than the large limit should contact us for a custom plan.
+CLUB_TIER_LIMITS = {
+    'small':     int(os.environ.get('CLUB_TIER_LIMIT_SMALL',   50)),
+    'medium':    int(os.environ.get('CLUB_TIER_LIMIT_MEDIUM', 200)),
+    'large':     int(os.environ.get('CLUB_TIER_LIMIT_LARGE',  150)),
+    'unlimited': 0,  # no limit — always 0 regardless of env
+}
+
 # ── django-axes (brute-force protection) ──────────────────────────────────────
 # Lock out an account/IP after N failed login attempts within COOLOFF window.
 AXES_FAILURE_LIMIT = 5

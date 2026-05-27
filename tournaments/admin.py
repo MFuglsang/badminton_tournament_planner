@@ -5,8 +5,8 @@ from .models import Tournament, Division, Match, UserProfile
 class UserProfileAdmin(admin.ModelAdmin):
     """Configure admin list behavior for user profiles."""
 
-    list_display = ('user', 'language')
-    list_editable = ('language',)
+    list_display = ('user', 'language', 'tier')
+    list_editable = ('language', 'tier')
 
 @admin.register(Tournament)
 class TournamentAdmin(admin.ModelAdmin):

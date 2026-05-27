@@ -528,6 +528,36 @@ msgstr "%(count)s række(r) havde fejl og blev sprunget over: %(details)s"
 msgid "No players were added."
 msgstr "Ingen spillere blev tilføjet."
 
+#: players/views.py
+#, python-format
+msgid ""
+"%(n)s player(s) were not added — the club has reached its player limit. "
+"Need more? Contact us for a custom plan."
+msgstr ""
+"%(n)s spiller(e) blev ikke tilføjet — klubben har nået sin spillergrænse. "
+"Har du brug for flere? Kontakt os for en skræddersyet plan."
+
+#: players/views.py
+#, python-format
+msgid ""
+"Your club has reached its player limit of %(limit)s players. Need more? "
+"Contact us for a custom plan."
+msgstr ""
+"Din klub har nået sin spillergrænse på %(limit)s spillere. Har du brug for "
+"flere? Kontakt os for en skræddersyet plan."
+
+#: players/templates/players/player_list.html
+msgid "Club player quota"
+msgstr "Klubbens spillerkvote"
+
+#: players/templates/players/player_list.html
+msgid "Limit reached"
+msgstr "Grænse nået"
+
+#: players/templates/players/player_list.html
+msgid "remaining"
+msgstr "tilbage"
+
 #: players/views.py:247
 #, python-format
 msgid ""

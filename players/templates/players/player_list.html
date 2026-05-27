@@ -56,6 +56,28 @@
     <span style="color:#888; font-size:0.9rem; margin-left:auto;">{{ players|length }} {% trans "player(s)" %}</span>
 </div>
 
+{# ── Tier-kvote ─── #}
+{% if player_limit %}
+{% with pct=player_total|stringformat:"s" %}
+<div style="margin-bottom:0.75rem;">
+    <div style="display:flex; justify-content:space-between; align-items:baseline; font-size:0.88rem; color:#555; margin-bottom:0.25rem;">
+        <span>{% trans "Club player quota" %}: <strong>{{ player_total }}</strong> / {{ player_limit }}</span>
+        {% if player_remaining == 0 %}
+        <span style="color:#c0392b; font-weight:600;">{% trans "Limit reached" %}</span>
+        {% else %}
+        <span style="color:#27ae60;">{{ player_remaining }} {% trans "remaining" %}</span>
+        {% endif %}
+    </div>
+    <div style="background:#e0e0e0; border-radius:4px; height:8px; overflow:hidden;">
+        <div style="background:{% if player_remaining == 0 %}#c0392b{% elif player_total|add:0 >= player_limit|add:0|add:-10 %}#e67e22{% else %}#27ae60{% endif %};
+                    height:100%;
+                    width:{% widthratio player_total player_limit 100 %}%;
+                    transition:width 0.3s;"></div>
+    </div>
+</div>
+{% endwith %}
+{% endif %}
+
 {# ── Sorteringshjælper #}
 {% with base_url="?division="|add:selected_division|add:"&gender="|add:selected_gender|add:"&search="|add:search %}
 {% if players %}

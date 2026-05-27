@@ -5,11 +5,19 @@ from django.utils.translation import gettext_lazy as _
 
 
 class UserProfile(models.Model):
-    """Store per-club preferences such as default language."""
+    """Store per-club preferences such as default language and tier."""
     LANGUAGE_CHOICES = [
         ('da', 'Dansk'),
         ('en', 'English'),
     ]
+
+    TIER_CHOICES = [
+        ('small', _("Small")),
+        ('medium', _("Medium")),
+        ('large', _("Large")),
+        ('unlimited', _("Unlimited")),
+    ]
+
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -22,6 +30,22 @@ class UserProfile(models.Model):
         default='da',
         verbose_name=_("Default language"),
     )
+    tier = models.CharField(
+        max_length=10,
+        choices=TIER_CHOICES,
+        default='small',
+        verbose_name=_("Club tier"),
+        help_text=_("Determines how many players the club may register."),
+    )
+
+    def player_limit(self):
+        """Return the maximum number of players allowed for this tier, or None if unlimited.
+
+        Reads limits from settings.CLUB_TIER_LIMITS. A value of 0 means unlimited.
+        """
+        from django.conf import settings
+        limit = settings.CLUB_TIER_LIMITS.get(self.tier, 0)
+        return limit if limit > 0 else None
 
     def __str__(self):
         """Return a readable profile label.

@@ -1,13 +1,15 @@
 import logging
 
+from django.conf import settings as django_settings
+from django.contrib.auth import get_user_model
 from django.contrib.auth.signals import (
     user_logged_in,
     user_logged_out,
     user_login_failed,
 )
+from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import translation
-from django.conf import settings as django_settings
 
 # Dedicated logger so admins can route auth events to a separate handler
 # (rsyslog, fail2ban, SIEM, etc.) via the LOGGING dict in settings.py.
@@ -65,3 +67,13 @@ def set_language_on_login(sender, request, user, **kwargs):
         # but we also need to set it on the response object.
         # We attach it to the request so the login view's response can set it.
         request._set_language_cookie = lang
+
+
+@receiver(post_save, sender=django_settings.AUTH_USER_MODEL)
+def _create_user_profile(sender, instance, created, **kwargs):
+    """Auto-create a UserProfile when a new user is saved for the first time."""
+    if not created:
+        return
+    from .models import UserProfile
+    tier = 'unlimited' if instance.is_superuser else 'small'
+    UserProfile.objects.get_or_create(user=instance, defaults={'tier': tier})
