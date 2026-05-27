@@ -56,6 +56,14 @@ def player_list(request):
         DivisionCategory.objects.filter(owner=request.user).values_list('name', flat=True)
     ]
 
+    # ── Tier quota ───────────────────────────────────────────────────────────
+    player_total = Player.objects.filter(owner=request.user).count()
+    try:
+        player_limit = request.user.profile.player_limit()
+    except Exception:
+        player_limit = None
+    player_remaining = None if player_limit is None else max(0, player_limit - player_total)
+
     return render(request, 'players/player_list.html', {
         'players': players,
         'division_choices': division_choices,
@@ -65,6 +73,9 @@ def player_list(request):
         'search': search,
         'sort': sort,
         'dir': direction,
+        'player_total': player_total,
+        'player_limit': player_limit,
+        'player_remaining': player_remaining,
         'col_defs': [
             ('name',     _("Name")),
             ('gender',   _("Gender")),
@@ -183,6 +194,19 @@ def player_upload(request):
     created = 0
     no_division = 0
     skipped = 0
+    limit_blocked = 0
+
+    # Determine how many more players this club is allowed to create
+    try:
+        _profile = request.user.profile
+        _tier_limit = _profile.player_limit()
+    except Exception:
+        _tier_limit = None
+    if _tier_limit is not None:
+        _current_count = Player.objects.filter(owner=request.user).count()
+        limit_remaining = max(0, _tier_limit - _current_count)
+    else:
+        limit_remaining = None
 
     for row in rows:
         vals = {headers[i]: (cell.value if cell.value is not None else '') for i, cell in enumerate(row) if i < len(headers)}
@@ -214,6 +238,12 @@ def player_upload(request):
             if raw_division:
                 no_division += 1
 
+        if limit_remaining is not None:
+            if limit_remaining <= 0:
+                limit_blocked += 1
+                continue
+            limit_remaining -= 1
+
         Player.objects.create(
             name=name,
             age=age,
@@ -230,6 +260,11 @@ def player_upload(request):
         parts.append(_("%(n)s player(s) added.") % {'n': created})
     if no_division:
         parts.append(_("%(n)s player(s) had an unrecognised division and were added without one.") % {'n': no_division})
+    if limit_blocked:
+        parts.append(
+            _("%(n)s player(s) were not added — the club has reached its player limit. Need more? Contact us for a custom plan.")
+            % {'n': limit_blocked}
+        )
     if row_errors:
         parts.append(
             _("%(count)s row(s) had errors and were skipped: %(details)s")
@@ -253,8 +288,32 @@ def player_upload(request):
 
     return redirect('player_list')
 
+def _player_limit_reached(user):
+    """Return (limit, current_count) if the user has hit their tier limit, else None."""
+    try:
+        profile = user.profile
+    except Exception:
+        return None
+    limit = profile.player_limit()
+    if limit is None:
+        return None
+    current = Player.objects.filter(owner=user).count()
+    if current >= limit:
+        return limit, current
+    return None
+
+
 @login_required
 def player_add(request):
+    blocked = _player_limit_reached(request.user)
+    if blocked:
+        limit, current = blocked
+        messages.error(
+            request,
+            _("Your club has reached its player limit of %(limit)s players. Need more? Contact us for a custom plan.")
+            % {'limit': limit},
+        )
+        return redirect('player_list')
     if request.method == 'POST':
         form = PlayerForm(request.POST, owner=request.user)
         if form.is_valid():

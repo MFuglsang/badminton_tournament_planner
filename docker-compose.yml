@@ -31,6 +31,10 @@ services:
       DEBUG: "False"
       POSTGRES_HOST: db
       POSTGRES_PORT: "5432"
+      # Club tier player limits — clubs needing more than large should contact us for a custom plan
+      CLUB_TIER_LIMIT_SMALL: "30"
+      CLUB_TIER_LIMIT_MEDIUM: "80"
+      CLUB_TIER_LIMIT_LARGE: "150"
     volumes:
       - media_data:/app/media
       - static_data:/app/staticfiles
