@@ -21,6 +21,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
+from django.template.response import TemplateResponse
 from tournaments.models import Tournament
 from tournaments.public_views import public_landing, public_tournament, public_schedule
 import datetime
@@ -47,8 +48,13 @@ def home(request):
     recent = Tournament.objects.filter(owner=request.user, date__lt=datetime.date.today()).order_by('-date')[:3]
     return render(request, 'home.html', {'upcoming': upcoming, 'recent': recent})
 
+def service_worker(request):
+    return TemplateResponse(request, 'pwa/sw.js', content_type='application/javascript')
+
+
 urlpatterns = [
     path('i18n/', include('django.conf.urls.i18n')),
+    path('sw.js', service_worker, name='service_worker'),
     path('', public_landing, name='home'),
     path('dashboard/', home, name='admin_home'),
     path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
