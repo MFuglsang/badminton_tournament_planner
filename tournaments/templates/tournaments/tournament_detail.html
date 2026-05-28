@@ -538,6 +538,97 @@ var MATCH_LOOKUP = {
 </div>
 {% endif %}
 
+{# ── Double Elimination Brackets ─── #}
+{% if dd.double_elim_data %}
+{% with de=dd.double_elim_data %}
+
+{# ── Winners Bracket ── #}
+{% if de.wb %}
+<h3>{% trans "Winners Bracket" %}</h3>
+<div class="bracket-container">
+  {% for round in de.wb.rounds %}
+  <div class="bracket-round{% if round.is_last %} bracket-round-last{% endif %}">
+    <div class="bracket-round-label">{{ round.label }}</div>
+    {% for slot in round.slots %}
+    <div class="bracket-slot {% if slot.is_odd %}bracket-slot-odd{% else %}bracket-slot-even{% endif %}"
+         style="height:{{ round.slot_height }}px;">
+      {% if slot.match %}
+      <div class="bracket-card">
+        {% if slot.match.bracket_label and not slot.match.team1 and not slot.match.team2 %}
+          <div class="bracket-team" style="color:#888; font-style:italic; font-size:0.8rem;">{{ slot.match.bracket_label }}</div>
+        {% else %}
+          <div class="bracket-team{% if slot.match.winner_id == slot.match.team1_id %} winner{% endif %}">
+            {% if slot.match.team1 %}{{ slot.match.team1.name }}{{ slot.match.t1_seed }}{% elif slot.match.bracket_label %}{{ slot.match.bracket_label }}{% else %}TBD{% endif %}
+          {% if slot.match.status == 'completed' and not slot.match.team2 %}<span style="font-size:0.75em;color:#aaa;"> {% trans "Bye" %}</span>{% endif %}
+          </div>
+          {% if slot.match.team2 %}
+          <div class="bracket-team{% if slot.match.winner_id == slot.match.team2_id %} winner{% endif %}">
+            {{ slot.match.team2.name }}{{ slot.match.t2_seed }}
+          </div>
+          {% elif slot.match.status == 'completed' %}
+          <div class="bracket-team bye">{% trans "Bye" %}</div>
+          {% else %}
+          <div class="bracket-team bye">TBD</div>
+          {% endif %}
+        {% endif %}
+      </div>
+      {% else %}
+      <div class="bracket-card"><div class="bracket-tbd">{% trans "Pending…" %}</div></div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{# ── Losers Bracket ── #}
+{% if de.lb %}
+<h3>{% trans "Losers Bracket" %}</h3>
+<div class="bracket-container">
+  {% for round in de.lb.rounds %}
+  <div class="bracket-round{% if round.is_last %} bracket-round-last{% endif %}">
+    <div class="bracket-round-label">{{ round.label }}</div>
+    {% for slot in round.slots %}
+    <div class="bracket-slot {% if slot.is_odd %}bracket-slot-odd{% else %}bracket-slot-even{% endif %}"
+         style="height:{{ round.slot_height }}px;">
+      {% if slot.match %}
+      <div class="bracket-card">
+        <div class="bracket-team{% if slot.match.winner_id == slot.match.team1_id %} winner{% endif %}">
+          {% if slot.match.team1 %}
+            {{ slot.match.team1.name }}{{ slot.match.t1_seed }}
+            {% if slot.match.status == 'completed' and not slot.match.team2 %}<span style="font-size:0.75em;color:#aaa;"> {% trans "Bye" %}</span>{% endif %}
+          {% elif slot.t1_label %}
+            <span style="color:#888; font-style:italic; font-size:0.85rem;">{{ slot.t1_label }}</span>
+          {% else %}TBD{% endif %}
+        </div>
+        {% if slot.match.team2 %}
+        <div class="bracket-team{% if slot.match.winner_id == slot.match.team2_id %} winner{% endif %}">
+          {{ slot.match.team2.name }}{{ slot.match.t2_seed }}
+        </div>
+        {% elif slot.match.status == 'completed' %}
+        <div class="bracket-team bye">{% trans "Bye" %}</div>
+        {% elif slot.t2_label %}
+        <div class="bracket-team" style="color:#888; font-style:italic; font-size:0.85rem;">{{ slot.t2_label }}</div>
+        {% else %}
+        <div class="bracket-team bye">TBD</div>
+        {% endif %}
+      </div>
+      {% elif not slot.is_void %}
+      <div class="bracket-card"><div class="bracket-tbd">{% trans "Pending…" %}</div></div>
+      {% else %}
+      <div class="bracket-card" style="visibility:hidden;"></div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% endwith %}
+{% endif %}
+
 <div class="btn-group" style="margin-bottom:1rem;">
     {% if not tournament.schedule_locked %}
     <form method="post" action="{% url 'division_generate_schedule' division.pk %}">

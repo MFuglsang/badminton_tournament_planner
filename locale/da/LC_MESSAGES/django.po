@@ -1056,6 +1056,42 @@ msgstr "Gruppe + slutspilsbracket"
 msgid "Single elimination"
 msgstr "Enkelt eliminering"
 
+msgid "Double elimination"
+msgstr "Dobbelt eliminering"
+
+msgid "Winners bracket"
+msgstr "Vindertræ"
+
+msgid "Losers bracket"
+msgstr "Tabertræ"
+
+msgid "Winners Bracket"
+msgstr "Vindertræ"
+
+msgid "Losers Bracket"
+msgstr "Tabertræ"
+
+msgid "Grand Final"
+msgstr "Grand Final"
+
+msgid "WB winner"
+msgstr "Vinder af vindertræ"
+
+msgid "LB winner"
+msgstr "Vinder af tabertræ"
+
+msgid "WB"
+msgstr "VT"
+
+msgid "LB"
+msgstr "TT"
+
+msgid "LB Final"
+msgstr "Tabertræ-finale"
+
+msgid "LB Round %(n)s"
+msgstr "Tabertræ runde %(n)s"
+
 #: tournaments/models.py:211
 msgid "Division name"
 msgstr "Rækkenavn"

@@ -2925,7 +2925,7 @@ class ScheduleAPITest(TestCase):
     def test_assign_sets_scheduled_time_and_court(self):
         response = self._post_json(
             reverse('schedule_assign', args=[self.tournament.pk]),
-            {'match_id': self.match.pk, 'time': '09:00', 'court': '1'},
+            {'match_id': self.match.pk, 'time': '2026-06-01 09:00', 'court': '1'},
         )
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -3239,8 +3239,8 @@ class LoginSignalLanguageTest(TestCase):
     def setUp(self):
         from tournaments.models import UserProfile
         self.user = make_user(username='signaluserclub')
-        # Create a UserProfile with Danish language
-        UserProfile.objects.create(user=self.user, language='da')
+        # Update the auto-created UserProfile's language to Danish
+        UserProfile.objects.filter(user=self.user).update(language='da')
 
     def test_login_activates_club_language_without_cookie(self):
         from django.utils import translation
@@ -3265,8 +3265,14 @@ class LoginSignalLanguageTest(TestCase):
 
     def test_login_with_no_profile_is_silent(self):
         from django.test import RequestFactory
+        from django.contrib.auth import get_user_model
         from tournaments.signals import set_language_on_login
+        from tournaments.models import UserProfile
         user_no_profile = make_user(username='noprofileclub')
+        # Remove the auto-created profile so we can test the "no profile" code path.
+        # Re-fetch from DB to clear any cached reverse relation on the instance.
+        UserProfile.objects.filter(user=user_no_profile).delete()
+        user_no_profile = get_user_model().objects.get(pk=user_no_profile.pk)
         factory = RequestFactory()
         request = factory.get('/')
         request.COOKIES = {}
@@ -3283,7 +3289,7 @@ class PublicViewLanguageTest(TestCase):
     def setUp(self):
         from tournaments.models import UserProfile
         self.user = make_user(username='langpublicclub')
-        UserProfile.objects.create(user=self.user, language='da')
+        UserProfile.objects.filter(user=self.user).update(language='da')
         self.tournament = make_tournament(owner=self.user)
 
     def test_public_tournament_activates_club_language_without_cookie(self):

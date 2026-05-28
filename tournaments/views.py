@@ -14,7 +14,7 @@ from .models import Tournament, Division, Match, DivisionSeed, TournamentDay
 from .forms import MatchResultForm, DivisionForm, TournamentForm, TournamentDayFormSet, get_participants_form, WalkoverForm
 from .standings import compute_standings, compute_group_standings
 from players.models import Team
-from .scheduler import generate_schedule, advance_bracket, fill_playoff_bracket_from_group, get_bracket_data, regenerate_playoff_with_groups, _seeding_order, _bracket_placeholder_label
+from .scheduler import generate_schedule, advance_bracket, fill_playoff_bracket_from_group, get_bracket_data, get_double_elim_data, regenerate_playoff_with_groups, _seeding_order, _bracket_placeholder_label
 from .schedule_planner import generate_time_schedule
 from .player_status import (
     get_busy_info, apply_status_to_matches, set_player_rest,
@@ -523,6 +523,7 @@ def tournament_detail(request, pk):
             'pending_count': d.matches.filter(status='pending').count(),
             'completed_count': d.matches.filter(status='completed').count(),
             'bracket_data': get_bracket_data(d) if d.tournament_type in ('tree', 'playoff') else None,
+            'double_elim_data': get_double_elim_data(d) if d.tournament_type == 'double_elim' else None,
             'seed_list': _seed_list(d),
             'seeds_dict': _seeds_dict_for_division(d, seed_lookup),
             'group_teams': _group_teams(d),
@@ -830,6 +831,40 @@ def division_generate_schedule(request, pk):
                         )
                         match.bracket_label = f"{t1_label} vs {t2_label}"
                         match.save(update_fields=['bracket_label'])
+            elif division.tournament_type == 'double_elim':
+                # Update LB placeholder labels to use actual match numbers and skip byes/voids
+                ph_slot_to_match = {
+                    (m.phase, m.match_round, m.bracket_slot): m
+                    for m in matches if m.bracket_slot is not None
+                }
+                wb_r1_by_slot = {
+                    m.bracket_slot: m
+                    for m in matches if m.phase == 'winner' and m.match_round == 1
+                }
+                for match in matches:
+                    if match.bracket_label is None or match.phase != 'loser':
+                        continue
+                    r, s = match.match_round, match.bracket_slot
+                    if r == 1:
+                        # LB R1: sources are WB R1 slots 2s-1 and 2s; skip bye sources
+                        parts = []
+                        for wb_slot in [2 * s - 1, 2 * s]:
+                            wb_m = wb_r1_by_slot.get(wb_slot)
+                            if wb_m and not (wb_m.walkover and wb_m.team2 is None) and wb_m.match_number:
+                                parts.append(f"#{wb_m.match_number}")
+                        if parts:
+                            match.bracket_label = "Taber kamp " + " mod ".join(parts)
+                            match.save(update_fields=['bracket_label'])
+                    else:
+                        # LB R2+: sources are LB R(r-1) slots 2s-1 and 2s; skip void sources
+                        parts = []
+                        for lb_slot in [2 * s - 1, 2 * s]:
+                            lb_m = ph_slot_to_match.get(('loser', r - 1, lb_slot))
+                            if lb_m and lb_m.match_number:
+                                parts.append(f"#{lb_m.match_number}")
+                        if parts:
+                            match.bracket_label = "Vinder " + " mod ".join(parts)
+                            match.save(update_fields=['bracket_label'])
 
         group_count = sum(1 for m in matches if getattr(m, 'phase', 'group') == 'group')
         playoff_count = sum(1 for m in matches if getattr(m, 'phase', 'group') == 'playoff' and not (m.team1 is None and m.team2 is None and m.score == 'Bye'))
@@ -1111,6 +1146,7 @@ def tournament_wallchart(request, pk):
                 })
 
         bracket_data = get_bracket_data(div) if div.tournament_type in ('tree', 'playoff') else None
+        double_elim_data = get_double_elim_data(div) if div.tournament_type == 'double_elim' else None
         playoff_matches = [m for m in matches if m.phase == 'playoff'] if div.tournament_type == 'playoff' else []
 
         wallchart_data.append({
@@ -1119,6 +1155,7 @@ def tournament_wallchart(request, pk):
             'seeds_dict': _seeds_dict_for_division(div, seed_lookup),
             'groups': groups,
             'bracket_data': bracket_data,
+            'double_elim_data': double_elim_data,
             'playoff_matches': playoff_matches,
         })
 
@@ -1257,8 +1294,9 @@ def tournament_program_print(request, pk):
                     'matches': group_matches_dict.get(g_num, []),
                 })
 
-        # Bracket data for tree / playoff types
+        # Bracket data for tree / playoff / double_elim types
         bracket_data = get_bracket_data(division) if division.tournament_type in ('tree', 'playoff') else None
+        double_elim_data = get_double_elim_data(division) if division.tournament_type == 'double_elim' else None
 
         # Playoff bracket-phase matches (same objects from matches list, already annotated)
         playoff_matches = [m for m in matches if m.phase == 'playoff'] if division.tournament_type == 'playoff' else []
@@ -1270,6 +1308,7 @@ def tournament_program_print(request, pk):
             'seeds_dict': _seeds_dict_for_division(division, seed_lookup),
             'groups': groups,
             'bracket_data': bracket_data,
+            'double_elim_data': double_elim_data,
             'playoff_matches': playoff_matches,
         })
     return render(request, 'tournaments/tournament_program_print.html', {
@@ -1499,14 +1538,16 @@ def tournament_run(request, pk):
         _apply_seed_labels(all_matches, seed_lookup)
         apply_status_to_matches(all_matches, playing_pks, resting)
 
-        # Bracket data for tree/playoff
+        # Bracket data for tree/playoff/double_elim
         bracket_data = get_bracket_data(division) if division.tournament_type in ('tree', 'playoff') else None
+        double_elim_data = get_double_elim_data(division) if division.tournament_type == 'double_elim' else None
 
         division_data.append({
             'division': division,
             'standings': standings,
             'group_standings': group_standings,
             'bracket_data': bracket_data,
+            'double_elim_data': double_elim_data,
             'seeds_dict': _seeds_dict_for_division(division, seed_lookup),
             'matches': all_matches,
             'match_count': len(all_matches),

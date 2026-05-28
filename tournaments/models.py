@@ -227,9 +227,10 @@ class Division(models.Model):
         ('mixed', _("Mixed doubles")),
     ]
     TOURNAMENT_TYPE_CHOICES = [
-        ('group', _("Group (round-robin)")),
-        ('playoff', _("Group + playoff bracket")),
-        ('tree', _("Single elimination")),
+        ('group',       _("Group (round-robin)")),
+        ('playoff',     _("Group + playoff bracket")),
+        ('tree',        _("Single elimination")),
+        ('double_elim', _("Double elimination")),
     ]
     tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name='divisions')
     name = models.CharField(max_length=100, verbose_name=_("Division name"))
@@ -238,7 +239,7 @@ class Division(models.Model):
         verbose_name=_("Discipline")
     )
     tournament_type = models.CharField(
-        max_length=10, choices=TOURNAMENT_TYPE_CHOICES, default='group',
+        max_length=12, choices=TOURNAMENT_TYPE_CHOICES, default='group',
         verbose_name=_("Tournament type")
     )
     group_count = models.IntegerField(
@@ -345,7 +346,12 @@ class Match(models.Model):
     group_number = models.IntegerField(null=True, blank=True, verbose_name=_("Group number"))
     phase = models.CharField(
         max_length=10, default='group',
-        choices=[('group', _("Group stage")), ('playoff', _("Playoff bracket"))],
+        choices=[
+            ('group',   _("Group stage")),
+            ('playoff', _("Playoff bracket")),
+            ('winner',  _("Winners bracket")),
+            ('loser',   _("Losers bracket")),
+        ],
         verbose_name=_("Phase"),
     )
 
