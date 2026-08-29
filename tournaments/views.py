@@ -20,6 +20,7 @@ from .player_status import (
     get_busy_info, apply_status_to_matches, set_player_rest,
     check_match_startable, player_status as _player_status, team_status as _team_status,
 )
+from .signals import invalidate_public_cache
 
 
 # ---------------------------------------------------------------------------
@@ -1955,6 +1956,7 @@ def schedule_clear(request, pk):
         .filter(division__tournament=tournament, scheduled_time__isnull=False)
         .update(scheduled_time=None, court=None)
     )
+    invalidate_public_cache(tournament.pk)
     return JsonResponse({'ok': True, 'cleared': count})
 
 
@@ -1985,6 +1987,7 @@ def tournament_renumber_matches(request, pk):
         match.match_number = i
 
     Match.objects.bulk_update(matches, ['match_number'])
+    invalidate_public_cache(tournament.pk)
     messages.success(request, _("Match numbers recalculated – %(n)s matches numbered from 1.") % {'n': len(matches)})
     return redirect('tournament_detail', pk=pk)
 
@@ -2149,6 +2152,7 @@ def tournament_renumber_by_schedule(request, pk):
     if label_updates:
         Match.objects.bulk_update(label_updates, ['bracket_label'])
 
+    invalidate_public_cache(tournament.pk)
     messages.success(
         request,
         _("Match numbers sorted by schedule – %(n)s matches numbered from 1 (%(u)s without time placed last).") % {'n': len(ordered), 'u': len(unscheduled)}

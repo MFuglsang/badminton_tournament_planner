@@ -188,6 +188,17 @@ STATICFILES_DIRS = [BASE_DIR / 'tournament_planner' / 'static']
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# Public spectator pages use this shared cache across the two Gunicorn workers.
+# Data changes invalidate their cache version immediately; the TTL bounds it if
+# an invalidation cannot be delivered.
+PUBLIC_PAGE_CACHE_TTL = int(os.environ.get('PUBLIC_PAGE_CACHE_TTL', '30'))
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        'LOCATION': os.environ.get('CACHE_LOCATION', str(BASE_DIR / 'cache')),
+    },
+}
+
 # ── Auth ──────────────────────────────────────────────────────────────────────
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/tournaments/'
