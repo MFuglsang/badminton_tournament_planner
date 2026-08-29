@@ -8,8 +8,12 @@ from django.contrib.auth.signals import (
     user_login_failed,
 )
 from django.db.models.signals import post_save
+from django.db.models.signals import post_delete, m2m_changed
 from django.dispatch import receiver
 from django.utils import translation
+from django.core.cache import cache
+
+from .models import Tournament, TournamentDay, Division, Match, DivisionSeed, MedalOverride
 
 # Dedicated logger so admins can route auth events to a separate handler
 # (rsyslog, fail2ban, SIEM, etc.) via the LOGGING dict in settings.py.
@@ -77,3 +81,41 @@ def _create_user_profile(sender, instance, created, **kwargs):
     from .models import UserProfile
     tier = 'unlimited' if instance.is_superuser else 'small'
     UserProfile.objects.get_or_create(user=instance, defaults={'tier': tier})
+
+
+def invalidate_public_cache(tournament_id):
+    """Advance versions so public pages immediately bypass stale entries."""
+    for name, page_tournament_id in (
+        ('landing', None),
+        ('tournament', tournament_id),
+        ('schedule', tournament_id),
+    ):
+        key = f'public-page-version:{name}:{page_tournament_id or "all"}'
+        try:
+            cache.incr(key)
+        except ValueError:
+            cache.set(key, 2, None)
+
+
+@receiver([post_save, post_delete], sender=Tournament)
+def invalidate_for_tournament(sender, instance, **kwargs):
+    invalidate_public_cache(instance.pk)
+
+
+@receiver([post_save, post_delete], sender=TournamentDay)
+@receiver([post_save, post_delete], sender=Division)
+def invalidate_for_tournament_child(sender, instance, **kwargs):
+    invalidate_public_cache(instance.tournament_id)
+
+
+@receiver([post_save, post_delete], sender=Match)
+@receiver([post_save, post_delete], sender=DivisionSeed)
+@receiver([post_save, post_delete], sender=MedalOverride)
+def invalidate_for_division_child(sender, instance, **kwargs):
+    invalidate_public_cache(instance.division.tournament_id)
+
+
+@receiver(m2m_changed, sender=Division.teams.through)
+def invalidate_for_division_teams(sender, instance, action, **kwargs):
+    if action in ('post_add', 'post_remove', 'post_clear'):
+        invalidate_public_cache(instance.tournament_id)
