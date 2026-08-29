@@ -50,6 +50,28 @@ services:
     networks:
       - internal
 
+  # Heavy routes are served by a distinct, single-worker Gunicorn process.
+  # This keeps the web workers available for live result entry.
+  heavy:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DEBUG: "False"
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      GUNICORN_WORKERS: "1"
+      GUNICORN_TIMEOUT: "300"
+    volumes:
+      - media_data:/app/media
+      - static_data:/app/staticfiles
+    depends_on:
+      web:
+        condition: service_healthy
+    networks:
+      - internal
+
   nginx:
     image: nginx:alpine
     restart: unless-stopped
@@ -68,6 +90,8 @@ services:
     depends_on:
       web:
         condition: service_healthy
+      heavy:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1/ >/dev/null || exit 1"]
       interval: 30s

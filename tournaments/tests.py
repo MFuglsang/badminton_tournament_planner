@@ -1,5 +1,6 @@
 import datetime
-from django.test import TestCase, Client
+from django.conf import settings
+from django.test import TestCase, Client, SimpleTestCase
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from players.models import Player, Team
@@ -3689,3 +3690,14 @@ class PrintProgramDatesTest(TestCase):
         response = self.client.get(reverse('tournament_program_print', args=[t.pk]))
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'class="match-date"')
+
+
+class HeavyWorkerIsolationConfigTest(SimpleTestCase):
+    def test_heavy_routes_use_dedicated_single_worker(self):
+        compose = (settings.BASE_DIR / 'docker-compose.yml').read_text()
+        nginx = (settings.BASE_DIR / 'nginx' / 'nginx.conf').read_text()
+
+        self.assertIn('  heavy:\n', compose)
+        self.assertIn('GUNICORN_WORKERS: "1"', compose)
+        self.assertIn('GUNICORN_TIMEOUT: "300"', compose)
+        self.assertEqual(nginx.count('set $upstream http://heavy:8000;'), 5)
