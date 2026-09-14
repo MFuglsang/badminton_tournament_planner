@@ -143,21 +143,32 @@ def player_upload(request):
         DivisionCategory.objects.filter(owner=request.user).values_list('name', flat=True)
     )
 
+    # Determine how many more players this club is allowed to create
+    try:
+        tier_limit = request.user.profile.player_limit()
+    except Exception:
+        tier_limit = None
+    if tier_limit is not None:
+        current_count = Player.objects.filter(owner=request.user).count()
+        limit_remaining = max(0, tier_limit - current_count)
+    else:
+        limit_remaining = None
+
     created = 0
     no_division = 0
+    limit_blocked = 0
     row_errors = []  # list of already-translated error strings
 
     for row_num, row in enumerate(rows, start=2):
         vals = {headers[i]: (cell.value if cell.value is not None else '') for i, cell in enumerate(row) if i < len(headers)}
 
         # Name: required non-empty string
-        raw_name = str(vals.get('name', '')).strip()
-        if not raw_name:
+        name = str(vals.get('name', '')).strip()
+        if not name:
             row_errors.append(
                 _("Row %(n)s: name is required.") % {'n': row_num}
             )
             continue
-        name = raw_name
 
         # Age: blank → None; non-blank must be an integer between 1 and 100
         raw_age = vals.get('age', '')
@@ -185,51 +196,8 @@ def player_upload(request):
             )
             continue
 
-        # Division: exact match required; unmatched values accepted but stored as empty
-    rows = iter(ws.rows)
-    # Use header row to find column positions by name (case-insensitive)
-    raw_headers = next(rows, [])
-    headers = [str(c.value).strip().lower() if c.value is not None else '' for c in raw_headers]
-
-    created = 0
-    no_division = 0
-    skipped = 0
-    limit_blocked = 0
-
-    # Determine how many more players this club is allowed to create
-    try:
-        _profile = request.user.profile
-        _tier_limit = _profile.player_limit()
-    except Exception:
-        _tier_limit = None
-    if _tier_limit is not None:
-        _current_count = Player.objects.filter(owner=request.user).count()
-        limit_remaining = max(0, _tier_limit - _current_count)
-    else:
-        limit_remaining = None
-
-    for row in rows:
-        vals = {headers[i]: (cell.value if cell.value is not None else '') for i, cell in enumerate(row) if i < len(headers)}
-
-        name = str(vals.get('name', '')).strip()
-        if not name:
-            continue
-
-        # Age: integer or None
-        try:
-            age = int(vals.get('age') or 0) or None
-        except (ValueError, TypeError):
-            age = None
-
-        # Gender: map to M/K, skip row if unrecognised
-        raw_gender = str(vals.get('gender', '')).strip()
-        gender = _GENDER_MAP.get(raw_gender.lower())
-        if not gender:
-            skipped += 1
-            continue
-
-        # Division: exact match required; unmatched values are dropped silently
-        # (the user can assign division per-player afterwards)
+        # Division: exact match required; unmatched values are accepted but
+        # stored empty (the user can assign a division per-player afterwards).
         raw_division = str(vals.get('division', '')).strip()
         if raw_division in valid_divisions:
             division = raw_division
@@ -272,19 +240,12 @@ def player_upload(request):
         )
 
     if created:
-        if row_errors:
+        if row_errors or no_division or limit_blocked:
             messages.warning(request, " ".join(parts))
         else:
             messages.success(request, " ".join(parts))
     else:
         messages.error(request, " ".join(parts) if parts else _("No players were added."))
-    if skipped:
-        parts.append(_("%(n)s row(s) skipped — missing or unrecognised gender value (use M/K or M/F).") % {'n': skipped})
-
-    if created:
-        messages.success(request, " ".join(parts))
-    else:
-        messages.warning(request, " ".join(parts) if parts else _("No players were added."))
 
     return redirect('player_list')
 

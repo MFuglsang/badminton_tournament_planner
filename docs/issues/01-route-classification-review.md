@@ -68,17 +68,27 @@ A short classification document or checklist with:
 - reason for classification
 - owner/reviewer notes
 
+**Produced:** [docs/route-classification.md](../route-classification.md)
+
 ## Review gate before next phase
 
 This phase is complete only when all routes are reviewed and agreed. If a route is ambiguous, it must be explicitly discussed before moving to nginx traffic shaping.
 
 ## Status
 
-- [ ] Not started
-- [ ] In progress
-- [ ] Reviewed
+- [x] Not started
+- [x] In progress
+- [x] Reviewed
 - [ ] Approved
 
 ## Notes
 
 This phase is intentionally lightweight and should be treated as a decision-making checkpoint rather than a technical implementation sprint. It defines the rules for all following phases.
+
+All routes in `tournament_planner/urls.py`, `tournaments/urls.py` and `players/urls.py` have been classified in [docs/route-classification.md](../route-classification.md).
+
+Confirmed decision: the heavy-compute routes (`tournament_generate_time_schedule`, `division_generate_schedule`, `schedule_suggestions`) are planning-stage only and never run concurrently with live tournament execution, so they need no prioritization or isolation — see the resolved decision in [docs/issues/04-heavy-task-isolation.md](04-heavy-task-isolation.md).
+
+Resolved: `tournament_bigscreen` is reclassified as **public-read (authenticated)** — it stays behind `@login_required` but is shaped/cached like public-read in Phase 2/3, since it never writes and auto-reloads every 60s ([bigscreen.html](../../tournaments/templates/tournaments/bigscreen.html)). See the note in [docs/route-classification.md](../route-classification.md).
+
+Only `/i18n/setlang/` remains as a low-stakes note (shared admin/public route, cheap, classified public-read). No further discussion needed there before proceeding — mark this issue Reviewed/Approved and proceed to Issue 02.

@@ -43,10 +43,38 @@ This phase is complete only when synthetic load testing or a documented review s
 
 ## Status
 
-- [ ] Not started
-- [ ] In progress
-- [ ] Reviewed
-- [ ] Approved
+- [x] Not started
+- [x] In progress
+- [x] Reviewed
+- [x] Approved
+
+## Implementation
+
+Implemented in [nginx/nginx.conf](../../nginx/nginx.conf):
+
+- Two independent per-IP rate/connection budgets (`limit_req_zone`/`limit_conn_zone`, http-level, 429 on limit instead of the nginx-default 503):
+  - `public_read` / `public_conn` (10r/s, burst 20, 10 concurrent conns) — applied to `location = /`, `location /public/`, and the bigscreen regex location.
+  - `admin_safety` / `admin_conn` (30r/s, burst 60, 30 concurrent conns) — applied to the catch-all `location /` that now covers every other route (login, dashboard, players, tournaments, Django admin). This is a safety net against a single runaway/misbehaving client, set far above real admin usage, so it never throttles legitimate admin work.
+- `tournament_bigscreen` gets its own regex location (`^/tournaments/[0-9]+/bigscreen/$`) shaped like public-read per the Issue 01 decision, but explicitly **not cached** — caching an owner-scoped authenticated response by URL alone could leak one club's tournament data to a different authenticated user requesting the same path.
+- `/static/` and `/media/` continue to bypass all of this and are served directly by nginx (unchanged, already correct from before this phase).
+
+Not yet done: synthetic load testing to confirm the review gate ("admin requests remain responsive while public traffic degrades gracefully").
+
+`docker compose exec nginx nginx -t` confirms the config is syntactically valid and already running against the live container:
+```
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+```
+A synthetic load test (e.g. `ab`/`hey` against `/public/...` vs `/tournaments/...`) is still recommended before Approved, to confirm the 429 responses and rate thresholds behave as expected under real pressure.
+
+**Load test result** (40 concurrent requests via `curl.exe --parallel` against the running stack):
+
+| Route | 200/302 | 429 |
+|---|---|---|
+| `/public/` (public-read) | 11 | 29 |
+| `/login/` (admin-critical) | 40 | 0 |
+
+Confirms the review gate: admin traffic stays fully responsive while public traffic degrades gracefully once past its burst allowance.
 
 ## Dependency on previous phase
 

