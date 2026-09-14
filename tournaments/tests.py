@@ -1783,6 +1783,15 @@ class PublicViewTest(TestCase):
         self.assertIn('.btn-secondary', content)
         self.assertIn('.btn-danger', content)
 
+    def test_public_landing_is_cached_with_explicit_ttl(self):
+        response = self.client.get(reverse('public_landing'))
+        self.assertEqual(response['Cache-Control'], 'max-age=30')
+
+    def test_public_tournament_and_schedule_are_cached_with_explicit_ttl(self):
+        for name in ('public_tournament', 'public_schedule'):
+            response = self.client.get(reverse(name, args=[self.tournament.pk]))
+            self.assertEqual(response['Cache-Control'], 'max-age=30')
+
     def test_public_tournament_returns_200_without_login(self):
         response = self.client.get(reverse('public_tournament', args=[self.tournament.pk]))
         self.assertEqual(response.status_code, 200)
@@ -1815,6 +1824,37 @@ class PublicViewTest(TestCase):
         )
         response = self.client.get(reverse('public_schedule', args=[self.tournament.pk]))
         self.assertContains(response, t1.player1.name)
+
+    def test_public_tournament_cache_is_invalidated_when_data_changes(self):
+        url = reverse('public_tournament', args=[self.tournament.pk])
+        self.client.get(url)
+        self.tournament.name = 'Updated Tournament'
+        self.tournament.save()
+        response = self.client.get(url)
+        self.assertContains(response, 'Updated Tournament')
+
+    def test_result_change_invalidates_tournament_and_schedule_caches(self):
+        import datetime as dt
+        from django.utils import timezone
+        team1, team2 = self.division.teams.all()
+        match = Match.objects.create(
+            division=self.division, team1=team1, team2=team2,
+            match_number=1, status='completed',
+            scheduled_time=timezone.make_aware(dt.datetime(2026, 6, 1, 9, 0)),
+        )
+        tournament_url = reverse('public_tournament', args=[self.tournament.pk])
+        schedule_url = reverse('public_schedule', args=[self.tournament.pk])
+        self.client.get(tournament_url)
+        self.client.get(schedule_url)
+        match.score = '21-19, 21-17'
+        match.save()
+        self.assertContains(self.client.get(tournament_url), match.score)
+        self.assertContains(self.client.get(schedule_url), match.score)
+
+    def test_dashboard_is_not_cached_as_a_public_page(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('admin_home'))
+        self.assertNotIn('max-age=30', response.get('Cache-Control', ''))
 
 
 # ---------------------------------------------------------------------------
