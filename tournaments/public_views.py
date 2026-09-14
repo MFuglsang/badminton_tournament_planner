@@ -10,7 +10,7 @@ from django.core.cache import cache
 from django.views.decorators.cache import cache_page
 from django.utils import timezone, translation
 from django.conf import settings as django_settings
-from functools import wraps
+from .cache_utils import cache_page_with_status
 
 from .models import Tournament, Match
 from .standings import compute_standings, compute_group_standings
@@ -67,7 +67,7 @@ def _activate_club_language(request, tournament):
         pass
 
 
-@cache_public_page('landing')
+@cache_page_with_status(20)  # short TTL: tournament list changes rarely, but keep it bounded
 def public_landing(request):
     """
     Landing page: choose a club (owner) and then a tournament.
@@ -96,7 +96,7 @@ def public_landing(request):
     })
 
 
-@cache_public_page('tournament', lambda kwargs: kwargs['pk'])
+@cache_page_with_status(10)  # short TTL: results and player status update continuously during play
 def public_tournament(request, pk):
     """
     Read-only tournament overview: standings and match results per division.
@@ -151,7 +151,7 @@ def public_tournament(request, pk):
     })
 
 
-@cache_public_page('schedule', lambda kwargs: kwargs['pk'])
+@cache_page_with_status(10)  # short TTL: scheduled times/status badges change continuously during play
 def public_schedule(request, pk):
     """
     Read-only schedule view — same data as the admin schedule but without

@@ -40,6 +40,14 @@ else:
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost').split(',')
 
+# Detected once, reused below (CACHES + HTTPS hardening) — the Django test
+# client/pytest run must never depend on cached responses or https-only cookies.
+_is_testing = (
+    'pytest' in sys.argv[0] or 'py.test' in sys.argv[0]
+    or 'test' in sys.argv[1:2]
+    or os.environ.get('DJANGO_TESTING') == '1'
+)
+
 # Comma-separated list of fully-qualified origins (https://example.com)
 # that are allowed to submit cross-origin POST requests with CSRF tokens.
 # Required by Django when serving via HTTPS behind a reverse proxy.
@@ -188,15 +196,25 @@ STATICFILES_DIRS = [BASE_DIR / 'tournament_planner' / 'static']
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Public spectator pages use this shared cache across the two Gunicorn workers.
-# Data changes invalidate their cache version immediately; the TTL bounds it if
-# an invalidation cannot be delivered.
-PUBLIC_PAGE_CACHE_TTL = int(os.environ.get('PUBLIC_PAGE_CACHE_TTL', '30'))
+# ── Cache (Phase 3: public page caching, docs/issues/03-public-page-caching.md) ──
+# Only the three anonymous public views use @cache_page (see
+# tournaments/public_views.py), each with a short, explicit TTL (10-20s).
+# LocMemCache is process-local — with 2 gunicorn workers each worker keeps its
+# own copy, so this only bounds repeated-request pressure per worker; it is
+# not a shared/invalidation-aware cache. That's fine here: the TTLs are short
+# enough on their own that results/live status never appear stale for long,
+# which is the actual goal (admin pages are never cached).
+# Under the test runner, use DummyCache (never caches) — otherwise the process-
+# global LocMemCache would leak cached responses between test methods that
+# hit the same public URL, causing order-dependent test flakiness.
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
-        'LOCATION': os.environ.get('CACHE_LOCATION', str(BASE_DIR / 'cache')),
-    },
+        'BACKEND': (
+            'django.core.cache.backends.dummy.DummyCache' if _is_testing
+            else 'django.core.cache.backends.locmem.LocMemCache'
+        ),
+        'LOCATION': 'btp-public-cache',
+    }
 }
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -302,18 +320,6 @@ if not DEBUG:
     # Skip the http→https redirect when the test runner is active — the
     # Django test client always uses plain `http://testserver/` and would
     # otherwise receive a 301 to https for every request.
-    _is_testing = (
-        'pytest' in sys.argv[0] or 'py.test' in sys.argv[0]
-        or 'test' in sys.argv[1:2]
-        or os.environ.get('DJANGO_TESTING') == '1'
-    )
-
-    # HTTPS hardening is OPT-IN via ENABLE_HTTPS_HARDENING=True in the env.
-    # Enabling these without a working TLS setup will break the site:
-    #   - SECURE_SSL_REDIRECT → browsers get 301'd to https that doesn't answer
-    #   - SESSION_COOKIE_SECURE / CSRF_COOKIE_SECURE → cookies not sent over http,
-    #     so login appears to "succeed" then immediately log you back out.
-    # Turn this on AFTER nginx is configured with a TLS certificate.
     _enable_https = (
         not _is_testing
         and os.environ.get('ENABLE_HTTPS_HARDENING', 'False') == 'True'

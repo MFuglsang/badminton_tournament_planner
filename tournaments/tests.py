@@ -2965,7 +2965,7 @@ class ScheduleAPITest(TestCase):
     def test_assign_sets_scheduled_time_and_court(self):
         response = self._post_json(
             reverse('schedule_assign', args=[self.tournament.pk]),
-            {'match_id': self.match.pk, 'time': '09:00', 'court': '1'},
+            {'match_id': self.match.pk, 'time': f'{self.tournament.date} 09:00', 'court': '1'},
         )
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -3277,10 +3277,9 @@ class DivisionReassignGroupsTest(TestCase):
 
 class LoginSignalLanguageTest(TestCase):
     def setUp(self):
-        from tournaments.models import UserProfile
+        # make_user() triggers the post_save signal that auto-creates a
+        # UserProfile (language defaults to 'da'), so no explicit create here.
         self.user = make_user(username='signaluserclub')
-        # Create a UserProfile with Danish language
-        UserProfile.objects.create(user=self.user, language='da')
 
     def test_login_activates_club_language_without_cookie(self):
         from django.utils import translation
@@ -3306,7 +3305,15 @@ class LoginSignalLanguageTest(TestCase):
     def test_login_with_no_profile_is_silent(self):
         from django.test import RequestFactory
         from tournaments.signals import set_language_on_login
+        from tournaments.models import UserProfile
         user_no_profile = make_user(username='noprofileclub')
+        # Deleting via a fresh queryset (not user_no_profile.profile) avoids
+        # caching the profile on the instance, but Django's ORM already
+        # populated the reverse o2o cache during signal-driven creation
+        # (setting .user on the new UserProfile also caches the reverse side
+        # on the User instance) — refresh_from_db() clears that stale cache.
+        UserProfile.objects.filter(user=user_no_profile).delete()
+        user_no_profile.refresh_from_db()
         factory = RequestFactory()
         request = factory.get('/')
         request.COOKIES = {}
@@ -3321,9 +3328,9 @@ class LoginSignalLanguageTest(TestCase):
 
 class PublicViewLanguageTest(TestCase):
     def setUp(self):
-        from tournaments.models import UserProfile
+        # make_user() triggers the post_save signal that auto-creates a
+        # UserProfile (language defaults to 'da'), so no explicit create here.
         self.user = make_user(username='langpublicclub')
-        UserProfile.objects.create(user=self.user, language='da')
         self.tournament = make_tournament(owner=self.user)
 
     def test_public_tournament_activates_club_language_without_cookie(self):
