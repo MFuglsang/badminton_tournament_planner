@@ -1214,6 +1214,38 @@ msgstr "Planlagt tid"
 msgid "Court"
 msgstr "Bane"
 
+#: tournaments/templates/tournaments/tournament_run.html
+msgid "Choose court"
+msgstr "Vælg bane"
+
+#: tournaments/templates/tournaments/tournament_run.html
+msgid "Court occupied"
+msgstr "Bane optaget"
+
+#: players/models.py
+msgid "Arrived"
+msgstr "Ankommet"
+
+#: players/models.py
+msgid "Whether the player has checked in at the judge table."
+msgstr "Om spilleren har meldt sin ankomst ved dommerbordet."
+
+#: tournaments/templates/tournaments/partials/_team_arrival_names.html
+msgid "Arrived — click to undo"
+msgstr "Ankommet — klik for at fortryde"
+
+#: tournaments/templates/tournaments/partials/_team_arrival_names.html
+msgid "Not arrived — click to check in"
+msgstr "Ikke ankommet — klik for at tjekke ind"
+
+#: tournaments/templates/tournaments/partials/_team_arrival_names.html
+msgid "Playing now"
+msgstr "Spiller nu"
+
+#: tournaments/templates/tournaments/partials/_team_arrival_names.html
+msgid "Resting after a match"
+msgstr "Hviler efter en kamp"
+
 #: tournaments/models.py:321
 msgid "Group number"
 msgstr "Gruppenummer"
@@ -2723,7 +2755,16 @@ msgstr "Resultat gemt."
 msgid "Cannot start match: "
 msgstr "Kan ikke starte kamp: "
 
-#: tournaments/views.py:921
+#: tournaments/views.py:922
+msgid "Please choose a court before starting the match."
+msgstr "Vælg en bane, før kampen startes."
+
+#: tournaments/views.py:926
+#, python-format
+msgid "Court %(court)s is already in use."
+msgstr "Bane %(court)s er allerede i brug."
+
+#: tournaments/views.py:929
 #, python-format
 msgid "Match #%(n)s is now in progress."
 msgstr "Kamp #%(n)s er nu i gang."

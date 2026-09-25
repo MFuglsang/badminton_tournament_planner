@@ -2,7 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, JsonResponse
 from django.utils.translation import gettext as _
 from pathlib import Path
 import openpyxl
@@ -390,6 +390,33 @@ def player_clear_rest(request, pk):
         player.rest_until = None
         player.save(update_fields=['rest_until'])
         messages.success(request, _("Rest period for %(name)s has been cleared.") % {'name': player.name})
+    return redirect('player_list')
+
+@login_required
+def player_toggle_arrived(request, pk):
+    """Toggle whether a player has checked in at the judge table.
+
+    Responds with JSON for AJAX callers (so the caller's page doesn't
+    reload and lose UI state such as an expanded accordion row).
+
+    Args:
+        request: Django HTTP request.
+        pk: Primary key of the player.
+
+    Returns:
+        HttpResponseRedirect | JsonResponse: Redirect to ``next`` or the
+        player list, or a JSON body for AJAX requests.
+    """
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
+    next_url = request.POST.get('next') or ''
+    if request.method == 'POST':
+        player = get_object_or_404(Player, pk=pk, owner=request.user)
+        player.has_arrived = not player.has_arrived
+        player.save(update_fields=['has_arrived'])
+        if is_ajax:
+            return JsonResponse({'ok': True, 'has_arrived': player.has_arrived})
+    if next_url:
+        return redirect(next_url)
     return redirect('player_list')
 
 @login_required

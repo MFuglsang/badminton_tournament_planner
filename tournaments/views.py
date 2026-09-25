@@ -917,9 +917,18 @@ def match_start(request, pk):
         if errors:
             messages.error(request, _("Cannot start match: ") + ' · '.join(errors))
         else:
-            match.status = 'in_progress'
-            match.save(update_fields=['status'])
-            messages.success(request, _("Match #%(n)s is now in progress.") % {'n': match.match_number or match.pk})
+            court = (request.POST.get('court') or '').strip()
+            if not court:
+                messages.error(request, _("Please choose a court before starting the match."))
+            elif Match.objects.filter(
+                division__tournament=match.division.tournament, status='in_progress', court=court
+            ).exclude(pk=match.pk).exists():
+                messages.error(request, _("Court %(court)s is already in use.") % {'court': court})
+            else:
+                match.status = 'in_progress'
+                match.court = court
+                match.save(update_fields=['status', 'court'])
+                messages.success(request, _("Match #%(n)s is now in progress.") % {'n': match.match_number or match.pk})
     if next_url:
         return redirect(next_url)
     return redirect('tournament_detail', pk=match.division.tournament.pk)
@@ -1559,6 +1568,15 @@ def tournament_run(request, pk):
             if day_pk and day_pk not in day_anchor_pks:
                 day_anchor_pks[day_pk] = div.pk
 
+    max_court_count = max((d.court_count for d in tournament.days.all()), default=4)
+    court_choices = list(range(1, max_court_count + 1))
+    occupied_courts = set(
+        Match.objects
+        .filter(division__tournament=tournament, status='in_progress')
+        .exclude(court__isnull=True).exclude(court='')
+        .values_list('court', flat=True)
+    )
+
     return render(request, 'tournaments/tournament_run.html', {
         'tournament': tournament,
         'division_data': division_data,
@@ -1569,6 +1587,10 @@ def tournament_run(request, pk):
         'in_progress_matches': in_progress_matches,
         'today_date': today_date,
         'day_anchor_pks': day_anchor_pks,
+        'court_choices': court_choices,
+        'occupied_courts': occupied_courts,
+        'playing_pks': playing_pks,
+        'resting': resting,
     })
 
 

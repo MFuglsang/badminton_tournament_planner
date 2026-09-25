@@ -136,6 +136,15 @@
 .run-match-teams .vs { color: #94a3b8; font-weight: 400; font-size: 0.78rem; margin: 0 0.25rem; }
 .run-match-score { color: #374151; white-space: nowrap; font-size: 0.8rem; }
 .run-match-actions { display: flex; column-gap: 0.3rem; row-gap: 0.5rem; justify-content: flex-end; flex-wrap: wrap; }
+.run-match-court { color: #0f766e; font-weight: 600; font-size: 0.78rem; white-space: nowrap; }
+.court-dialog-btn { min-width: 2.5rem; }
+.court-dialog-btn:disabled { opacity: 0.4; cursor: not-allowed; text-decoration: line-through; }
+.arrival-name-btn { background: none; border: none; padding: 0; margin: 0; font: inherit; color: inherit; cursor: pointer; }
+.arrival-name-btn:hover { text-decoration: underline; }
+.arrival-bullet { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.3rem; background: #ef4444; vertical-align: middle; }
+.arrival-bullet.arrived { background: #22c55e; }
+.arrival-bullet.resting { background: #eab308; }
+.arrival-bullet.playing { background: #3b82f6; }
 
 /* Status colours on rows */
 .row-in-progress { background: #eff6ff; }
@@ -338,25 +347,24 @@
             <span class="run-match-teams">
               {% if match.team1 and match.team2 %}
               <span {% if match.status == 'in_progress' and match.startable_errors is not None %}{% endif %}>
-                {{ match.team1.name }}{{ match.t1_seed }}{% if match.t1_status == 'playing' %} 🏸{% elif match.t1_status == 'resting' %} <span style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ match.t1_rest_until|unix_ts }}"></span></span>{% endif %}
+                {% include "tournaments/partials/_team_arrival_names.html" with team=match.team1 %}{{ match.t1_seed }}
                 <span class="vs">vs</span>
-                {{ match.team2.name }}{{ match.t2_seed }}{% if match.t2_status == 'playing' %} 🏸{% elif match.t2_status == 'resting' %} <span style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ match.t2_rest_until|unix_ts }}"></span></span>{% endif %}
+                {% include "tournaments/partials/_team_arrival_names.html" with team=match.team2 %}{{ match.t2_seed }}
               </span>
               {% elif match.bracket_label %}
               <span style="color:#888; font-style:italic;">{{ match.bracket_label }}</span>
               {% endif %}
             </span>
-            <span></span>{# spacer #}
+            <span class="run-match-court">{% if match.court and match.status == 'in_progress' %}🏟 {% trans "Court" %} {{ match.court }}{% endif %}</span>
             <span class="run-match-actions">
               {% if match.status == 'pending' and match.team1 and match.team2 %}
               {% if match.t1_status or match.t2_status %}
               <span style="font-size:0.8rem; color:#d97706; white-space:nowrap;" title="{% trans 'A player is busy or resting' %}">⚠ {% trans "Busy" %}</span>
               {% else %}
-              <form method="post" action="{% url 'match_start' match.pk %}?next={% url 'tournament_run' tournament.pk %}" style="display:inline;">
-                {% csrf_token %}
-                <input type="hidden" name="next" value="{% url 'tournament_run' tournament.pk %}">
-                <button type="submit" class="btn btn-primary btn-sm">▶ Start</button>
-              </form>
+              <button type="button" class="btn btn-primary btn-sm start-match-btn"
+                      data-url="{% url 'match_start' match.pk %}"
+                      data-next="{% url 'tournament_run' tournament.pk %}"
+                      data-label="#{{ match.match_number }} {{ match.team1.name }} {% trans "vs" %} {{ match.team2.name }}">▶ Start</button>
               {% endif %}
               {% endif %}
               {% if match.status == 'in_progress' %}
@@ -549,6 +557,7 @@
       <div class="next-match-row" style="background:#f0f6ff;">
         <div class="next-match-no" style="color:#1d4ed8;">
           #{{ match.match_number }} · {{ match.division.name }}
+          {% if match.court %}<span style="float:right; color:#0f766e;">🏟 {% trans "Court" %} {{ match.court }}</span>{% endif %}
         </div>
         <div class="next-match-teams">
           {{ match.team1.name }}{{ match.t1_seed }}<br>
@@ -586,12 +595,11 @@
           {% if match.scheduled_time %}{{ match.scheduled_time|time:"H:i" }}{% endif %}
           {% if match.status_label %} · {{ match.status_label }}{% endif %}
         </div>
-        <div style="margin-top:0.4rem; display:flex; gap:0.3rem;">
-          <form method="post" action="{% url 'match_start' match.pk %}" style="display:inline;">
-            {% csrf_token %}
-            <input type="hidden" name="next" value="{% url 'tournament_run' tournament.pk %}">
-            <button type="submit" class="btn btn-primary btn-sm">▶ Start</button>
-          </form>
+        <div style="margin-top:0.4rem; display:flex; align-items:center; gap:0.3rem;">
+          <button type="button" class="btn btn-primary btn-sm start-match-btn"
+                  data-url="{% url 'match_start' match.pk %}"
+                  data-next="{% url 'tournament_run' tournament.pk %}"
+                  data-label="#{{ match.match_number }} {{ match.team1.name }} {% trans "vs" %} {{ match.team2.name }}">▶ Start</button>
         </div>
       </div>
       {% endfor %}
@@ -622,9 +630,78 @@
   </div>{# /sidebar #}
 
 </div>{# /run-layout #}
+
+{# ── Vælg bane-dialog ─── #}
+<dialog id="court-dialog" style="border:none; border-radius:10px; padding:0; box-shadow:0 8px 32px rgba(0,0,0,.25); max-width:420px; width:90%;">
+  <form method="post" id="court-dialog-form" style="padding:1.25rem 1.5rem;">
+    {% csrf_token %}
+    <input type="hidden" name="next" id="court-dialog-next">
+    <h3 style="margin-top:0;">{% trans "Choose court" %}</h3>
+    <p id="court-dialog-match" style="color:#64748b; font-size:0.85rem;"></p>
+    <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin:1rem 0;">
+      {% for c in court_choices %}
+      <button type="submit" name="court" value="{{ c }}" class="btn btn-secondary court-dialog-btn" {% if c|stringformat:"s" in occupied_courts %}disabled title="{% trans 'Court occupied' %}"{% endif %}>{{ c }}</button>
+      {% endfor %}
+    </div>
+    <div style="display:flex; justify-content:flex-end;">
+      <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('court-dialog').close();">{% trans "Cancel" %}</button>
+    </div>
+  </form>
+</dialog>
 {% endblock %}
 
 {% block extra_js %}
+<script>
+// Ankomst-bullets: skift via AJAX så siden ikke genindlæses (ellers lukker foldede rækker igen)
+(function () {
+  function getCookie(name) {
+    var match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return match ? match.pop() : '';
+  }
+  document.querySelectorAll('.arrival-name-btn').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var playerId = btn.dataset.playerId;
+      fetch(btn.dataset.toggleUrl, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': getCookie('csrftoken'),
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          // Update every occurrence of this player on the page (they can appear in several matches)
+          document.querySelectorAll('.arrival-name-btn[data-player-id="' + playerId + '"]').forEach(function (otherBtn) {
+            var bullet = otherBtn.querySelector('.arrival-bullet');
+            bullet.classList.toggle('arrived', data.has_arrived);
+            otherBtn.title = data.has_arrived ? otherBtn.dataset.titleArrived : otherBtn.dataset.titleNotArrived;
+          });
+        });
+    });
+  });
+})();
+</script>
+<script>
+// Vælg bane-dialog: åbnes fra alle "▶ Start"-knapper
+(function () {
+  var dialog = document.getElementById('court-dialog');
+  var form = document.getElementById('court-dialog-form');
+  var nextField = document.getElementById('court-dialog-next');
+  var matchLabel = document.getElementById('court-dialog-match');
+  document.querySelectorAll('.start-match-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      form.action = btn.dataset.url;
+      nextField.value = btn.dataset.next || '';
+      matchLabel.textContent = btn.dataset.label || '';
+      dialog.showModal();
+    });
+  });
+  dialog.addEventListener('click', function (e) {
+    if (e.target === dialog) dialog.close();
+  });
+})();
+</script>
 <script>
 // Auto-scroll til dagens dag-anker ved pageload
 (function () {

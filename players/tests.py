@@ -259,6 +259,60 @@ class PlayerClearRestTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
+# player_toggle_arrived view
+# ---------------------------------------------------------------------------
+
+class PlayerToggleArrivedTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = make_user(username='arrivedclub')
+        self.client.force_login(self.user)
+        self.player = make_player("Not Arrived Yet", owner=self.user)
+
+    def test_toggle_marks_player_arrived(self):
+        self.assertFalse(self.player.has_arrived)
+        response = self.client.post(reverse("player_toggle_arrived", args=[self.player.pk]))
+        self.assertRedirects(response, reverse("player_list"))
+        self.player.refresh_from_db()
+        self.assertTrue(self.player.has_arrived)
+
+    def test_toggle_again_marks_player_not_arrived(self):
+        self.player.has_arrived = True
+        self.player.save()
+        self.client.post(reverse("player_toggle_arrived", args=[self.player.pk]))
+        self.player.refresh_from_db()
+        self.assertFalse(self.player.has_arrived)
+
+    def test_toggle_redirects_to_next(self):
+        response = self.client.post(
+            reverse("player_toggle_arrived", args=[self.player.pk]), {'next': '/tournaments/1/run/'}
+        )
+        self.assertRedirects(response, '/tournaments/1/run/', fetch_redirect_response=False)
+
+    def test_ajax_toggle_returns_json_without_redirect(self):
+        response = self.client.post(
+            reverse("player_toggle_arrived", args=[self.player.pk]),
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'ok': True, 'has_arrived': True})
+        self.player.refresh_from_db()
+        self.assertTrue(self.player.has_arrived)
+
+    def test_toggle_get_does_not_change(self):
+        response = self.client.get(reverse("player_toggle_arrived", args=[self.player.pk]))
+        self.assertRedirects(response, reverse("player_list"))
+        self.player.refresh_from_db()
+        self.assertFalse(self.player.has_arrived)
+
+    def test_toggle_404_for_other_owner(self):
+        other = make_user(username='otherarrivedclub')
+        self.client.force_login(other)
+        response = self.client.post(reverse("player_toggle_arrived", args=[self.player.pk]))
+        self.assertEqual(response.status_code, 404)
+
+
+# ---------------------------------------------------------------------------
 # player_schedule_print view
 # ---------------------------------------------------------------------------
 

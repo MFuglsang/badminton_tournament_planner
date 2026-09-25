@@ -311,8 +311,7 @@
     <p>
       <strong>{% trans "Date" %}:</strong> {{ tournament.date }} &nbsp;·&nbsp;
       <strong>{% trans "Scoring" %}:</strong> {{ tournament.get_scoring_model_display }} &nbsp;·&nbsp;
-      <strong>{% trans "Courts" %}:</strong> {{ tournament.court_count }}
-      {% if tournament.start_time %} &nbsp;·&nbsp; <strong>{% trans "Start" %}:</strong> {{ tournament.start_time|time:"H:i" }}{% endif %}
+      <strong>{% trans "Courts" %}:</strong> {% for day in tournament.days.all %}{% if tournament.days.count > 1 %}{% trans "Day" %} {{ day.day_number }}: {% endif %}{{ day.court_count }}{% if not forloop.last %} · {% endif %}{% endfor %}
     </p>
   </div>
 </div>
@@ -518,6 +517,7 @@
               <th>#</th>
               <th>{% trans "Round" %}</th>
               {% if dd.matches.0.scheduled_time %}<th class="tid-header">{% trans "Time" %}</th>{% endif %}
+              <th class="court-col">{% trans "Court" %}</th>
               <th>{% trans "Match" %}</th>
             </tr>
           </thead>
@@ -527,6 +527,7 @@
               <td class="match-no">{{ match.match_number }}</td>
               <td class="round-col">{{ match.bracket_label|default:"R"|add:match.match_round|stringformat:"s" }}</td>
               {% if match.scheduled_time %}<td class="tid-col">{% if days_count > 1 %}<span class="match-date">{{ match.scheduled_time|date:"j/n" }}</span> {% endif %}{{ match.scheduled_time|time:"H:i" }}</td>{% elif dd.matches.0.scheduled_time %}<td class="tid-col">–</td>{% endif %}
+              <td class="court-col">{{ match.court|default:"–" }}</td>
               <td class="teams-col">
                 {% if match.team1 and match.team2 %}
                 {{ match.team1.name }}{{ match.t1_seed }}<span class="vs">vs</span>{{ match.team2.name }}{{ match.t2_seed }}
@@ -559,6 +560,7 @@
               <th>#</th>
               <th>{% trans "Round" %}</th>
               {% if dd.matches.0.scheduled_time %}<th class="tid-header">{% trans "Time" %}</th>{% endif %}
+              <th class="court-col">{% trans "Court" %}</th>
               <th>{% trans "Match" %}</th>
             </tr>
           </thead>
@@ -572,6 +574,7 @@
               {% elif dd.matches.0.scheduled_time %}
               <td class="tid-col">–</td>
               {% endif %}
+              <td class="court-col">{{ match.court|default:"–" }}</td>
               <td class="teams-col">
                 {% if match.team1 and match.team2 %}
                 {{ match.team1.name }}{{ match.t1_seed }}<span class="vs">vs</span>{{ match.team2.name }}{{ match.t2_seed }}

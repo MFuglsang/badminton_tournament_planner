@@ -237,8 +237,7 @@
     <p>
       <strong>{% trans "Date" %}:</strong> {{ tournament.date }}
       &nbsp;·&nbsp; <strong>{% trans "Scoring" %}:</strong> {{ tournament.get_scoring_model_display }}
-      &nbsp;·&nbsp; <strong>{% trans "Courts" %}:</strong> {{ tournament.court_count }}
-      {% if tournament.start_time %}&nbsp;·&nbsp; <strong>{% trans "Start" %}:</strong> {{ tournament.start_time|time:"H:i" }}{% endif %}
+      &nbsp;·&nbsp; <strong>{% trans "Courts" %}:</strong> {% for day in tournament.days.all %}{% if tournament.days.count > 1 %}{% trans "Day" %} {{ day.day_number }}: {% endif %}{{ day.court_count }}{% if not forloop.last %} · {% endif %}{% endfor %}
     </p>
   </div>
 </div>

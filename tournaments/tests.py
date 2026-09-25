@@ -19,7 +19,7 @@ def make_user(username='testclub', password='testpass123'):
 
 
 def make_player(name="Alice", division="A", owner=None):
-    return Player.objects.create(name=name, age=20, division=division, owner=owner)
+    return Player.objects.create(name=name, age=20, division=division, owner=owner, has_arrived=True)
 
 
 def make_team(name=None, r1=1, r2=2):
@@ -1722,17 +1722,40 @@ class MatchStartTest(TestCase):
         )
 
     def test_match_start_sets_in_progress(self):
-        response = self.client.post(reverse('match_start', args=[self.match.pk]))
+        response = self.client.post(reverse('match_start', args=[self.match.pk]), {'court': '1'})
         self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
         self.match.refresh_from_db()
         self.assertEqual(self.match.status, 'in_progress')
+        self.assertEqual(self.match.court, '1')
 
     def test_match_start_already_in_progress_not_changed(self):
         self.match.status = 'in_progress'
         self.match.save()
-        self.client.post(reverse('match_start', args=[self.match.pk]))
+        self.client.post(reverse('match_start', args=[self.match.pk]), {'court': '1'})
         self.match.refresh_from_db()
         self.assertEqual(self.match.status, 'in_progress')
+
+    def test_match_start_without_court_shows_error(self):
+        response = self.client.post(reverse('match_start', args=[self.match.pk]))
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.status, 'pending')
+        messages_list = list(response.wsgi_request._messages)
+        self.assertTrue(any('court' in str(m).lower() or 'bane' in str(m).lower() for m in messages_list))
+
+    def test_match_start_blocked_when_court_already_in_use(self):
+        t3 = make_team(r1=5, r2=6)
+        t4 = make_team(r1=7, r2=8)
+        Match.objects.create(
+            division=self.division, team1=t3, team2=t4,
+            status='in_progress', match_number=99, court='1',
+        )
+        response = self.client.post(reverse('match_start', args=[self.match.pk]), {'court': '1'})
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.status, 'pending')
+        messages_list = list(response.wsgi_request._messages)
+        self.assertTrue(any('already in use' in str(m).lower() or 'i brug' in str(m).lower() for m in messages_list))
 
     def test_match_start_blocked_when_player_already_playing(self):
         from django.utils import timezone
@@ -1741,7 +1764,7 @@ class MatchStartTest(TestCase):
             division=self.division, team1=self.t1, team2=self.t2,
             status='in_progress', match_number=99
         )
-        response = self.client.post(reverse('match_start', args=[self.match.pk]))
+        response = self.client.post(reverse('match_start', args=[self.match.pk]), {'court': '1'})
         self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
         self.match.refresh_from_db()
         # Should stay pending because player is already playing
@@ -1752,6 +1775,16 @@ class MatchStartTest(TestCase):
     def test_match_start_404_for_nonexistent(self):
         response = self.client.post(reverse('match_start', args=[9999]))
         self.assertEqual(response.status_code, 404)
+
+    def test_match_start_blocked_when_doubles_player_not_arrived(self):
+        self.t2.player2.has_arrived = False
+        self.t2.player2.save()
+        response = self.client.post(reverse('match_start', args=[self.match.pk]), {'court': '1'})
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.status, 'pending')
+        messages_list = list(response.wsgi_request._messages)
+        self.assertTrue(any('ikke ankommet' in str(m) for m in messages_list))
 
 
 # ---------------------------------------------------------------------------
@@ -1921,6 +1954,31 @@ class PlayerStatusFunctionTest(TestCase):
         )
         errors = check_match_startable(match2)
         self.assertTrue(any('spiller allerede' in e for e in errors))
+
+    def test_check_match_startable_blocked_when_player_not_arrived(self):
+        from tournaments.player_status import check_match_startable
+        self.t1.player1.has_arrived = False
+        self.t1.player1.save()
+        match = Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2,
+        )
+        errors = check_match_startable(match)
+        self.assertTrue(any('ikke ankommet' in e for e in errors))
+
+    def test_check_match_startable_doubles_blocked_until_all_four_arrived(self):
+        from tournaments.player_status import check_match_startable
+        # Only one of the four players hasn't checked in yet
+        self.t2.player2.has_arrived = False
+        self.t2.player2.save()
+        match = Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2,
+        )
+        errors = check_match_startable(match)
+        self.assertTrue(any('ikke ankommet' in e for e in errors))
+        # Once everyone has arrived, no more errors
+        self.t2.player2.has_arrived = True
+        self.t2.player2.save()
+        self.assertEqual(check_match_startable(match), [])
 
     def test_team_status_playing(self):
         from tournaments.player_status import team_status, get_busy_info
