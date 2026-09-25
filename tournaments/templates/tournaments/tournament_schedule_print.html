@@ -194,8 +194,7 @@
     <p>
       <strong>{% trans "Date" %}:</strong> {{ tournament.date }} &nbsp;·&nbsp;
       <strong>{% trans "Scoring" %}:</strong> {{ tournament.get_scoring_model_display }} &nbsp;·&nbsp;
-      <strong>{% trans "Courts" %}:</strong> {{ tournament.court_count }}
-      {% if tournament.start_time %} &nbsp;·&nbsp; <strong>{% trans "Start" %}:</strong> {{ tournament.start_time|time:"H:i" }}{% endif %}
+      <strong>{% trans "Courts" %}:</strong> {% for day in tournament.days.all %}{% if tournament.days.count > 1 %}{% trans "Day" %} {{ day.day_number }}: {% endif %}{{ day.court_count }}{% if not forloop.last %} · {% endif %}{% endfor %}
       &nbsp;·&nbsp; <strong>{% trans "Matches" %}:</strong> {{ matches|length }}
     </p>
   </div>
@@ -208,6 +207,7 @@
     <tr>
       <th>#</th>
       <th class="col-time-header">{% trans "Time" %}</th>
+      <th class="col-court">{% trans "Court" %}</th>
       <th>{% trans "Match" %}</th>
       <th>{% trans "Division" %}</th>
     </tr>
@@ -218,13 +218,13 @@
     {% for day_group in day_groups %}
     {% if days_count > 1 %}
     <tr class="day-sep">
-      <td colspan="4">{% for day in tournament.days.all %}{% if day.date == day_group.grouper %}{% trans "Day" %} {{ day.day_number }} – {% endif %}{% endfor %}{{ day_group.grouper|date:"l j. F" }}</td>
+      <td colspan="5">{% for day in tournament.days.all %}{% if day.date == day_group.grouper %}{% trans "Day" %} {{ day.day_number }} – {% endif %}{% endfor %}{{ day_group.grouper|date:"l j. F" }}</td>
     </tr>
     {% endif %}
     {% regroup day_group.list by scheduled_time as time_groups %}
     {% for tg in time_groups %}
     <tr class="time-sep time-row">
-      <td colspan="4" class="time-sep-content">
+      <td colspan="5" class="time-sep-content">
         <span class="time-label">{{ tg.grouper|time:"H:i" }} — </span>{% blocktrans count counter=tg.list|length %}{{ counter }} match{% plural %}{{ counter }} matches{% endblocktrans %}
       </td>
     </tr>
@@ -232,6 +232,7 @@
     <tr>
       <td class="col-no">{{ match.match_number }}</td>
       <td class="col-time time-cell">{{ match.scheduled_time|time:"H:i" }}</td>
+      <td class="col-court">{{ match.court|default:"–" }}</td>
       <td class="col-match">
         {% if match.team1 and match.team2 %}
           {{ match.team1.name }}{{ match.t1_seed }}<span class="vs">vs</span>{{ match.team2.name }}{{ match.t2_seed }}

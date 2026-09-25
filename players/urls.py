@@ -11,6 +11,7 @@ urlpatterns = [
     path('bulk-delete/', views.player_bulk_delete, name='player_bulk_delete'),
     path('<int:pk>/schedule/', views.player_schedule_print, name='player_schedule_print'),
     path('<int:pk>/clear-rest/', views.player_clear_rest, name='player_clear_rest'),
+    path('<int:pk>/toggle-arrived/', views.player_toggle_arrived, name='player_toggle_arrived'),
     path('teams/', views.team_list, name='team_list'),
     path('teams/add/', views.team_add, name='team_add'),
     path('teams/<int:pk>/edit/', views.team_edit, name='team_edit'),

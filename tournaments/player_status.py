@@ -143,4 +143,6 @@ def check_match_startable(match):
             elif player.pk in resting and resting[player.pk] > now:
                 remaining = int((resting[player.pk] - now).total_seconds() // 60) + 1
                 errors.append(f'{player.name} hviler endnu (ca. {remaining} min)')
+            elif not player.has_arrived:
+                errors.append(f'{player.name} er ikke ankommet endnu')
     return errors

@@ -6,8 +6,6 @@ schedule and standings without any ability to edit data.
 """
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth import get_user_model
-from django.core.cache import cache
-from django.views.decorators.cache import cache_page
 from django.utils import timezone, translation
 from django.conf import settings as django_settings
 from .cache_utils import cache_page_with_status
@@ -24,35 +22,6 @@ from .player_status import team_status as _team_status
 User = get_user_model()
 
 LANGUAGE_COOKIE = getattr(django_settings, 'LANGUAGE_COOKIE_NAME', 'django_language')
-PUBLIC_PAGE_CACHE_TTL = django_settings.PUBLIC_PAGE_CACHE_TTL
-
-
-def _public_cache_version(name, tournament_id=None):
-    key = f'public-page-version:{name}:{tournament_id or "all"}'
-    return cache.get(key, 1)
-
-
-def cache_public_page(name, tournament_id=None):
-    """Cache a public page with a version bumped whenever its data changes."""
-    def decorator(view):
-        @wraps(view)
-        def wrapped(request, *args, **kwargs):
-            page_tournament_id = tournament_id(kwargs) if tournament_id else None
-            if page_tournament_id and LANGUAGE_COOKIE not in request.COOKIES:
-                tournament = get_object_or_404(
-                    Tournament.objects.select_related('owner__profile'),
-                    pk=page_tournament_id,
-                )
-                _activate_club_language(request, tournament)
-            key_prefix = (
-                f'public-page:{name}:{page_tournament_id or "all"}:'
-                f'{_public_cache_version(name, page_tournament_id)}'
-            )
-            return cache_page(PUBLIC_PAGE_CACHE_TTL, key_prefix=key_prefix)(
-                view
-            )(request, *args, **kwargs)
-        return wrapped
-    return decorator
 
 
 def _activate_club_language(request, tournament):

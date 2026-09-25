@@ -13,8 +13,7 @@
 <p style="color:#64748b; font-size:0.85rem; margin: -0.75rem 0 1.5rem; display:flex; flex-wrap:wrap; gap:0.4rem 1.25rem;">
     <span><strong>{% trans "Date" %}:</strong> {{ tournament.date }}</span>
     <span><strong>{% trans "Scoring" %}:</strong> {{ tournament.get_scoring_model_display }}</span>
-    <span><strong>{% trans "Courts" %}:</strong> {{ tournament.court_count }}</span>
-    <span><strong>{% trans "Start" %}:</strong> {{ tournament.start_time|time:"H:i"|default:"–" }}</span>
+    <span><strong>{% trans "Courts" %}:</strong> {% for day in tournament.days.all %}{% if tournament.days.count > 1 %}{% trans "Day" %} {{ day.day_number }}: {% endif %}{{ day.court_count }}{% if not forloop.last %} · {% endif %}{% endfor %}</span>
     {% if tournament.schedule_locked %}
     <span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fbbf24; padding:0.25rem 0.65rem;">🔒 {% trans "Programme locked" %}</span>
     {% endif %}

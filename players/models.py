@@ -50,6 +50,11 @@ class Player(models.Model):
         verbose_name=_("Resting until"),
         help_text=_("The player is resting and cannot start new matches before this time."),
     )
+    has_arrived = models.BooleanField(
+        default=False,
+        verbose_name=_("Arrived"),
+        help_text=_("Whether the player has checked in at the judge table."),
+    )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -94,6 +99,15 @@ class Team(models.Model):
             bool: ``True`` when ``player2`` is missing, else ``False``.
         """
         return self.player2 is None
+
+    @property
+    def players(self):
+        """Return the team's non-null players, for iteration in templates.
+
+        Returns:
+            list: ``player1`` and ``player2`` (when set), in order.
+        """
+        return [p for p in (self.player1, self.player2) if p]
 
     def save(self, *args, **kwargs):
         """Persist the team and auto-generate a name when missing.
