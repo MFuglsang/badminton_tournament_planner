@@ -55,6 +55,8 @@
     border-radius: 4px;
     padding: 3mm 5mm;
     box-sizing: border-box;
+    width: min(100%, 155mm);
+    align-self: center;
     page-break-inside: avoid;
     break-inside: avoid;
   }
@@ -81,6 +83,11 @@
     font-size: 0.75rem;
     color: #444;
     white-space: nowrap;
+  }
+  .court-write-in {
+    display: inline-block;
+    width: 12mm;
+    border-bottom: 1px solid #555;
   }
 
   /* Holdnavne til venstre, scores sæt for sæt til højre */
@@ -190,6 +197,7 @@
   <div class="card-header">
     <span class="match-no">{% trans "Match" %} #{{ match.match_number }}</span>
     <span class="division-label">{{ match.division.name }}</span>
+    <span class="court-label">{% trans "Court" %}: <span class="court-write-in">&nbsp;</span></span>
   </div>
 
   <div class="score-table">

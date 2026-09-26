@@ -667,6 +667,16 @@ class TournamentViewTest(TestCase):
         response = self.client.get(reverse("tournament_scoresheet", args=[self.tournament.pk]))
         self.assertContains(response, f'#{match.match_number}')
 
+    def test_scoresheet_always_has_blank_court_field_and_narrow_card_layout(self):
+        Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2,
+            match_number=1, court='4',
+        )
+        response = self.client.get(reverse("tournament_scoresheet", args=[self.tournament.pk]))
+        self.assertContains(response, 'Court: <span class="court-write-in">')
+        self.assertNotContains(response, 'Court: 4')
+        self.assertContains(response, 'width: min(100%, 155mm)')
+
     def test_scoresheet_404_for_nonexistent(self):
         response = self.client.get(reverse("tournament_scoresheet", args=[9999]))
         self.assertEqual(response.status_code, 404)
@@ -849,6 +859,20 @@ class MatchResultViewTest(TestCase):
         self.assertEqual(self.match.status, "completed")
         self.assertEqual(self.match.winner, self.t1)
 
+    def test_match_result_post_accepts_best_of_three_to_15(self):
+        self.tournament.scoring_model = 'best_of_5_15'
+        self.tournament.save(update_fields=['scoring_model'])
+        response = self.client.post(
+            reverse("match_record_result", args=[self.match.pk]),
+            {"score": "7-15, 15-12, 15-13", "winner": self.t1.pk},
+        )
+        self.assertRedirects(
+            response, reverse("tournament_detail", args=[self.tournament.pk])
+        )
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.score, "7-15, 15-12, 15-13")
+        self.assertEqual(self.match.status, "completed")
+
     def test_match_result_auto_sets_completed(self):
         """Valid score + winner should automatically mark match as completed."""
         self.assertEqual(self.match.status, 'pending')
@@ -949,6 +973,30 @@ class MatchResultFormValidationTest(TestCase):
     def test_valid_score_deuce(self):
         form = self._post('22-20, 21-15')
         self.assertTrue(form.is_valid(), form.errors)
+
+    def test_valid_best_of_three_sets_to_15(self):
+        self.tournament.scoring_model = 'best_of_5_15'
+        self.tournament.save(update_fields=['scoring_model'])
+        form = self._post('7-15, 15-12, 15-13')
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_valid_extended_set_to_15(self):
+        self.tournament.scoring_model = 'best_of_5_15'
+        self.tournament.save(update_fields=['scoring_model'])
+        form = self._post('16-14, 15-12')
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_invalid_15_point_set_must_win_by_two(self):
+        self.tournament.scoring_model = 'best_of_5_15'
+        self.tournament.save(update_fields=['scoring_model'])
+        form = self._post('15-14, 15-12')
+        self.assertFalse(form.is_valid())
+
+    def test_invalid_15_point_set_below_target(self):
+        self.tournament.scoring_model = 'best_of_5_15'
+        self.tournament.save(update_fields=['scoring_model'])
+        form = self._post('14-12, 15-12')
+        self.assertFalse(form.is_valid())
 
     def test_invalid_score_bad_format(self):
         form = self._post('21:15, 21-10')
@@ -1759,6 +1807,7 @@ class MatchStartTest(TestCase):
         self.match.refresh_from_db()
         self.assertEqual(self.match.status, 'in_progress')
         self.assertEqual(self.match.court, '1')
+        self.assertIsNotNone(self.match.started_at)
 
     def test_match_start_already_in_progress_not_changed(self):
         self.match.status = 'in_progress'
@@ -2698,9 +2747,10 @@ class TournamentRunViewTest(TestCase):
         self.assertIn('division_data', response.context)
 
     def test_run_view_shows_one_court_icon_per_court(self):
+        from django.utils import timezone
         Match.objects.create(
             division=self.division, team1=self.t1, team2=self.t2,
-            match_number=1, status='in_progress', court='2',
+            match_number=1, status='in_progress', court='2', started_at=timezone.now(),
         )
         response = self.client.get(reverse('tournament_run', args=[self.tournament.pk]))
         icon_count = response.content.decode().count('src="/static/img/court.svg"')
@@ -2712,6 +2762,7 @@ class TournamentRunViewTest(TestCase):
         self.assertContains(response, 'popup=1')
         self.assertEqual(response.context['occupied_court_count'], 1)
         self.assertContains(response, 'class="court-occupancy-count"')
+        self.assertContains(response, 'class="court-timer" data-started-at=')
         self.assertContains(response, '1 / 4')
         content = response.content.decode()
         self.assertLess(content.index('<div class="court-occupancy-count">'), content.index('<div class="court-indicators">'))

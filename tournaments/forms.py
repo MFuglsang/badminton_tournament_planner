@@ -29,23 +29,30 @@ def _parse_score(score_str):
     return sets
 
 
-def _validate_set(a, b):
-    """Return an error string if (a, b) breaks BWF set-score rules, else ''."""
+def _validate_set(a, b, points_to_win=21, max_points=30):
+    """Return an error string if (a, b) breaks the configured set-score rules."""
     if a == b:
         return _("%(a)s-%(b)s: a set cannot end in a draw") % {'a': a, 'b': b}
     w, l = (a, b) if a > b else (b, a)
-    if w < 21:
-        return _("%(a)s-%(b)s: the winner must have at least 21 points") % {'a': a, 'b': b}
-    if w > 30:
-        return _("%(a)s-%(b)s: maximum score is 30-29") % {'a': a, 'b': b}
-    if w == 21 and l <= 19:
+    if w < points_to_win:
+        return _("%(a)s-%(b)s: the winner must have at least %(points)s points") % {
+            'a': a, 'b': b, 'points': points_to_win,
+        }
+    if w > max_points:
+        return _("%(a)s-%(b)s: maximum score is %(max)s-%(other)s") % {
+            'a': a, 'b': b, 'max': max_points, 'other': max_points - 1,
+        }
+    if w == points_to_win and l <= points_to_win - 2:
         return ""   # normal win
-    if w >= 22 and w - l == 2:
+    if w > points_to_win and w - l == 2:
         return ""   # deuce win (22-20 … 30-28)
-    if w == 30 and l == 29:
+    if w == max_points and l == max_points - 1:
         return ""   # max deuce (already covered above, explicit for clarity)
-    if w == 21 and l == 20:
-        return _("%(a)s-%(b)s: at 20-20 play continues to 2 points difference (e.g. 22-20)") % {'a': a, 'b': b}
+    if w == points_to_win and l == points_to_win - 1:
+        return _("%(a)s-%(b)s: at %(deuce)s-%(deuce)s play continues to 2 points difference (e.g. %(example_winner)s-%(example_loser)s)") % {
+            'a': a, 'b': b, 'deuce': points_to_win - 1,
+            'example_winner': points_to_win + 2, 'example_loser': points_to_win,
+        }
     return _("%(a)s-%(b)s: invalid set result (in extended play the difference must be exactly 2 points)") % {'a': a, 'b': b}
 
 
@@ -307,7 +314,11 @@ class MatchResultForm(forms.ModelForm):
             **kwargs: Keyword arguments passed to ``ModelForm``.
         """
         super().__init__(*args, **kwargs)
-        match = kwargs.get('instance')
+        match = self.instance
+        self.points_to_win = 21
+        if match and match.division.tournament.scoring_model == 'best_of_5_15':
+            self.points_to_win = 15
+        self.max_set_score = 30
         if match:
             pks = [match.team1.pk]
             if match.team2:
@@ -343,7 +354,7 @@ class MatchResultForm(forms.ModelForm):
 
         # 3. Each set must be a legal BWF score
         for a, b in sets:
-            err = _validate_set(a, b)
+            err = _validate_set(a, b, self.points_to_win, self.max_set_score)
             if err:
                 raise forms.ValidationError(_("Invalid set: %(err)s") % {'err': err})
 
