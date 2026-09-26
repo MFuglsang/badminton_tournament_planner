@@ -863,6 +863,7 @@ def match_record_result(request, pk):
     """
     match = get_object_or_404(Match, pk=pk, division__tournament__owner=request.user)
     next_url = request.GET.get('next') or request.POST.get('next') or ''
+    popup_mode = request.GET.get('popup') == '1' or request.POST.get('popup') == '1'
     if request.method == 'POST':
         form = MatchResultForm(request.POST, instance=match)
         if form.is_valid():
@@ -876,12 +877,19 @@ def match_record_result(request, pk):
             if match.division.tournament_type == 'playoff' and match.phase == 'group':
                 fill_playoff_bracket_from_group(match.division, match.group_number)
             messages.success(request, _("Result saved."))
+            if popup_mode:
+                return HttpResponse(status=204)
             if next_url:
                 return redirect(next_url)
             return redirect('tournament_detail', pk=match.division.tournament.pk)
     else:
         form = MatchResultForm(instance=match)
-    return render(request, 'tournaments/match_result_form.html', {'form': form, 'match': match, 'next_url': next_url})
+    return render(request, 'tournaments/match_result_form.html', {
+        'form': form,
+        'match': match,
+        'next_url': next_url,
+        'popup_mode': popup_mode,
+    })
 
 
 def _walkover_score(match):
@@ -1576,6 +1584,14 @@ def tournament_run(request, pk):
         .exclude(court__isnull=True).exclude(court='')
         .values_list('court', flat=True)
     )
+    active_matches_by_court = {
+        str(match.court): match for match in active_matches if match.court
+    }
+    court_indicators = [
+        {'number': court, 'active_match': active_matches_by_court.get(str(court))}
+        for court in court_choices
+    ]
+    occupied_court_count = sum(1 for court in court_indicators if court['active_match'])
 
     return render(request, 'tournaments/tournament_run.html', {
         'tournament': tournament,
@@ -1588,6 +1604,8 @@ def tournament_run(request, pk):
         'today_date': today_date,
         'day_anchor_pks': day_anchor_pks,
         'court_choices': court_choices,
+        'court_indicators': court_indicators,
+        'occupied_court_count': occupied_court_count,
         'occupied_courts': occupied_courts,
         'playing_pks': playing_pks,
         'resting': resting,

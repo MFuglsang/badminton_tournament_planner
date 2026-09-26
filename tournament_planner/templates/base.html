@@ -83,14 +83,21 @@
         a:hover { color: #0d4f22; text-decoration: underline; }
 
         /* ── Flash messages ───────────────────────────────────── */
-        .messages { list-style: none; padding: 0; margin: 0 0 1.5rem; }
+        .messages {
+            position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+            z-index: 1100; width: min(600px, calc(100vw - 2rem));
+            list-style: none; padding: 0; margin: 0; pointer-events: none;
+        }
         .messages li {
             padding: 0.7rem 1rem 0.7rem 1rem;
             border-radius: 8px; margin-bottom: 0.5rem;
             font-size: 0.875rem; font-weight: 500;
             display: flex; align-items: center; gap: 0.6rem;
             border: 1px solid;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            pointer-events: auto;
         }
+        .messages li.message-dismissing { opacity: 0; transform: translateY(-4px); }
         .messages .success { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
         .messages .error   { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
         .messages .warning { background: #fffbeb; color: #92400e; border-color: #fde68a; }
@@ -320,6 +327,25 @@
         }
         .bracket-team.bye { color: #94a3b8; font-style: italic; font-weight: 400; }
         .bracket-tbd { padding: 0.6rem 0.7rem; color: #94a3b8; font-style: italic; font-size: 0.8rem; }
+        .result-entry-dialog {
+            width: min(640px, 96vw); max-width: none; max-height: 92vh;
+            padding: 0; border: 0; border-radius: 10px; overflow: hidden;
+            box-shadow: 0 12px 48px rgba(0,0,0,.32);
+        }
+        .result-entry-dialog::backdrop { background: rgba(15, 23, 42, .58); }
+        .result-entry-dialog-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.65rem 0.9rem; background: #0d4f22; color: #fff;
+        }
+        .result-entry-dialog-header h2 { margin: 0; color: inherit; font-size: 0.95rem; }
+        .result-entry-dialog-close {
+            width: 32px; height: 32px; border: 0; border-radius: 4px;
+            background: transparent; color: #fff; font-size: 1.4rem; cursor: pointer;
+        }
+        .result-entry-dialog-content {
+            max-height: min(76vh, 720px); overflow: auto; padding: 0.75rem;
+        }
+        .result-entry-dialog-content .content-col-sm > .card > h1 { display: none; }
     </style>
     {% block extra_head %}{% endblock %}
 </head>
@@ -389,6 +415,17 @@ function _updateStatusTimers() {
 }
 _updateStatusTimers();
 setInterval(_updateStatusTimers, 1000);
+
+document.querySelectorAll('.messages li').forEach(function(message) {
+    setTimeout(function() {
+        message.classList.add('message-dismissing');
+        setTimeout(function() {
+            var list = message.closest('.messages');
+            message.remove();
+            if (list && !list.children.length) list.remove();
+        }, 250);
+    }, 5000);
+});
 </script>
 {% block extra_js %}{% endblock %}
 </body>

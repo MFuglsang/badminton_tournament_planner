@@ -1222,6 +1222,10 @@ msgstr "Vælg bane"
 msgid "Court occupied"
 msgstr "Bane optaget"
 
+#: tournaments/templates/tournaments/tournament_run.html
+msgid "courts occupied"
+msgstr "baner optaget"
+
 #: players/models.py
 msgid "Arrived"
 msgstr "Ankommet"

@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load tournament_extras i18n %}
+{% load tournament_extras i18n static %}
 {% block title %}{% trans "Tournament run" %} – {{ tournament.name }}{% endblock %}
 
 {% block extra_head %}
@@ -23,6 +23,49 @@
 .progress-bar-fill {
   height: 100%; background: linear-gradient(90deg, #16692c, #22c55e);
   border-radius: 4px; transition: width 0.4s;
+}
+.court-indicators {
+  display: flex; justify-content: flex-start; align-items: center; gap: clamp(0.25rem, 1.5vw, 1rem);
+  min-height: 90px; margin-bottom: 0.35rem;
+}
+.court-occupancy-count {
+  display: block; margin-bottom: 0.15rem; color: #64748b;
+  font-size: 0.78rem; white-space: nowrap;
+}
+.court-icon {
+  position: relative; flex: 0 0 42px; width: 42px; height: 90px;
+}
+.court-icon img {
+  position: absolute; top: 50%; left: 50%; display: block;
+  width: 90px; height: 42px; object-fit: contain;
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+.court-icon.court-occupied img {
+  filter: hue-rotate(-120deg) saturate(1.25);
+}
+.court-number {
+  position: absolute; top: 50%; left: 50%; display: grid; place-items: center;
+  width: 24px; height: 24px; transform: translate(-50%, -50%);
+  border-radius: 50%; background: rgba(13, 79, 34, 0.9); color: #fff;
+  font-size: 14px; font-weight: 700; line-height: 1;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+.court-occupied .court-number {
+  background: rgba(153, 27, 27, 0.95);
+}
+.court-result-action {
+  position: absolute; z-index: 3; left: 50%; bottom: 4px;
+  transform: translate(-50%, 3px); opacity: 0; pointer-events: none;
+  padding: 0.2rem 0.45rem; border: 1px solid #fecaca; border-radius: 4px;
+  background: #fff; color: #991b1b; font-size: 0.65rem; font-weight: 700;
+  line-height: 1.2; white-space: nowrap; box-shadow: 0 1px 4px rgba(0,0,0,.25);
+}
+.court-icon:hover .court-result-action,
+.court-icon:focus-within .court-result-action {
+  transform: translate(-50%, 0); opacity: 1; pointer-events: auto;
+}
+@media (hover: none) {
+  .court-result-action { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
 }
 
 /* ── Next matches panel ─── */
@@ -216,7 +259,9 @@
 <div class="page-actions">
   <div>
     <h1>{{ tournament.name }}</h1>
-    <p style="color:#64748b; font-size:0.82rem; margin:0.2rem 0 0;">{% trans "Tournament run" %} · {{ tournament.date }}</p>
+    <p style="color:#64748b; font-size:0.82rem; margin:0.2rem 0 0;">
+      {% trans "Tournament run" %} · {{ tournament.date }}
+    </p>
   </div>
   <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
     <a href="{% url 'tournament_bigscreen' tournament.pk %}" class="btn btn-secondary" target="_blank">📺 {% trans "Big screen" %}</a>
@@ -226,9 +271,23 @@
 
 {# ── Progress bar ─── #}
 {% if total_matches %}
-<div style="margin-bottom:0.4rem; display:flex; justify-content:space-between; font-size:0.78rem; color:#64748b;">
+<div class="court-occupancy-count">{{ occupied_court_count }} / {{ court_choices|length }} {% trans "courts occupied" %}</div>
+<div class="court-indicators">
+  {% for court in court_indicators %}
+  <div class="court-icon{% if court.active_match %} court-occupied{% endif %}" role="group" aria-label="{% trans 'Court' %} {{ court.number }}">
+    <img src="{% static 'img/court.svg' %}" alt="">
+    <span class="court-number" aria-hidden="true">{{ court.number }}</span>
+    {% if court.active_match %}
+    <a class="court-result-action js-result-modal"
+       href="{% url 'match_record_result' court.active_match.pk %}?next={% url 'tournament_run' tournament.pk %}&popup=1"
+       aria-label="{% trans 'Register result' %} — {% trans 'Court' %} {{ court.number }}"
+       title="{% trans 'Register result' %}">{% trans "Result" %}</a>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+<div style="margin-bottom:0.4rem; display:flex; justify-content:space-between; gap:0.75rem; flex-wrap:wrap; font-size:0.78rem; color:#64748b;">
   <span>{{ completed_matches }} / {{ total_matches }} {% trans "matches completed" %}</span>
-  {% if in_progress_matches %}<span style="color:#1d4ed8;">{{ in_progress_matches }} {% trans "in progress" %}</span>{% endif %}
   {% if completed_matches == total_matches %}<span style="color:#16692c; font-weight:700;">✓ {% trans "All matches completed" %}</span>{% endif %}
 </div>
 <div class="progress-bar-wrap">
@@ -369,7 +428,7 @@
               {% endif %}
               {% if match.status == 'in_progress' %}
               {% if match.team1 and match.team2 %}
-              <a href="{% url 'match_record_result' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="btn btn-secondary btn-sm">{% trans "Result" %}</a>
+              <a href="{% url 'match_record_result' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="js-result-modal btn btn-secondary btn-sm">{% trans "Result" %}</a>
               <a href="{% url 'match_walkover' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="btn btn-secondary btn-sm" style="color:#d97706; border-color:#fde68a;">WO</a>
               <form method="post" action="{% url 'match_postpone' match.pk %}" style="display:inline;">
                 {% csrf_token %}
@@ -411,7 +470,7 @@
                 {% if match.winner %}<strong style="color:#16692c; margin-left:0.3rem;">→ {{ match.winner.name }}</strong>{% endif %}
               </span>
               <span class="run-match-actions">
-                <a href="{% url 'match_record_result' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="btn btn-secondary btn-sm">{% trans "Edit" %}</a>
+                <a href="{% url 'match_record_result' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="js-result-modal btn btn-secondary btn-sm">{% trans "Edit" %}</a>
               </span>
             </div>
             {% endif %}
@@ -564,7 +623,7 @@
           <span style="color:#94a3b8; font-size:0.75rem;">vs</span> {{ match.team2.name }}{{ match.t2_seed }}
         </div>
         <div style="margin-top:0.4rem; display:flex; flex-wrap:wrap; gap:0.35rem;">
-          <a href="{% url 'match_record_result' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="btn btn-primary btn-sm">{% trans "Result" %}</a>
+          <a href="{% url 'match_record_result' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="js-result-modal btn btn-primary btn-sm">{% trans "Result" %}</a>
           <a href="{% url 'match_walkover' match.pk %}?next={% url 'tournament_run' tournament.pk %}" class="btn btn-secondary btn-sm" style="color:#d97706; border-color:#fde68a;">WO</a>
           <form method="post" action="{% url 'match_postpone' match.pk %}" style="display:inline;">
             {% csrf_token %}
@@ -648,6 +707,7 @@
     </div>
   </form>
 </dialog>
+{% include 'tournaments/partials/_result_entry_modal.html' %}
 {% endblock %}
 
 {% block extra_js %}
