@@ -60,6 +60,7 @@
         <form method="post" id="result-form">
             {% csrf_token %}
             {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+            {% if popup_mode %}<input type="hidden" name="popup" value="1">{% endif %}
             {% if form.non_field_errors %}
             <div style="background:#fef2f2; border-left:4px solid #dc2626; padding:0.75rem 1rem; border-radius:4px; margin-bottom:1.25rem; color:#7f1d1d;">
                 {% for error in form.non_field_errors %}<p style="margin:0;">⚠ {{ error }}</p>{% endfor %}
@@ -111,7 +112,11 @@
 
             <div style="margin-top:1.5rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
                 <button type="submit" class="btn btn-primary">{% trans "Save result" %}</button>
+                {% if popup_mode %}
+                <button type="button" id="cancel-result-popup" class="btn btn-secondary">{% trans "Cancel" %}</button>
+                {% else %}
                 <a href="{% if next_url %}{{ next_url }}{% else %}{% url 'tournament_detail' match.division.tournament.pk %}{% endif %}" class="btn btn-secondary">{% trans "Cancel" %}</a>
+                {% endif %}
             </div>
         </form>
     </div>
@@ -201,6 +206,12 @@
     document.getElementById('result-form').addEventListener('submit', function () {
         assemble();
     });
+    var cancelPopup = document.getElementById('cancel-result-popup');
+    if (cancelPopup) {
+        cancelPopup.addEventListener('click', function () {
+            window.close();
+        });
+    }
 })();
 </script>
 {% endblock %}

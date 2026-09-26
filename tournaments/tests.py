@@ -531,6 +531,16 @@ class TournamentViewTest(TestCase):
         self.assertContains(response, self.division.name)
         self.assertIn('division_data', response.context)
 
+    def test_tournament_detail_uses_shared_result_modal(self):
+        Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2,
+            match_number=1, status='completed', score='21-10, 21-10', winner=self.t1,
+        )
+        response = self.client.get(reverse("tournament_detail", args=[self.tournament.pk]))
+        self.assertContains(response, 'id="result-entry-dialog"')
+        self.assertContains(response, 'js-result-modal')
+        self.assertContains(response, 'openResultEntryModal(m.url)')
+
     def test_tournament_detail_404_for_nonexistent(self):
         response = self.client.get(reverse("tournament_detail", args=[9999]))
         self.assertEqual(response.status_code, 404)
@@ -800,6 +810,28 @@ class MatchResultViewTest(TestCase):
     def test_match_result_get_returns_200(self):
         response = self.client.get(reverse("match_record_result", args=[self.match.pk]))
         self.assertEqual(response.status_code, 200)
+
+    def test_match_result_popup_get_includes_popup_controls(self):
+        response = self.client.get(
+            reverse("match_record_result", args=[self.match.pk]), {'popup': '1'}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="popup" value="1"')
+        self.assertContains(response, 'id="cancel-result-popup"')
+
+    def test_match_result_popup_save_notifies_parent(self):
+        response = self.client.post(
+            reverse("match_record_result", args=[self.match.pk]) + "?popup=1",
+            {
+                "score": "21-15, 21-10",
+                "winner": self.t1.pk,
+                "next": reverse("tournament_run", args=[self.tournament.pk]),
+                "popup": "1",
+            },
+        )
+        self.assertEqual(response.status_code, 204)
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.status, "completed")
 
     def test_match_result_post_records_result(self):
         data = {
@@ -2664,6 +2696,25 @@ class TournamentRunViewTest(TestCase):
     def test_run_view_context_has_division_data(self):
         response = self.client.get(reverse('tournament_run', args=[self.tournament.pk]))
         self.assertIn('division_data', response.context)
+
+    def test_run_view_shows_one_court_icon_per_court(self):
+        Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2,
+            match_number=1, status='in_progress', court='2',
+        )
+        response = self.client.get(reverse('tournament_run', args=[self.tournament.pk]))
+        icon_count = response.content.decode().count('src="/static/img/court.svg"')
+        self.assertEqual(icon_count, len(response.context['court_choices']))
+        self.assertEqual(response.content.decode().count('class="court-number"'), len(response.context['court_choices']))
+        self.assertEqual(response.content.decode().count('class="court-icon court-occupied"'), 1)
+        self.assertEqual(response.content.decode().count('class="court-result-action js-result-modal"'), 1)
+        self.assertContains(response, reverse('match_record_result', args=[Match.objects.get(court='2').pk]))
+        self.assertContains(response, 'popup=1')
+        self.assertEqual(response.context['occupied_court_count'], 1)
+        self.assertContains(response, 'class="court-occupancy-count"')
+        self.assertContains(response, '1 / 4')
+        content = response.content.decode()
+        self.assertLess(content.index('<div class="court-occupancy-count">'), content.index('<div class="court-indicators">'))
 
     def test_run_view_404_for_nonexistent(self):
         response = self.client.get(reverse('tournament_run', args=[9999]))

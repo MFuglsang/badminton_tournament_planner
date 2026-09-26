@@ -1,0 +1,9 @@
+{% load i18n static %}
+<dialog id="result-entry-dialog" class="result-entry-dialog" aria-labelledby="result-entry-dialog-title">
+  <div class="result-entry-dialog-header">
+    <h2 id="result-entry-dialog-title">{% trans "Register result" %}</h2>
+    <button type="button" class="result-entry-dialog-close" aria-label="{% trans 'Close' %}">&times;</button>
+  </div>
+  <div class="result-entry-dialog-content" aria-live="polite"></div>
+</dialog>
+<script src="{% static 'js/result_entry_modal.js' %}"></script>

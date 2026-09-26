@@ -214,7 +214,7 @@ var MATCH_LOOKUP = {
         var m = MATCH_LOOKUP[num];
         if (m) {
             feedback.innerHTML = '<span style="color:#16692c; font-weight:600;">→ ' + m.team1 + ' vs ' + m.team2 + ' (' + m.div + ')</span>';
-            setTimeout(function() { window.location.href = m.url; }, 120);
+            setTimeout(function() { window.openResultEntryModal(m.url); }, 120);
         } else {
             feedback.innerHTML = '<span style="color:#b91c1c;">{% trans "Match" %} #' + num + ' {% trans "not found." %}</span>';
             input.style.borderColor = '#f87171';
@@ -633,7 +633,7 @@ var MATCH_LOOKUP = {
             <td>
                 {% if not match.bracket_label %}
                 {% if match.status == 'completed' %}
-                <a href="{% url 'match_record_result' match.pk %}" class="btn btn-secondary btn-sm">{% trans "Edit result" %}</a>
+                <a href="{% url 'match_record_result' match.pk %}" class="js-result-modal btn btn-secondary btn-sm">{% trans "Edit result" %}</a>
                 {% endif %}
                 {% else %}
                 <span style="color:#aaa; font-size:0.8rem;">{% trans "Awaiting players" %}</span>
@@ -686,7 +686,7 @@ var MATCH_LOOKUP = {
             <td>
                 {% if match.team1 and match.team2 %}
                 {% if match.status == 'completed' %}
-                <a href="{% url 'match_record_result' match.pk %}" class="btn btn-secondary btn-sm">{% trans "Edit result" %}</a>
+                <a href="{% url 'match_record_result' match.pk %}" class="js-result-modal btn btn-secondary btn-sm">{% trans "Edit result" %}</a>
                 {% endif %}
                 {% else %}
                 <span style="color:#aaa; font-size:0.8rem;">{% trans "Awaiting group stage" %}</span>
@@ -907,4 +907,5 @@ function toggleDivFilter(btn, containerId) {
     applyFilters(containerId);
 }
 </script>
+{% include 'tournaments/partials/_result_entry_modal.html' %}
 {% endblock %}
