@@ -935,7 +935,8 @@ def match_start(request, pk):
             else:
                 match.status = 'in_progress'
                 match.court = court
-                match.save(update_fields=['status', 'court'])
+                match.started_at = timezone.now()
+                match.save(update_fields=['status', 'court', 'started_at'])
                 messages.success(request, _("Match #%(n)s is now in progress.") % {'n': match.match_number or match.pk})
     if next_url:
         return redirect(next_url)

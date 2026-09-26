@@ -342,6 +342,7 @@ class Match(models.Model):
     walkover = models.BooleanField(default=False, verbose_name=_("Walk-over"))
     scheduled_time = models.DateTimeField(verbose_name=_("Scheduled Time"), null=True, blank=True)
     court = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Court"))
+    started_at = models.DateTimeField(null=True, blank=True, verbose_name=_("Started at"))
     group_number = models.IntegerField(null=True, blank=True, verbose_name=_("Group number"))
     phase = models.CharField(
         max_length=10, default='group',

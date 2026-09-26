@@ -808,19 +808,19 @@ msgstr "%(a)s-%(b)s: et sæt kan ikke slutte uafgjort"
 
 #: tournaments/forms.py:38
 #, python-format
-msgid "%(a)s-%(b)s: the winner must have at least 21 points"
-msgstr "%(a)s-%(b)s: vinderen skal have mindst 21 points"
+msgid "%(a)s-%(b)s: the winner must have at least %(points)s points"
+msgstr "%(a)s-%(b)s: vinderen skal have mindst %(points)s points"
 
 #: tournaments/forms.py:40
 #, python-format
-msgid "%(a)s-%(b)s: maximum score is 30-29"
-msgstr "%(a)s-%(b)s: maksimalt resultat er 30-29"
+msgid "%(a)s-%(b)s: maximum score is %(max)s-%(other)s"
+msgstr "%(a)s-%(b)s: maksimalt resultat er %(max)s-%(other)s"
 
 #: tournaments/forms.py:48
 #, python-format
 msgid ""
-"%(a)s-%(b)s: at 20-20 play continues to 2 points difference (e.g. 22-20)"
-msgstr "%(a)s-%(b)s: ved 20-20 fortsættes til 2 points forskel (f.eks. 22-20)"
+"%(a)s-%(b)s: at %(deuce)s-%(deuce)s play continues to 2 points difference (e.g. %(example_winner)s-%(example_loser)s)"
+msgstr "%(a)s-%(b)s: ved %(deuce)s-%(deuce)s fortsættes til 2 points forskel (f.eks. %(example_winner)s-%(example_loser)s)"
 
 #: tournaments/forms.py:49
 #, python-format

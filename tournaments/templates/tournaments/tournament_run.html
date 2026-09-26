@@ -25,15 +25,16 @@
   border-radius: 4px; transition: width 0.4s;
 }
 .court-indicators {
-  display: flex; justify-content: flex-start; align-items: center; gap: clamp(0.25rem, 1.5vw, 1rem);
-  min-height: 90px; margin-bottom: 0.35rem;
+  display: flex; flex-wrap: wrap; justify-content: flex-start; align-items: center;
+  gap: 0.25rem clamp(0.25rem, 1.5vw, 1rem);
+  min-height: 100px; margin-bottom: 0.35rem;
 }
 .court-occupancy-count {
   display: block; margin-bottom: 0.15rem; color: #64748b;
   font-size: 0.78rem; white-space: nowrap;
 }
 .court-icon {
-  position: relative; flex: 0 0 42px; width: 42px; height: 90px;
+  position: relative; flex: 0 0 42px; width: 42px; height: 100px;
 }
 .court-icon img {
   position: absolute; top: 50%; left: 50%; display: block;
@@ -49,6 +50,14 @@
   border-radius: 50%; background: rgba(13, 79, 34, 0.9); color: #fff;
   font-size: 14px; font-weight: 700; line-height: 1;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+.court-timer {
+  position: absolute; top: calc(50% + 16px); left: 50%; transform: translateX(-50%);
+  min-width: 38px; padding: 2px 4px; border-radius: 10px;
+  background: rgba(15, 23, 42, 0.92); color: #fff;
+  font-size: 9px; font-variant-numeric: tabular-nums; font-weight: 600;
+  line-height: 1.2; text-align: center; white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 .court-occupied .court-number {
   background: rgba(153, 27, 27, 0.95);
@@ -277,6 +286,7 @@
   <div class="court-icon{% if court.active_match %} court-occupied{% endif %}" role="group" aria-label="{% trans 'Court' %} {{ court.number }}">
     <img src="{% static 'img/court.svg' %}" alt="">
     <span class="court-number" aria-hidden="true">{{ court.number }}</span>
+    {% if court.active_match.started_at %}<span class="court-timer" data-started-at="{{ court.active_match.started_at|date:'U' }}" aria-label="{% trans 'Match duration' %}">0:00</span>{% endif %}
     {% if court.active_match %}
     <a class="court-result-action js-result-modal"
        href="{% url 'match_record_result' court.active_match.pk %}?next={% url 'tournament_run' tournament.pk %}&popup=1"
@@ -711,6 +721,24 @@
 {% endblock %}
 
 {% block extra_js %}
+<script>
+// Optælling af spilletid for aktive kampe på banerne.
+(function () {
+  function updateCourtTimers() {
+    document.querySelectorAll('.court-timer[data-started-at]').forEach(function (timer) {
+      var elapsed = Math.max(0, Math.floor(Date.now() / 1000) - Number(timer.dataset.startedAt));
+      var hours = Math.floor(elapsed / 3600);
+      var minutes = Math.floor((elapsed % 3600) / 60);
+      var seconds = elapsed % 60;
+      timer.textContent = hours
+        ? hours + ':' + String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0')
+        : minutes + ':' + String(seconds).padStart(2, '0');
+    });
+  }
+  updateCourtTimers();
+  setInterval(updateCourtTimers, 1000);
+})();
+</script>
 <script>
 // Ankomst-bullets: skift via AJAX så siden ikke genindlæses (ellers lukker foldede rækker igen)
 (function () {
