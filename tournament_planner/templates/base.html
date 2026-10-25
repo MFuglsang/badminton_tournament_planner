@@ -406,10 +406,27 @@ function _updateStatusTimers() {
         if (remaining <= 0) {
             el.textContent = '';
             el.closest('.status-badge-rest')?.remove();
+            var readyAction = document.getElementById(el.dataset.readyAction || '');
+            if (readyAction) {
+                readyAction.hidden = false;
+                readyAction.disabled = false;
+                readyAction.style.display = '';
+            }
         } else {
             const m = Math.floor(remaining / 60);
             const s = remaining % 60;
             el.textContent = m + ':' + String(s).padStart(2, '0');
+        }
+    });
+    document.querySelectorAll('.arrival-bullet.resting[data-rest-until]').forEach(function(bullet) {
+        if (parseInt(bullet.dataset.restUntil, 10) > now) return;
+        bullet.classList.remove('resting');
+        bullet.removeAttribute('data-rest-until');
+        var button = bullet.closest('.arrival-name-btn');
+        if (button) {
+            button.title = bullet.classList.contains('arrived')
+                ? button.dataset.titleArrived
+                : button.dataset.titleNotArrived;
         }
     });
 }

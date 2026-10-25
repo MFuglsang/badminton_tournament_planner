@@ -7,6 +7,7 @@ Status values:
   None       – player is free
 """
 from django.utils import timezone
+from .models import TournamentPlayerStatus
 
 
 # ---------------------------------------------------------------------------
@@ -92,6 +93,12 @@ def apply_status_to_matches(matches, playing_pks, resting):
         match.t1_rest_until = r1
         match.t2_status = s2
         match.t2_rest_until = r2
+        rest_deadlines = [deadline for deadline in (r1, r2) if deadline]
+        match.busy_until = (
+            max(rest_deadlines)
+            if rest_deadlines and s1 != 'playing' and s2 != 'playing'
+            else None
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -143,6 +150,10 @@ def check_match_startable(match):
             elif player.pk in resting and resting[player.pk] > now:
                 remaining = int((resting[player.pk] - now).total_seconds() // 60) + 1
                 errors.append(f'{player.name} hviler endnu (ca. {remaining} min)')
-            elif not player.has_arrived:
+            elif not TournamentPlayerStatus.objects.filter(
+                tournament_id=match.division.tournament_id,
+                player_id=player.pk,
+                has_arrived=True,
+            ).exists():
                 errors.append(f'{player.name} er ikke ankommet endnu')
     return errors

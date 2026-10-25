@@ -45,4 +45,5 @@ urlpatterns = [
     path('<int:pk>/rebuild-playoff-labels/', views.tournament_rebuild_playoff_labels, name='tournament_rebuild_playoff_labels'),
     path('<int:pk>/bigscreen/', views.tournament_bigscreen, name='tournament_bigscreen'),
     path('<int:pk>/run/', views.tournament_run, name='tournament_run'),
+    path('<int:tournament_pk>/player/<int:player_pk>/toggle-arrived/', views.player_toggle_arrived, name='player_toggle_arrived'),
 ]
