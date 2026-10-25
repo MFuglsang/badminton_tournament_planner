@@ -10,10 +10,10 @@ from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
-from .models import Tournament, Division, Match, DivisionSeed, TournamentDay
+from .models import Tournament, Division, Match, DivisionSeed, TournamentDay, TournamentPlayerStatus
 from .forms import MatchResultForm, DivisionForm, TournamentForm, TournamentDayFormSet, get_participants_form, WalkoverForm
 from .standings import compute_standings, compute_group_standings
-from players.models import Team
+from players.models import Player, Team
 from .scheduler import generate_schedule, advance_bracket, fill_playoff_bracket_from_group, get_bracket_data, regenerate_playoff_with_groups, _seeding_order, _bracket_placeholder_label
 from .schedule_planner import generate_time_schedule
 from .player_status import (
@@ -51,6 +51,35 @@ def _seeds_dict_for_division(division, seed_lookup):
         for (div_pk, team_pk), seed_num in seed_lookup.items()
         if div_pk == division.pk
     }
+
+
+def _annotate_tournament_arrival(matches, tournament):
+    arrived_player_ids = set(
+        TournamentPlayerStatus.objects.filter(
+            tournament=tournament, has_arrived=True,
+        ).values_list('player_id', flat=True)
+    )
+    for match in matches:
+        for team in (match.team1, match.team2):
+            if team:
+                for player in team.players:
+                    player.has_arrived = player.pk in arrived_player_ids
+
+
+@login_required
+def player_toggle_arrived(request, tournament_pk, player_pk):
+    tournament = get_object_or_404(Tournament, pk=tournament_pk, owner=request.user)
+    player = get_object_or_404(Player, pk=player_pk, owner=request.user)
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
+    if request.method == 'POST':
+        status, _ = TournamentPlayerStatus.objects.get_or_create(
+            tournament=tournament, player=player,
+        )
+        status.has_arrived = not status.has_arrived
+        status.save(update_fields=['has_arrived'])
+        if is_ajax:
+            return JsonResponse({'ok': True, 'has_arrived': status.has_arrived})
+    return redirect('tournament_run', tournament.pk)
 
 
 @login_required
@@ -1512,9 +1541,13 @@ def tournament_run(request, pk):
             division.matches
             .exclude(match_number=None)
             .exclude(team2__isnull=True, score='Bye')
-            .select_related('team1', 'team2', 'winner')
+            .select_related(
+                'team1__player1', 'team1__player2',
+                'team2__player1', 'team2__player2', 'winner',
+            )
             .order_by('scheduled_time', 'match_number')
         )
+        _annotate_tournament_arrival(all_matches, tournament)
         _apply_seed_labels(all_matches, seed_lookup)
         apply_status_to_matches(all_matches, playing_pks, resting)
 

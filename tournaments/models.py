@@ -131,6 +131,17 @@ class Tournament(models.Model):
         return f"{self.name} ({self.scoring_model})"
 
 
+class TournamentPlayerStatus(models.Model):
+    tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name='player_statuses')
+    player = models.ForeignKey('players.Player', on_delete=models.CASCADE, related_name='tournament_statuses')
+    has_arrived = models.BooleanField(default=False, verbose_name=_("Arrived"))
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['tournament', 'player'], name='unique_tournament_player_status'),
+        ]
+
+
 class TournamentDay(models.Model):
     """Represent a single day within a multi-day tournament."""
 

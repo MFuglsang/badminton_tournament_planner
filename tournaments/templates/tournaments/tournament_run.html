@@ -188,6 +188,7 @@
 .run-match-teams .vs { color: #94a3b8; font-weight: 400; font-size: 0.78rem; margin: 0 0.25rem; }
 .run-match-score { color: #374151; white-space: nowrap; font-size: 0.8rem; }
 .run-match-actions { display: flex; column-gap: 0.3rem; row-gap: 0.5rem; justify-content: flex-end; flex-wrap: wrap; }
+.start-match-btn[hidden] { display: none; }
 .run-match-court { color: #0f766e; font-weight: 600; font-size: 0.78rem; white-space: nowrap; }
 .court-dialog-btn { min-width: 2.5rem; }
 .court-dialog-btn:disabled { opacity: 0.4; cursor: not-allowed; text-decoration: line-through; }
@@ -416,9 +417,9 @@
             <span class="run-match-teams">
               {% if match.team1 and match.team2 %}
               <span {% if match.status == 'in_progress' and match.startable_errors is not None %}{% endif %}>
-                {% include "tournaments/partials/_team_arrival_names.html" with team=match.team1 %}{{ match.t1_seed }}
+                {% include "tournaments/partials/_team_arrival_names.html" with team=match.team1 tournament=tournament %}{{ match.t1_seed }}
                 <span class="vs">vs</span>
-                {% include "tournaments/partials/_team_arrival_names.html" with team=match.team2 %}{{ match.t2_seed }}
+                {% include "tournaments/partials/_team_arrival_names.html" with team=match.team2 tournament=tournament %}{{ match.t2_seed }}
               </span>
               {% elif match.bracket_label %}
               <span style="color:#888; font-style:italic;">{{ match.bracket_label }}</span>
@@ -428,7 +429,12 @@
             <span class="run-match-actions">
               {% if match.status == 'pending' and match.team1 and match.team2 %}
               {% if match.t1_status or match.t2_status %}
+              {% if match.busy_until %}
+              <span class="status-badge-rest" title="{% trans 'Player available in' %}" style="font-size:0.8rem; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ match.busy_until|unix_ts }}" data-ready-action="match-start-ready-{{ match.pk }}"></span></span>
+              <button type="button" id="match-start-ready-{{ match.pk }}" class="btn btn-primary btn-sm start-match-btn" data-url="{% url 'match_start' match.pk %}" data-next="{% url 'tournament_run' tournament.pk %}" data-label="#{{ match.match_number }} {{ match.team1.name }} {% trans 'vs' %} {{ match.team2.name }}" disabled hidden style="display:none;">▶ {% trans "Start" %}</button>
+              {% else %}
               <span style="font-size:0.8rem; color:#d97706; white-space:nowrap;" title="{% trans 'A player is busy or resting' %}">⚠ {% trans "Busy" %}</span>
+              {% endif %}
               {% else %}
               <button type="button" class="btn btn-primary btn-sm start-match-btn"
                       data-url="{% url 'match_start' match.pk %}"
@@ -510,7 +516,6 @@
               <tr>
                 <td class="rank">{{ forloop.counter }}</td>
                 <td>
-                  {% if row.status == 'playing' %}<span class="status-dot dot-playing"></span>{% elif row.status == 'resting' %}<span class="status-dot dot-resting"></span>{% endif %}
                   <strong>{{ row.team.name }}</strong>{{ dd.seeds_dict|dict_get:row.team.pk }}
                 </td>
                 <td>{{ row.played }}</td><td>{{ row.won }}</td><td>{{ row.lost }}</td>
@@ -536,7 +541,6 @@
               <tr {% if forloop.counter == division.advance_count %}class="advance-row"{% endif %}>
                 <td class="rank">{{ forloop.counter }}</td>
                 <td>
-                  {% if row.status == 'playing' %}<span class="status-dot dot-playing"></span>{% elif row.status == 'resting' %}<span class="status-dot dot-resting"></span>{% endif %}
                   <strong>{{ row.team.name }}</strong>{{ dd.seeds_dict|dict_get:row.team.pk }}
                   {% if forloop.counter <= division.advance_count %}<span style="font-size:0.65rem; color:#16a34a; margin-left:0.2rem;">↑</span>{% endif %}
                 </td>

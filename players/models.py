@@ -50,11 +50,6 @@ class Player(models.Model):
         verbose_name=_("Resting until"),
         help_text=_("The player is resting and cannot start new matches before this time."),
     )
-    has_arrived = models.BooleanField(
-        default=False,
-        verbose_name=_("Arrived"),
-        help_text=_("Whether the player has checked in at the judge table."),
-    )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

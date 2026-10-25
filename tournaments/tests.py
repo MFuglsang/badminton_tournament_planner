@@ -3,7 +3,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from players.models import Player, Team
-from .models import Tournament, Division, Match, DivisionSeed, TournamentDay
+from .models import Tournament, Division, Match, DivisionSeed, TournamentDay, TournamentPlayerStatus
 from .forms import MatchResultForm, _parse_score as _form_parse_score, _validate_set
 from .scheduler import generate_round_robin, generate_bracket, generate_schedule, advance_bracket, get_bracket_data
 from .standings import compute_standings, compute_group_standings, _parse_score, STANDINGS_CONFIG
@@ -19,7 +19,7 @@ def make_user(username='testclub', password='testpass123'):
 
 
 def make_player(name="Alice", division="A", owner=None):
-    return Player.objects.create(name=name, age=20, division=division, owner=owner, has_arrived=True)
+    return Player.objects.create(name=name, age=20, division=division, owner=owner)
 
 
 def make_team(name=None, r1=1, r2=2):
@@ -1797,6 +1797,10 @@ class MatchStartTest(TestCase):
         self.division = make_division(tournament=self.tournament)
         self.t1 = make_team(r1=1, r2=2)
         self.t2 = make_team(r1=3, r2=4)
+        TournamentPlayerStatus.objects.bulk_create([
+            TournamentPlayerStatus(tournament=self.tournament, player=player, has_arrived=True)
+            for team in (self.t1, self.t2) for player in team.players
+        ])
         self.match = Match.objects.create(
             division=self.division, team1=self.t1, team2=self.t2, match_number=1
         )
@@ -1808,6 +1812,22 @@ class MatchStartTest(TestCase):
         self.assertEqual(self.match.status, 'in_progress')
         self.assertEqual(self.match.court, '1')
         self.assertIsNotNone(self.match.started_at)
+
+    def test_match_start_is_rejected_while_player_is_resting(self):
+        from datetime import timedelta
+        from django.utils import timezone
+
+        self.t1.player1.rest_until = timezone.now() + timedelta(minutes=5)
+        self.t1.player1.save(update_fields=['rest_until'])
+        response = self.client.post(
+            reverse('match_start', args=[self.match.pk]), {'court': '1'},
+        )
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.status, 'pending')
+        self.assertIsNone(self.match.started_at)
+        messages_list = list(response.wsgi_request._messages)
+        self.assertTrue(any('hviler endnu' in str(message) for message in messages_list))
 
     def test_match_start_already_in_progress_not_changed(self):
         self.match.status = 'in_progress'
@@ -1858,8 +1878,9 @@ class MatchStartTest(TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_match_start_blocked_when_doubles_player_not_arrived(self):
-        self.t2.player2.has_arrived = False
-        self.t2.player2.save()
+        TournamentPlayerStatus.objects.filter(
+            tournament=self.tournament, player=self.t2.player2,
+        ).update(has_arrived=False)
         response = self.client.post(reverse('match_start', args=[self.match.pk]), {'court': '1'})
         self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
         self.match.refresh_from_db()
@@ -1897,14 +1918,29 @@ class PublicViewTest(TestCase):
         self.assertIn('.btn-secondary', content)
         self.assertIn('.btn-danger', content)
 
+    def _assert_cache_status_and_ttl(self, url, expected_ttl):
+        from unittest.mock import patch
+        from django.core.cache.backends.locmem import LocMemCache
+
+        location = f'{self.id()}:{url}'
+        test_cache = LocMemCache(location, {'LOCATION': location})
+        with patch('tournaments.cache_utils.cache', test_cache):
+            with patch.object(test_cache, 'set', wraps=test_cache.set) as cache_set:
+                response = self.client.get(url)
+                self.assertEqual(response['X-Cache'], 'MISS')
+                self.assertEqual(cache_set.call_args.args[2], expected_ttl)
+
+            cached_response = self.client.get(url)
+            self.assertEqual(cached_response['X-Cache'], 'HIT')
+
     def test_public_landing_is_cached_with_explicit_ttl(self):
-        response = self.client.get(reverse('public_landing'))
-        self.assertEqual(response['Cache-Control'], 'max-age=30')
+        self._assert_cache_status_and_ttl(reverse('public_landing'), 20)
 
     def test_public_tournament_and_schedule_are_cached_with_explicit_ttl(self):
         for name in ('public_tournament', 'public_schedule'):
-            response = self.client.get(reverse(name, args=[self.tournament.pk]))
-            self.assertEqual(response['Cache-Control'], 'max-age=30')
+            self._assert_cache_status_and_ttl(
+                reverse(name, args=[self.tournament.pk]), 10,
+            )
 
     def test_public_tournament_returns_200_without_login(self):
         response = self.client.get(reverse('public_tournament', args=[self.tournament.pk]))
@@ -1987,6 +2023,10 @@ class PlayerStatusFunctionTest(TestCase):
         self.t1 = make_team(r1=1, r2=2)
         self.t2 = make_team(r1=3, r2=4)
         self.division.teams.add(self.t1, self.t2)
+        TournamentPlayerStatus.objects.bulk_create([
+            TournamentPlayerStatus(tournament=self.tournament, player=player, has_arrived=True)
+            for team in (self.t1, self.t2) for player in team.players
+        ])
 
     def test_set_player_rest_sets_rest_until(self):
         from tournaments.player_status import set_player_rest
@@ -2038,8 +2078,9 @@ class PlayerStatusFunctionTest(TestCase):
 
     def test_check_match_startable_blocked_when_player_not_arrived(self):
         from tournaments.player_status import check_match_startable
-        self.t1.player1.has_arrived = False
-        self.t1.player1.save()
+        TournamentPlayerStatus.objects.filter(
+            tournament=self.tournament, player=self.t1.player1,
+        ).update(has_arrived=False)
         match = Match.objects.create(
             division=self.division, team1=self.t1, team2=self.t2,
         )
@@ -2048,17 +2089,18 @@ class PlayerStatusFunctionTest(TestCase):
 
     def test_check_match_startable_doubles_blocked_until_all_four_arrived(self):
         from tournaments.player_status import check_match_startable
-        # Only one of the four players hasn't checked in yet
-        self.t2.player2.has_arrived = False
-        self.t2.player2.save()
+        TournamentPlayerStatus.objects.filter(
+            tournament=self.tournament, player=self.t2.player2,
+        ).update(has_arrived=False)
         match = Match.objects.create(
             division=self.division, team1=self.t1, team2=self.t2,
         )
         errors = check_match_startable(match)
         self.assertTrue(any('ikke ankommet' in e for e in errors))
         # Once everyone has arrived, no more errors
-        self.t2.player2.has_arrived = True
-        self.t2.player2.save()
+        TournamentPlayerStatus.objects.filter(
+            tournament=self.tournament, player=self.t2.player2,
+        ).update(has_arrived=True)
         self.assertEqual(check_match_startable(match), [])
 
     def test_team_status_playing(self):
@@ -2087,6 +2129,30 @@ class PlayerStatusFunctionTest(TestCase):
         status, ru = team_status(None, set(), {})
         self.assertIsNone(status)
         self.assertIsNone(ru)
+
+
+class TournamentPlayerArrivalTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = make_user(username='arrivalclub')
+        self.client.force_login(self.user)
+        self.tournament = make_tournament(owner=self.user)
+        self.player = make_player("Arrival Player", owner=self.user)
+
+    def test_arrival_status_is_scoped_to_tournament(self):
+        response = self.client.post(
+            reverse('player_toggle_arrived', args=[self.tournament.pk, self.player.pk]),
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        self.assertEqual(response.json(), {'ok': True, 'has_arrived': True})
+
+        later_tournament = make_tournament(owner=self.user)
+        self.assertTrue(TournamentPlayerStatus.objects.get(
+            tournament=self.tournament, player=self.player,
+        ).has_arrived)
+        self.assertFalse(TournamentPlayerStatus.objects.filter(
+            tournament=later_tournament, player=self.player,
+        ).exists())
 
 
 # ---------------------------------------------------------------------------
@@ -2287,13 +2353,14 @@ class AdvanceBracketPlayoffTest(TestCase):
         generate_playoff(self.division)
 
     def test_advance_fills_next_bracket_round(self):
-        # Find a round-1 playoff bracket match that has both teams filled
+        # Seed a ready semifinal, as if the group stage has just completed.
         semifinal = Match.objects.filter(
             division=self.division, phase='playoff',
         ).order_by('match_round', 'bracket_slot').first()
-
-        if semifinal is None or semifinal.team1 is None or semifinal.team2 is None:
-            self.skipTest("No ready bracket match found after generate_playoff")
+        self.assertIsNotNone(semifinal)
+        semifinal.team1, semifinal.team2 = list(self.division.teams.order_by('pk')[:2])
+        semifinal.bracket_label = None
+        semifinal.save(update_fields=['team1', 'team2', 'bracket_label'])
 
         winner = semifinal.team1
         semifinal.winner = winner
@@ -2308,12 +2375,12 @@ class AdvanceBracketPlayoffTest(TestCase):
             match_round=next_round, bracket_slot=next_slot,
         ).first()
 
-        if next_match:
-            is_odd = (semifinal.bracket_slot % 2 == 1)
-            if is_odd:
-                self.assertEqual(next_match.team1, winner)
-            else:
-                self.assertEqual(next_match.team2, winner)
+        self.assertIsNotNone(next_match)
+        is_odd = (semifinal.bracket_slot % 2 == 1)
+        if is_odd:
+            self.assertEqual(next_match.team1, winner)
+        else:
+            self.assertEqual(next_match.team2, winner)
 
 
 # ---------------------------------------------------------------------------
@@ -2741,6 +2808,55 @@ class TournamentRunViewTest(TestCase):
     def test_run_view_contains_division(self):
         response = self.client.get(reverse('tournament_run', args=[self.tournament.pk]))
         self.assertContains(response, self.division.name)
+
+    def test_pending_match_shows_rest_countdown_and_ready_start_button(self):
+        from datetime import timedelta
+        from django.utils import timezone
+
+        self.t1.player1.rest_until = timezone.now() + timedelta(minutes=2)
+        self.t1.player1.save(update_fields=['rest_until'])
+        match = Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2, match_number=1,
+        )
+        response = self.client.get(reverse('tournament_run', args=[self.tournament.pk]))
+        self.assertContains(response, 'data-ready-action="match-start-ready-%s"' % match.pk)
+        self.assertContains(response, 'id="match-start-ready-%s"' % match.pk)
+        self.assertContains(response, 'disabled hidden style="display:none;"')
+        self.assertContains(response, 'data-until=')
+        self.assertContains(response, 'readyAction.hidden = false')
+        self.assertContains(response, 'readyAction.disabled = false')
+
+    def test_pending_match_stays_busy_while_player_is_playing(self):
+        Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2,
+            match_number=1, status='in_progress', court='1',
+        )
+        pending = Match.objects.create(
+            division=self.division,
+            team1=self.t1,
+            team2=make_team(r1=31, r2=32),
+            match_number=2,
+        )
+        response = self.client.get(reverse('tournament_run', args=[self.tournament.pk]))
+        self.assertContains(response, '⚠ Busy')
+        self.assertNotContains(response, 'match-start-ready-%s' % pending.pk)
+
+    def test_run_view_exposes_rest_deadline_for_arrival_bullet(self):
+        from datetime import timedelta
+        from django.utils import timezone
+
+        TournamentPlayerStatus.objects.create(
+            tournament=self.tournament, player=self.t1.player1, has_arrived=True,
+        )
+        self.t1.player1.rest_until = timezone.now() + timedelta(minutes=1)
+        self.t1.player1.save(update_fields=['rest_until'])
+        Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2, match_number=1,
+        )
+        response = self.client.get(reverse('tournament_run', args=[self.tournament.pk]))
+        self.assertContains(response, 'arrival-bullet arrived resting')
+        self.assertContains(response, 'data-rest-until=')
+        self.assertContains(response, "classList.remove('resting')")
 
     def test_run_view_context_has_division_data(self):
         response = self.client.get(reverse('tournament_run', args=[self.tournament.pk]))
