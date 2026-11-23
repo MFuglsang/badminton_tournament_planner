@@ -186,6 +186,9 @@
                 {% if form.player_break_time.errors %}<ul class="errorlist">{% for e in form.player_break_time.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
             </div>
         </div>
+        <p style="font-size:0.85rem; color:#64748b;">
+            {% trans "For timed matches, these durations are the playing time. The schedule uses the match duration plus the player break." %}
+        </p>
     </div>
 
     <div class="btn-group">

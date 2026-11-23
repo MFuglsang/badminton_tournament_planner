@@ -10,7 +10,7 @@
             <span style="color:#888; font-size:0.9rem;">{{ match.division.name }} – {% trans "Round" %} {{ match.match_round }}</span>
         </div>
         <p style="color:#555;">{% trans "Select the player/pair that" %} <strong>{% trans "showed up" %}</strong> {% trans "and is awarded the walk-over win" %}
-          ({% if match.division.tournament.scoring_model == 'best_of_5_15' %}15-0, 15-0{% else %}21-0, 21-0{% endif %}).</p>
+          ({% if match.division.tournament.scoring_model == 'timed' %}1-0{% elif match.division.tournament.scoring_model == 'best_of_5_15' %}15-0, 15-0{% else %}21-0, 21-0{% endif %}).</p>
         <form method="post">
             {% csrf_token %}
             {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}

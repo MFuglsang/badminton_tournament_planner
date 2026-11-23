@@ -75,6 +75,7 @@ class Tournament(models.Model):
     SCORING_MODEL_CHOICES = [
         ('best_of_3_21', _("Best of 3 sets to 21")),
         ('best_of_5_15', _("Best of 3 sets to 15")),
+        ('timed', _("Timed match")),
     ]
     scoring_model = models.CharField(
         max_length=20,

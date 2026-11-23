@@ -18,7 +18,7 @@ def _parse_score(score_str):
     sets = []
     for part in score_str.split(','):
         part = part.strip()
-        m = re.match(r'^(\d{1,2})-(\d{1,2})$', part)
+        m = re.match(r'^(\d+)-(\d+)$', part)
         if not m:
             raise ValueError(
                 _("Invalid format: '%(part)s'. Write each set as e.g. 21-15") % {'part': part}
@@ -328,7 +328,7 @@ class MatchResultForm(forms.ModelForm):
             )
 
     def clean_score(self):
-        """Validate badminton score format and set-level rules.
+        """Validate score format and scoring-model rules.
 
         Returns:
             str: Normalized score string.
@@ -345,6 +345,18 @@ class MatchResultForm(forms.ModelForm):
             sets = _parse_score(score)
         except ValueError as exc:
             raise forms.ValidationError(str(exc))
+
+        if self.instance.division.tournament.scoring_model == 'timed':
+            if len(sets) != 1:
+                raise forms.ValidationError(
+                    _("A timed match has one final score. Enter the points for both teams.")
+                )
+            a, b = sets[0]
+            if a == b:
+                raise forms.ValidationError(
+                    _("If the score is tied when time is up, play one deciding point and enter the final score.")
+                )
+            return f'{a}-{b}'
 
         # 2. Number of sets: 2 or 3 (best of 3)
         if not (2 <= len(sets) <= 3):
@@ -388,14 +400,33 @@ class MatchResultForm(forms.ModelForm):
             forms.ValidationError: If winner does not match computed set winner.
         """
         cleaned = super().clean()
+        cleaned.setdefault('status', self.instance.status)
         score = (cleaned.get('score') or '').strip()
         winner = cleaned.get('winner')
 
-        if not score or not winner:
+        if not score:
             return cleaned
 
         match = self.instance
         if not match or not match.team1 or not match.team2:
+            return cleaned
+
+        if match.division.tournament.scoring_model == 'timed':
+            try:
+                score_t1, score_t2 = _parse_score(score)[0]
+            except (ValueError, IndexError):
+                return cleaned
+            expected_winner = match.team1 if score_t1 > score_t2 else match.team2
+            if winner and winner.pk != expected_winner.pk:
+                raise forms.ValidationError(
+                    _("Winner does not match the final score: %(winner)s has more points, but you selected %(selected)s.")
+                    % {'winner': expected_winner.name, 'selected': winner.name}
+                )
+            cleaned['winner'] = expected_winner
+            cleaned['status'] = 'completed'
+            return cleaned
+
+        if not winner:
             return cleaned
 
         try:

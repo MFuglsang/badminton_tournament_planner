@@ -739,7 +739,7 @@ class StandingsTest(TestCase):
         self.assertEqual(STANDINGS_CONFIG['loss_points'], 0)
 
     def test_config_tiebreakers_order(self):
-        self.assertEqual(STANDINGS_CONFIG['tiebreakers'], ['sets_diff', 'score_diff', 'score_for'])
+        self.assertEqual(STANDINGS_CONFIG['tiebreakers'], ['head_to_head', 'score_for', 'score_against'])
 
     # ── Score parsing ──────────────────────────────────────────────────────
     def test_parse_score_single_set(self):
@@ -802,6 +802,44 @@ class StandingsTest(TestCase):
         rows = compute_standings(self.division)
         self.assertEqual(rows[0]['team'], self.t1)  # net +16 > net +2
         self.assertEqual(rows[1]['team'], self.t2)
+
+    def test_head_to_head_precedes_points_scored(self):
+        t4 = make_team(r1=7, r2=8)
+        self.division.teams.add(t4)
+        Match.objects.create(division=self.division, team1=self.t1, team2=self.t2,
+                              status='completed', winner=self.t1, score='10-5')
+        Match.objects.create(division=self.division, team1=self.t2, team2=self.t3,
+                              status='completed', winner=self.t2, score='21-0')
+        Match.objects.create(division=self.division, team1=self.t3, team2=self.t1,
+                              status='completed', winner=self.t3, score='21-0')
+        Match.objects.create(division=self.division, team1=self.t1, team2=t4,
+                              status='completed', winner=self.t1, score='10-0')
+        Match.objects.create(division=self.division, team1=self.t2, team2=t4,
+                              status='completed', winner=self.t2, score='21-0')
+        rows = compute_standings(self.division)
+        self.assertEqual(rows[0]['team'], self.t1)
+        self.assertGreater(rows[1]['score_for'], rows[0]['score_for'])
+
+    def test_points_lost_breaks_tie_after_points_won(self):
+        self._create_three_way_tie_with_scores(
+            ('10-4', '8-5', '10-5')
+        )
+        rows = compute_standings(self.division)
+        self.assertEqual(rows[0]['team'], self.t3)
+        self.assertEqual(rows[1]['team'], self.t1)
+        self.assertEqual(rows[0]['score_for'], rows[1]['score_for'])
+        self.assertLess(rows[0]['score_against'], rows[1]['score_against'])
+
+    def _create_three_way_tie_with_scores(self, scores):
+        for team1, team2, winner, score in (
+            (self.t1, self.t2, self.t1, scores[0]),
+            (self.t2, self.t3, self.t2, scores[1]),
+            (self.t3, self.t1, self.t3, scores[2]),
+        ):
+            Match.objects.create(
+                division=self.division, team1=team1, team2=team2,
+                status='completed', winner=winner, score=score,
+            )
 
 
 class MatchResultViewTest(TestCase):
@@ -873,6 +911,25 @@ class MatchResultViewTest(TestCase):
         self.assertEqual(self.match.score, "7-15, 15-12, 15-13")
         self.assertEqual(self.match.status, "completed")
 
+    def test_timed_result_view_accepts_final_score_and_shows_match_time(self):
+        self.tournament.scoring_model = 'timed'
+        self.tournament.single_match_duration = 10
+        self.tournament.double_match_duration = 20
+        self.tournament.save()
+        response = self.client.get(reverse("match_record_result", args=[self.match.pk]))
+        self.assertContains(response, "Play for 20 minutes")
+        response = self.client.post(
+            reverse("match_record_result", args=[self.match.pk]),
+            {"score": "21-20", "winner": self.t1.pk},
+        )
+        self.assertRedirects(
+            response, reverse("tournament_detail", args=[self.tournament.pk])
+        )
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.score, "21-20")
+        self.assertEqual(self.match.winner, self.t1)
+        self.assertEqual(self.match.status, "completed")
+
     def test_match_result_auto_sets_completed(self):
         """Valid score + winner should automatically mark match as completed."""
         self.assertEqual(self.match.status, 'pending')
@@ -882,6 +939,17 @@ class MatchResultViewTest(TestCase):
         )
         self.match.refresh_from_db()
         self.assertEqual(self.match.status, 'completed')
+
+    def test_partial_match_result_stays_pending(self):
+        response = self.client.post(
+            reverse("match_record_result", args=[self.match.pk]),
+            {"score": "", "winner": self.t1.pk},
+        )
+        self.assertRedirects(
+            response, reverse("tournament_detail", args=[self.tournament.pk])
+        )
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.status, "pending")
 
     def test_match_result_post_invalid_stays_on_page(self):
         # Posting nonsense score stays on the form page
@@ -1030,6 +1098,36 @@ class MatchResultFormValidationTest(TestCase):
         # t2 wins both sets, winner is t2
         form = self._post('15-21, 10-21', winner=self.t2)
         self.assertTrue(form.is_valid(), form.errors)
+
+    def test_timed_score_requires_deciding_point_if_tied(self):
+        self.tournament.scoring_model = 'timed'
+        self.tournament.save(update_fields=['scoring_model'])
+        form = self._post('21-21')
+        self.assertFalse(form.is_valid())
+        self.assertIn('score', form.errors)
+
+    def test_timed_score_accepts_final_deciding_point(self):
+        self.tournament.scoring_model = 'timed'
+        self.tournament.save(update_fields=['scoring_model'])
+        form = self._post('21-22', winner=self.t2)
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data['status'], 'completed')
+
+    def test_timed_score_sets_winner_from_points(self):
+        self.tournament.scoring_model = 'timed'
+        self.tournament.save(update_fields=['scoring_model'])
+        form = MatchResultForm(
+            data={'score': '21-22'},
+            instance=self.match,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data['winner'], self.t2)
+
+    def test_timed_score_must_match_selected_winner(self):
+        self.tournament.scoring_model = 'timed'
+        self.tournament.save(update_fields=['scoring_model'])
+        form = self._post('21-22', winner=self.t1)
+        self.assertFalse(form.is_valid())
 
     def test_no_validation_when_score_empty(self):
         # Empty score with a winner is allowed (partial save)
@@ -1550,6 +1648,30 @@ class SchedulePlannerPlayoffTest(TestCase):
         )
         if group_times and playoff_times:
             self.assertGreaterEqual(min(playoff_times), max(group_times))
+
+    def test_timed_match_schedule_includes_match_time_and_player_break(self):
+        from datetime import timedelta
+        from .schedule_planner import generate_time_schedule
+
+        self.tournament.scoring_model = 'timed'
+        self.tournament.double_match_duration = 20
+        self.tournament.player_break_time = 15
+        self.tournament.save()
+        team1, team2, team3 = list(self.division.teams.all()[:3])
+        first = Match.objects.create(
+            division=self.division, team1=team1, team2=team2, match_number=1,
+        )
+        second = Match.objects.create(
+            division=self.division, team1=team1, team2=team3, match_number=2,
+        )
+
+        self.assertEqual(generate_time_schedule(self.tournament), 2)
+        first.refresh_from_db()
+        second.refresh_from_db()
+        self.assertGreaterEqual(
+            second.scheduled_time,
+            first.scheduled_time + timedelta(minutes=35),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -2191,9 +2313,17 @@ class WalkoverScoreModelTest(TestCase):
         match.refresh_from_db()
         self.assertEqual(match.score, '15-0, 15-0')
 
+    def test_walkover_score_for_timed_match(self):
+        match, t1 = self._make_match('timed')
+        response = self.client.get(reverse('match_walkover', args=[match.pk]))
+        self.assertContains(response, '(1-0)')
+        self.client.post(reverse('match_walkover', args=[match.pk]), {'winner': t1.pk})
+        match.refresh_from_db()
+        self.assertEqual(match.score, '1-0')
+
 
 # ---------------------------------------------------------------------------
-# 3-way standings tiebreaker: sets_diff → score_diff → score_for
+# 3-way standings tiebreaker: head-to-head → points won → points conceded
 # ---------------------------------------------------------------------------
 
 class ThreeWayTiebreakerTest(TestCase):
@@ -2231,21 +2361,19 @@ class ThreeWayTiebreakerTest(TestCase):
         self.assertEqual(len(rows), 3)
         self.assertEqual(set(names), {self.t1, self.t2, self.t3})
 
-    def test_score_diff_breaks_three_way_tie_when_sets_equal(self):
-        # All win one match in straight sets (sets_diff equal)
-        # t1 wins by large margin, t2 by medium, t3 by small
+    def test_points_won_breaks_three_way_tie_after_head_to_head(self):
+        # All win one match; their direct results are tied, so total points won
+        # determines the order.
         self._match(self.t1, self.t2, self.t1, '21-5, 21-5')    # net +32
         self._match(self.t2, self.t3, self.t2, '21-10, 21-10')  # net +22
         self._match(self.t3, self.t1, self.t3, '21-19, 21-19')  # net +4
         rows = compute_standings(self.division)
-        # sets_diff for all: won 2, lost 2 (each wins one match 2-0, loses one 0-2)
-        # score_diff: t1 net = +32-2 = +30, t2 = +22-32 = -10, t3 = +4-22 = -18
         self.assertEqual(rows[0]['team'], self.t1)
-        self.assertEqual(rows[1]['team'], self.t2)
-        self.assertEqual(rows[2]['team'], self.t3)
+        self.assertEqual(rows[1]['team'], self.t3)
+        self.assertEqual(rows[2]['team'], self.t2)
 
     def test_score_for_breaks_three_way_tie_when_diff_equal(self):
-        # Contrived: all have same sets_diff AND same score_diff, but different score_for
+        # All have the same head-to-head wins, then points won breaks the tie.
         # Use 3 separate divisions so we can control exactly
         div = make_division(tournament=self.tournament, name='TiebreakerDiv3')
         ta = make_team(r1=70, r2=71)

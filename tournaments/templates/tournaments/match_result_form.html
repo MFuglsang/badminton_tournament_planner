@@ -77,6 +77,25 @@
 
             {# Score entry grid #}
             <div class="form-group">
+                {% if match.division.tournament.scoring_model == 'timed' %}
+                <label>{% trans "Final score" %}</label>
+                <p style="font-size:0.85rem; color:#64748b;">
+                    {% if match.division.discipline == 'single' %}
+                    {% blocktrans with minutes=match.division.tournament.single_match_duration %}Play for {{ minutes }} minutes. If the score is tied when time is up, play one deciding point and include it in the final score.{% endblocktrans %}
+                    {% else %}
+                    {% blocktrans with minutes=match.division.tournament.double_match_duration %}Play for {{ minutes }} minutes. If the score is tied when time is up, play one deciding point and include it in the final score.{% endblocktrans %}
+                    {% endif %}
+                </p>
+                <div class="score-grid" style="grid-template-columns:1fr 92px;">
+                    <div class="set-header">{% trans "Final points" %}</div><div></div>
+                    <div class="team-name-cell" title="{{ match.team1.name }}">{{ match.team1.name }}</div>
+                    <input class="score-box" data-team="1" data-set="1" type="number" min="0" placeholder="–"
+                           style="text-align:center; padding:0.6rem 0.2rem; font-size:1.35rem; font-weight:700; border-radius:7px; border:1.5px solid #d1d9e6; width:100%; background:white;">
+                    <div class="team-name-cell" title="{{ match.team2.name }}">{{ match.team2.name }}</div>
+                    <input class="score-box" data-team="2" data-set="1" type="number" min="0" placeholder="–"
+                           style="text-align:center; padding:0.6rem 0.2rem; font-size:1.35rem; font-weight:700; border-radius:7px; border:1.5px solid #d1d9e6; width:100%; background:white;">
+                </div>
+                {% else %}
                 <label>{% trans "Set scores" %}</label>
                 <div class="score-grid">
                     <div></div>
@@ -100,6 +119,7 @@
                     <input class="score-box set3-col set3-dimmed" data-team="2" data-set="3" type="number" min="0" max="30" placeholder="–"
                            style="text-align:center; padding:0.6rem 0.2rem; font-size:1.35rem; font-weight:700; border-radius:7px; border:1.5px solid #d1d9e6; width:100%; background:white;">
                 </div>
+                {% endif %}
                 <div id="winner-indicator" style="margin-top:0.5rem; min-height:1.6rem;"></div>
             </div>
 
@@ -128,6 +148,8 @@
     var TEAM1_NAME = "{{ match.team1.name|escapejs }}";
     var TEAM2_PK   = "{{ match.team2.pk }}";
     var TEAM2_NAME = "{{ match.team2.name|escapejs }}";
+    var TIMED_MATCH = {% if match.division.tournament.scoring_model == 'timed' %}true{% else %}false{% endif %};
+    var SET_COUNT = TIMED_MATCH ? 1 : 3;
 
     var scoreHidden     = document.getElementById("id_score");
     var winnerSelect    = document.getElementById("{{ form.winner.id_for_label }}");
@@ -143,13 +165,13 @@
 
     function assemble() {
         var parts = [];
-        for (var s = 1; s <= 3; s++) {
+        for (var s = 1; s <= SET_COUNT; s++) {
             var a = val(1, s), b = val(2, s);
             if (a !== null && b !== null) parts.push(a + '-' + b);
         }
         scoreHidden.value = parts.join(', ');
         updateWinner(parts);
-        updateSet3(parts);
+        if (!TIMED_MATCH) updateSet3(parts);
     }
 
     function updateWinner(parts) {
@@ -168,7 +190,7 @@
                 if (winnerSelect.options[i].value == pk) { winnerSelect.selectedIndex = i; break; }
             }
         }
-        if (name && parts.length >= 2) {
+        if (name && (TIMED_MATCH || parts.length >= 2)) {
             winnerIndicator.innerHTML = '<span class="winner-pill">🏆 ' + name + '</span>';
         } else {
             winnerIndicator.innerHTML = '';
