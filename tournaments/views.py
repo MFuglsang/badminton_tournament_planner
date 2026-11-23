@@ -931,6 +931,8 @@ def _walkover_score(match):
         str: Default score line for walkover.
     """
     scoring = match.division.tournament.scoring_model
+    if scoring == 'timed':
+        return '1-0'
     if scoring == 'best_of_5_15':
         return '15-0, 15-0'
     return '21-0, 21-0'

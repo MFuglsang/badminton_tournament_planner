@@ -918,10 +918,42 @@ msgstr "Bedst af 3 sæt til 21"
 msgid "Best of 3 sets to 15"
 msgstr "Bedst af 3 sæt til 15"
 
+#: tournaments/models.py
+msgid "Timed match"
+msgstr "Kamp på tid"
+
 #: tournaments/models.py:59
 #: tournaments/templates/tournaments/tournament_form.html:31
 msgid "Scoring model"
 msgstr "Pointmodel"
+
+#: tournaments/forms.py
+msgid "A timed match has one final score. Enter the points for both teams."
+msgstr "En kamp på tid har én slutscore. Indtast begge holds point."
+
+#: tournaments/forms.py
+msgid "If the score is tied when time is up, play one deciding point and enter the final score."
+msgstr "Hvis stillingen er lige, når tiden er gået, spilles ét afgørende point, som medregnes i slutscoren."
+
+#: tournaments/forms.py
+msgid "Winner does not match the final score: %(winner)s has more points, but you selected %(selected)s."
+msgstr "Vinderen stemmer ikke med slutscoren: %(winner)s har flest point, men du valgte %(selected)s."
+
+#: tournaments/templates/tournaments/match_result_form.html
+msgid "Final score"
+msgstr "Slutscore"
+
+#: tournaments/templates/tournaments/match_result_form.html
+msgid "Final points"
+msgstr "Point i alt"
+
+#: tournaments/templates/tournaments/match_result_form.html
+msgid "Play for %(minutes)s minutes. If the score is tied when time is up, play one deciding point and include it in the final score."
+msgstr "Spil i %(minutes)s minutter. Hvis stillingen er lige, når tiden er gået, spilles ét afgørende point, som medregnes i slutscoren."
+
+#: tournaments/templates/tournaments/tournament_form.html
+msgid "For timed matches, these durations are the playing time. The schedule uses the match duration plus the player break."
+msgstr "Ved kampe på tid er dette spilletiden. Kampprogrammet bruger kampens varighed plus spillernes hviletid."
 
 #: tournaments/models.py:62
 msgid "Duration of a singles match in minutes"
