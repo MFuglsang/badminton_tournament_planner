@@ -74,7 +74,7 @@ docker compose up -d
 docker compose exec web python manage.py migrate
 docker compose exec web python manage.py createsuperuser
 ```
-Then open http://localhost/ in your browser.
+Then open http://localhost:8080/ in your browser.
 For deployment on a new Ubuntu or Debian server, follow the
 [Linux deployment guide](docs/DEPLOYMENT_LINUX.md).
 

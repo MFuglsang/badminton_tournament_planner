@@ -24,8 +24,9 @@ sudo ufw enable
 sudo ufw status
 ```
 
-Configure the server provider's firewall as well, if it has one. The Compose
-configuration currently exposes HTTP on port 80 only.
+Configure the server provider's firewall as well, if it has one. The HTTPS
+setup below requires public ports 80 and 443; the application proxy itself
+will only be reachable from the server.
 
 ## 2. Install Docker Engine and Compose
 
@@ -80,6 +81,7 @@ Edit `.env` with `nano .env` (or another editor). Replace the example values:
 - `POSTGRES_PASSWORD`: use the second generated value.
 - `ALLOWED_HOSTS`: set the domain names used to access the site, separated
   by commas, for example `tournaments.example.org,www.tournaments.example.org`.
+  Keep `localhost` in this list for the Docker health checks.
 - `DJANGO_SUPERUSER_USERNAME`, `DJANGO_SUPERUSER_EMAIL`, and
   `DJANGO_SUPERUSER_PASSWORD`: set the initial administrator account and a
   unique, strong password.
@@ -114,35 +116,117 @@ password is no longer kept in the environment:
 sudo docker compose up -d --force-recreate web
 ```
 
-Visit `http://your-domain/` and sign in. Replace `your-domain` with a name
-listed in `ALLOWED_HOSTS`.
+Continue with the HTTPS setup below before using the site. Replace
+`your-domain` with a name listed in `ALLOWED_HOSTS`.
 
 ## 5. Configure HTTPS before public use
 
-**The included Nginx configuration serves HTTP only. Do not use the login or
-send passwords over a public HTTP connection.** Before public use, configure
-TLS termination with a trusted certificate using an HTTPS reverse proxy or
-hosting service. Merely changing Django's HTTPS settings does not install or
-configure TLS.
+This guide uses [Caddy](https://caddyserver.com/) on the Linux host as the
+public HTTPS reverse proxy. Caddy obtains and renews a trusted certificate
+automatically. The Docker Nginx proxy remains in place for the app, static
+files, and media, but is bound to localhost so it cannot be accessed directly
+from the internet.
 
-The TLS setup must ensure Django receives the original host and
-`X-Forwarded-Proto: https`. The bundled Nginx currently sets that header from
-its own connection, so an outer TLS proxy forwarding plain HTTP to it needs
-additional proxy configuration; forwarding to the bundled Nginx alone is not
-enough. After verifying that Django recognizes requests as HTTPS, set these
-values in `.env`:
+### 5.1 Point your domain to the server
 
-```ini
-CSRF_TRUSTED_ORIGINS=https://your-domain
-ENABLE_HTTPS_HARDENING=True
+At your domain's DNS provider, create:
+
+- An `A` record for the root domain (often shown as `@`) pointing to the
+  server's public IPv4 address.
+- Optionally, a `CNAME` record for `www` pointing to the root domain, or an
+  `A` record for `www` pointing to the same IP.
+
+If you publish an `AAAA` record, it must point to a working IPv6 address on
+this server. Otherwise, remove it; an incorrect IPv6 record can prevent
+certificate issuance or make the site unreachable for some visitors. Wait for
+DNS changes to propagate before continuing.
+
+Allow inbound TCP ports 80 and 443 in both the server firewall and any
+provider firewall. For UFW:
+
+```bash
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw status
 ```
 
-Include every HTTPS site origin users will access in `CSRF_TRUSTED_ORIGINS`,
-comma-separated. Recreate the web container to apply environment changes:
+### 5.2 Keep the application proxy private
+
+The Compose configuration binds Nginx to `127.0.0.1:8080` on the host. Apply
+this port change to an already-running deployment:
+
+```bash
+sudo docker compose up -d
+```
+
+Do not expose port 8080 through the server or provider firewall. Only Caddy
+should accept public web traffic.
+
+### 5.3 Install and configure Caddy
+
+Install Caddy on the host using its official
+[Ubuntu/Debian package instructions](https://caddyserver.com/docs/install#debian-ubuntu-raspbian).
+This guide assumes the package runs Caddy as a systemd service.
+
+Edit `/etc/caddy/Caddyfile` and replace the example names with the domain(s)
+you want to serve:
+
+```caddyfile
+example.org, www.example.org {
+    reverse_proxy 127.0.0.1:8080
+}
+```
+
+Validate the file and reload Caddy:
+
+```bash
+sudo caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+sudo systemctl reload caddy
+sudo systemctl status caddy --no-pager
+```
+
+Caddy will request certificates after DNS resolves to this server and ports 80
+and 443 are reachable. It also redirects HTTP visitors to HTTPS. If
+certificate issuance fails, inspect
+`sudo journalctl -u caddy --since "10 minutes ago"` and recheck DNS and
+firewall settings.
+
+### 5.4 Enable Django's HTTPS protections
+
+After Caddy has obtained a certificate, edit `.env` and list the exact hosts
+and HTTPS origins users will use. For example:
+
+```ini
+ALLOWED_HOSTS=example.org,www.example.org,localhost
+CSRF_TRUSTED_ORIGINS=https://example.org,https://www.example.org
+ENABLE_HTTPS_HARDENING=True
+SECURE_SSL_REDIRECT=True
+SECURE_HSTS_SECONDS=0
+```
+
+Save the file with restricted permissions (`chmod 600 .env`) and recreate the
+web container to apply the settings:
 
 ```bash
 sudo docker compose up -d --force-recreate web
 ```
+
+The HTTPS hardening setting makes Django trust the scheme forwarded through
+Caddy and Nginx, redirect HTTP requests to HTTPS, and mark session/CSRF cookies
+secure. Keep `SECURE_HSTS_SECONDS=0` until you have confirmed HTTPS works for
+every subdomain; then set it to `31536000` and recreate the web container.
+
+Verify the redirect and HTTPS response:
+
+```bash
+curl -I http://example.org/
+curl -I https://example.org/login/
+sudo docker compose logs --tail=100 nginx web
+```
+
+The HTTP request should redirect to HTTPS, and the HTTPS request should return
+a successful page response. Open the HTTPS site in a browser and confirm you
+can sign in before considering the setup complete.
 
 ## Updates and data
 
