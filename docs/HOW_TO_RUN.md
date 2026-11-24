@@ -67,6 +67,9 @@ python manage.py runserver
 
 ## Docker (production)
 
+For deployment on a new Ubuntu or Debian server, follow the
+[Linux deployment guide](DEPLOYMENT_LINUX.md).
+
 See [docs/dockerplan.md](docs/dockerplan.md) for the full architecture overview and operational guide.
 
 ### Quick start
