@@ -677,6 +677,35 @@ class TournamentViewTest(TestCase):
         self.assertNotContains(response, 'Court: 4')
         self.assertContains(response, 'width: min(100%, 155mm)')
 
+    def test_timed_scoresheet_has_one_final_score_column(self):
+        self.tournament.scoring_model = 'timed'
+        self.tournament.save(update_fields=['scoring_model'])
+        Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2,
+            match_number=1,
+        )
+
+        response = self.client.get(reverse("tournament_scoresheet", args=[self.tournament.pk]))
+
+        self.assertContains(response, 'Final points')
+        self.assertEqual(response.content.count(b'class="score-cell"'), 2)
+        self.assertNotContains(response, 'Set 1')
+        self.assertNotContains(response, 'Set 2')
+        self.assertNotContains(response, 'Set 3')
+
+    def test_regular_scoresheet_keeps_three_set_columns(self):
+        Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2,
+            match_number=1,
+        )
+
+        response = self.client.get(reverse("tournament_scoresheet", args=[self.tournament.pk]))
+
+        self.assertEqual(response.content.count(b'class="score-cell"'), 6)
+        self.assertContains(response, 'Set 1')
+        self.assertContains(response, 'Set 2')
+        self.assertContains(response, 'Set 3')
+
     def test_scoresheet_404_for_nonexistent(self):
         response = self.client.get(reverse("tournament_scoresheet", args=[9999]))
         self.assertEqual(response.status_code, 404)
