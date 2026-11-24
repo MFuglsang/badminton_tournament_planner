@@ -2280,6 +2280,24 @@ msgstr "Tabte kampe"
 msgid "Competition points"
 msgstr "Konkurrencepoint"
 
+#: tournaments/templates/tournaments/public/tournament.html
+#: tournaments/templates/tournaments/tournament_detail.html
+#: tournaments/templates/tournaments/tournament_run.html
+msgid "Points won"
+msgstr "Vundne point"
+
+#: tournaments/templates/tournaments/public/tournament.html
+#: tournaments/templates/tournaments/tournament_detail.html
+#: tournaments/templates/tournaments/tournament_run.html
+msgid "Points lost"
+msgstr "Tabte point"
+
+#: tournaments/templates/tournaments/public/tournament.html
+#: tournaments/templates/tournaments/tournament_detail.html
+#: tournaments/templates/tournaments/tournament_run.html
+msgid "Difference"
+msgstr "Difference"
+
 #: tournaments/templates/tournaments/tournament_detail.html:385
 #: tournaments/templates/tournaments/tournament_detail.html:419
 msgid "Sets won/lost"

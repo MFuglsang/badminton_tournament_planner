@@ -509,7 +509,7 @@
             <thead><tr>
               <th>#</th><th>{% trans "Player" %} / {% trans "Team" %}</th>
               <th title="{% trans 'Matches played' %}">P</th><th title="{% trans 'Won' %}">W</th><th title="{% trans 'Lost' %}">L</th>
-              <th title="{% trans 'Points' %}">Pts</th><th>{% trans "Sets" %}</th><th>{% trans "Score" %}</th>
+              <th title="{% if tournament.scoring_model == 'timed' %}{% trans 'Competition points' %}{% else %}{% trans 'Points' %}{% endif %}">Pts</th>{% if tournament.scoring_model == 'timed' %}<th>{% trans "Points won" %}</th><th>{% trans "Points lost" %}</th><th>{% trans "Difference" %}</th>{% else %}<th>{% trans "Sets" %}</th><th>{% trans "Score" %}</th>{% endif %}
             </tr></thead>
             <tbody>
               {% for row in dd.standings %}
@@ -520,8 +520,14 @@
                 </td>
                 <td>{{ row.played }}</td><td>{{ row.won }}</td><td>{{ row.lost }}</td>
                 <td class="pts">{{ row.points }}</td>
+                {% if tournament.scoring_model == 'timed' %}
+                <td style="color:#374151;">{{ row.score_for }}</td>
+                <td style="color:#374151;">{{ row.score_against }}</td>
+                <td style="color:#374151;">{{ row.score_diff }}</td>
+                {% else %}
                 <td style="color:#374151;">{{ row.sets_won }}-{{ row.sets_lost }}</td>
                 <td style="color:#374151;">{{ row.score_for }}-{{ row.score_against }}</td>
+                {% endif %}
               </tr>
               {% endfor %}
             </tbody>
@@ -534,7 +540,7 @@
           <table class="standings-compact" style="margin-bottom:0.75rem;">
             <thead><tr>
               <th>#</th><th>{% trans "Player" %} / {% trans "Team" %}</th>
-              <th>P</th><th>W</th><th>L</th><th>Pts</th><th>{% trans "Sets" %}</th><th>{% trans "Score" %}</th>
+              <th>P</th><th>W</th><th>L</th><th title="{% if tournament.scoring_model == 'timed' %}{% trans 'Competition points' %}{% else %}{% trans 'Points' %}{% endif %}">Pts</th>{% if tournament.scoring_model == 'timed' %}<th>{% trans "Points won" %}</th><th>{% trans "Points lost" %}</th><th>{% trans "Difference" %}</th>{% else %}<th>{% trans "Sets" %}</th><th>{% trans "Score" %}</th>{% endif %}
             </tr></thead>
             <tbody>
               {% for row in g_rows %}
@@ -546,8 +552,14 @@
                 </td>
                 <td>{{ row.played }}</td><td>{{ row.won }}</td><td>{{ row.lost }}</td>
                 <td class="pts">{{ row.points }}</td>
+                {% if tournament.scoring_model == 'timed' %}
+                <td>{{ row.score_for }}</td>
+                <td>{{ row.score_against }}</td>
+                <td>{{ row.score_diff }}</td>
+                {% else %}
                 <td>{{ row.sets_won }}-{{ row.sets_lost }}</td>
                 <td>{{ row.score_for }}-{{ row.score_against }}</td>
+                {% endif %}
               </tr>
               {% endfor %}
             </tbody>

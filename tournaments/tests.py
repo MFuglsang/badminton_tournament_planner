@@ -531,6 +531,24 @@ class TournamentViewTest(TestCase):
         self.assertContains(response, self.division.name)
         self.assertIn('division_data', response.context)
 
+    def test_timed_standings_show_points_and_difference_without_sets(self):
+        self.tournament.scoring_model = 'timed'
+        self.tournament.save(update_fields=['scoring_model'])
+        Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2,
+            status='completed', winner=self.t1, score='40-32',
+        )
+
+        response = self.client.get(reverse("tournament_detail", args=[self.tournament.pk]))
+
+        self.assertContains(response, "Points won")
+        self.assertContains(response, "Points lost")
+        self.assertContains(response, "Difference")
+        self.assertContains(response, "40")
+        self.assertContains(response, "32")
+        self.assertContains(response, "8")
+        self.assertNotContains(response, 'title="Sets won/lost">Sets</th>', html=False)
+
     def test_tournament_detail_uses_shared_result_modal(self):
         Match.objects.create(
             division=self.division, team1=self.t1, team2=self.t2,
@@ -752,6 +770,7 @@ class TournamentViewTest(TestCase):
         self.assertEqual(standings[0]['team'], self.t1)
         self.assertEqual(standings[0]['points'], 2)
         self.assertEqual(standings[1]['points'], 0)
+        self.assertContains(response, 'title="Sets won/lost">Sets</th>', html=False)
 
 
 class StandingsTest(TestCase):
@@ -809,6 +828,17 @@ class StandingsTest(TestCase):
         self.assertEqual(r1['score_against'], 25)
         self.assertEqual(r2['score_for'], 25)
         self.assertEqual(r2['score_against'], 42)
+
+    def test_score_difference_is_calculated(self):
+        Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2,
+            status='completed', winner=self.t1, score='40-32'
+        )
+        rows = compute_standings(self.division)
+        r1 = next(r for r in rows if r['team'] == self.t1)
+        r2 = next(r for r in rows if r['team'] == self.t2)
+        self.assertEqual(r1['score_diff'], 8)
+        self.assertEqual(r2['score_diff'], -8)
 
     # ── Head-to-head tiebreaker ────────────────────────────────────────────
     def test_head_to_head_breaks_points_tie(self):
@@ -1248,11 +1278,12 @@ class GroupStandingsTest(TestCase):
     def test_winner_leads_group(self):
         Match.objects.create(division=self.division, team1=self.t1, team2=self.t2,
                              group_number=1, phase='group', status='completed',
-                             winner=self.t1, score='21-15')
+                             winner=self.t1, score='40-32')
         result = compute_group_standings(self.division)
         g1_rows = result[0][1]
         self.assertEqual(g1_rows[0]['team'], self.t1)
         self.assertEqual(g1_rows[0]['points'], 2)
+        self.assertEqual(g1_rows[0]['score_diff'], 8)
 
     def test_empty_division_returns_no_groups(self):
         empty_div = Division.objects.create(
@@ -2104,6 +2135,24 @@ class PublicViewTest(TestCase):
     def test_public_tournament_contains_division(self):
         response = self.client.get(reverse('public_tournament', args=[self.tournament.pk]))
         self.assertContains(response, self.division.name)
+
+    def test_timed_public_standings_show_points_and_difference(self):
+        self.tournament.scoring_model = 'timed'
+        self.tournament.save(update_fields=['scoring_model'])
+        t1, t2 = self.division.teams.all()
+        Match.objects.create(
+            division=self.division, team1=t1, team2=t2,
+            status='completed', winner=t1, score='40-32',
+        )
+
+        response = self.client.get(reverse('public_tournament', args=[self.tournament.pk]))
+
+        self.assertContains(response, "Vundne point")
+        self.assertContains(response, "Tabte point")
+        self.assertContains(response, "Difference")
+        self.assertContains(response, "40")
+        self.assertContains(response, "32")
+        self.assertContains(response, "8")
 
     def test_public_tournament_404_for_nonexistent(self):
         response = self.client.get(reverse('public_tournament', args=[9999]))
@@ -2969,6 +3018,24 @@ class TournamentRunViewTest(TestCase):
     def test_run_view_contains_division(self):
         response = self.client.get(reverse('tournament_run', args=[self.tournament.pk]))
         self.assertContains(response, self.division.name)
+
+    def test_timed_run_standings_show_points_and_difference_without_sets(self):
+        self.tournament.scoring_model = 'timed'
+        self.tournament.save(update_fields=['scoring_model'])
+        Match.objects.create(
+            division=self.division, team1=self.t1, team2=self.t2,
+            status='completed', winner=self.t1, score='40-32',
+        )
+
+        response = self.client.get(reverse('tournament_run', args=[self.tournament.pk]))
+
+        self.assertContains(response, "Points won")
+        self.assertContains(response, "Points lost")
+        self.assertContains(response, "Difference")
+        self.assertContains(response, "40")
+        self.assertContains(response, "32")
+        self.assertContains(response, "8")
+        self.assertNotContains(response, '<th>Sets</th>', html=False)
 
     def test_pending_match_shows_rest_countdown_and_ready_start_button(self):
         from datetime import timedelta
