@@ -693,6 +693,10 @@ class TournamentViewTest(TestCase):
         self.assertNotContains(response, 'Set 2')
         self.assertNotContains(response, 'Set 3')
 
+        division_response = self.client.get(reverse("division_scoresheet", args=[self.division.pk]))
+        self.assertContains(division_response, 'Final points')
+        self.assertEqual(division_response.content.count(b'class="score-cell"'), 2)
+
     def test_regular_scoresheet_keeps_three_set_columns(self):
         Match.objects.create(
             division=self.division, team1=self.t1, team2=self.t2,
