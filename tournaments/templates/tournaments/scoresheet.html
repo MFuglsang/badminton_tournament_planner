@@ -98,6 +98,9 @@
     align-items: center;
     margin-bottom: 2mm;
   }
+  .timed-score-table {
+    grid-template-columns: 1fr 22mm;
+  }
   .col-header {
     font-size: 0.68rem;
     text-transform: uppercase;
@@ -200,11 +203,15 @@
     <span class="court-label">{% trans "Court" %}: <span class="court-write-in">&nbsp;</span></span>
   </div>
 
-  <div class="score-table">
+  <div class="score-table{% if tournament.scoring_model == 'timed' %} timed-score-table{% endif %}">
     <div></div>
+    {% if tournament.scoring_model == 'timed' %}
+    <div class="col-header">{% trans "Final points" %}</div>
+    {% else %}
     <div class="col-header">{% trans "Set 1" %}</div>
     <div class="col-header">{% trans "Set 2" %}</div>
     <div class="col-header">{% trans "Set 3" %}</div>
+    {% endif %}
 
     {% if match.team1 %}
     <div class="team-cell">
@@ -212,8 +219,10 @@
     </div>
     {% else %}<div class="team-cell-blank"></div>{% endif %}
     <div class="score-cell"></div>
+    {% if tournament.scoring_model != 'timed' %}
     <div class="score-cell"></div>
     <div class="score-cell"></div>
+    {% endif %}
 
     {% if match.team2 %}
     <div class="team-cell">
@@ -221,8 +230,10 @@
     </div>
     {% else %}<div class="team-cell-blank"></div>{% endif %}
     <div class="score-cell"></div>
+    {% if tournament.scoring_model != 'timed' %}
     <div class="score-cell"></div>
     <div class="score-cell"></div>
+    {% endif %}
   </div>
 
   <div class="winner-row">
