@@ -115,6 +115,9 @@ def compute_standings(division):
         key = (min(t1, t2), max(t1, t2))
         h2h[key] = match.winner_id
 
+    for row in rows.values():
+        row['score_diff'] = row['score_for'] - row['score_against']
+
     sorted_rows = sorted(rows.values(), key=lambda r: -r['points'])
     return _apply_tiebreakers(sorted_rows, h2h)
 
@@ -190,6 +193,9 @@ def compute_group_standings(division):
                     rows[loser_id]['points'] += cfg['loss_points']
             key = (min(t1, t2), max(t1, t2))
             h2h[key] = match.winner_id
+
+        for row in rows.values():
+            row['score_diff'] = row['score_for'] - row['score_against']
 
         sorted_rows = sorted(rows.values(), key=lambda r: -r['points'])
         sorted_rows = _apply_tiebreakers(sorted_rows, h2h)
