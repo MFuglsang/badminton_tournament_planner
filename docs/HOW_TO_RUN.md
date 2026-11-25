@@ -90,7 +90,7 @@ docker compose exec web python manage.py migrate
 docker compose exec web python manage.py createsuperuser
 ```
 
-The application is then available at **http://localhost/**.
+The application is then available at **http://localhost:8080/**.
 
 ### Stack
 
