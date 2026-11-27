@@ -256,7 +256,7 @@ class Division(models.Model):
     )
     group_count = models.IntegerField(
         default=2, verbose_name=_("Number of groups"),
-        help_text=_("Number of groups in the group stage (only for 'Group + playoff bracket')."),
+        help_text=_("Number of groups in the initial group stage."),
     )
     advance_count = models.IntegerField(
         default=2, verbose_name=_("Players advancing per group"),

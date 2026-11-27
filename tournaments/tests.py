@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from players.models import Player, Team
 from .models import Tournament, Division, Match, DivisionSeed, TournamentDay, TournamentPlayerStatus
 from .forms import MatchResultForm, _parse_score as _form_parse_score, _validate_set
+from .forms import DivisionForm
 from .scheduler import generate_round_robin, generate_bracket, generate_schedule, advance_bracket, get_bracket_data, generate_placement, resolve_placement_phase
 from .standings import compute_standings, compute_group_standings, _parse_score, STANDINGS_CONFIG
 from .schedule_planner import generate_time_schedule
@@ -448,6 +449,17 @@ class PlacementTournamentTest(TestCase):
         self.division.group_count = len(groups)
         self.division.save(update_fields=['group_count'])
         return groups
+
+    def test_placement_division_form_accepts_initial_group_count(self):
+        form = DivisionForm({
+            'name': 'Placement test',
+            'discipline': 'single',
+            'tournament_type': 'placement',
+            'group_count': '4',
+        })
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data['group_count'], 4)
 
     def test_uneven_groups_generate_only_valid_placement_groups(self):
         groups = self._groups([5, 4, 4, 3])
@@ -3888,6 +3900,30 @@ class DivisionReassignGroupsTest(TestCase):
             'at least two' in str(message).lower() or 'mindst to' in str(message).lower()
             for message in response.wsgi_request._messages
         ))
+
+    def test_placement_reassignment_generates_round_robin_for_uneven_pools(self):
+        placement_division = Division.objects.create(
+            tournament=self.tournament, name="Uneven placement", discipline='double',
+            tournament_type='placement', group_count=2,
+        )
+        teams = [make_team(r1=i * 2 + 40, r2=i * 2 + 41) for i in range(6)]
+        placement_division.teams.set(teams)
+        self.client.post(reverse('division_generate_schedule', args=[placement_division.pk]))
+
+        import json as _json
+        response = self.client.post(
+            reverse('division_reassign_groups', args=[placement_division.pk]),
+            {'groups': _json.dumps({'1': [team.pk for team in teams[:4]], '2': [team.pk for team in teams[4:]]})},
+        )
+
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+        self.assertEqual(Match.objects.filter(division=placement_division, phase='group').count(), 7)
+        placement_matches = Match.objects.filter(division=placement_division, phase='placement')
+        self.assertEqual(placement_matches.count(), 2)
+        self.assertEqual(
+            set(placement_matches.values_list('team1_source_position', flat=True)),
+            {1, 2},
+        )
 
 
 # ---------------------------------------------------------------------------

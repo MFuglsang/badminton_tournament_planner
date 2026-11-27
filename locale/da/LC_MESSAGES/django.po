@@ -37,6 +37,9 @@ msgstr "Indledende pulje"
 msgid "The number of groups must be at least one."
 msgstr "Antallet af puljer skal være mindst én."
 
+msgid "Number of groups in the initial group stage."
+msgstr "Antal puljer i den indledende puljefase."
+
 msgid "Every initial group must contain at least two teams."
 msgstr "Hver indledende pulje skal indeholde mindst to hold."
 

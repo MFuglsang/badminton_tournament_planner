@@ -133,7 +133,7 @@
                 <label style="white-space:nowrap; font-size:0.85rem; font-weight:600;">{% trans "Number of groups" %}:</label>
                 {{ division_form.group_count }}
             </div>
-            <div style="display:flex; gap:0.5rem; align-items:center;">
+            <div id="advance-count-setting" style="display:flex; gap:0.5rem; align-items:center;">
                 <label style="white-space:nowrap; font-size:0.85rem; font-weight:600;">{% trans "Players advancing per group" %}:</label>
                 {{ division_form.advance_count }}
             </div>
@@ -162,7 +162,11 @@
     (function() {
         var sel = document.querySelector('[name=tournament_type]');
         var box = document.getElementById('playoff-settings');
-        function update() { box.style.display = sel.value === 'playoff' ? 'flex' : 'none'; }
+        var advancement = document.getElementById('advance-count-setting');
+        function update() {
+            box.style.display = ['playoff', 'placement'].includes(sel.value) ? 'flex' : 'none';
+            advancement.style.display = sel.value === 'playoff' ? 'flex' : 'none';
+        }
         sel.addEventListener('change', update);
         update();
     })();
