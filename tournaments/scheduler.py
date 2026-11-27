@@ -574,7 +574,7 @@ def generate_placement(division, groups=None):
     ):
         return []
 
-    if Match.objects.filter(division=division, status='completed').exists():
+    if Match.objects.filter(division=division).exclude(status='pending').exists():
         return []
 
     Match.objects.filter(division=division).delete()
