@@ -1408,7 +1408,9 @@ def _compute_medals(division):
     """Return (gold, silver, bronze) lists of Team objects from match results."""
     gold, silver, bronze = [], [], []
 
-    if division.tournament_type == 'group':
+    if division.tournament_type == 'placement':
+        return gold, silver, bronze
+    elif division.tournament_type == 'group':
         from .standings import compute_standings
         rows = compute_standings(division)
         teams = [r['team'] for r in rows]

@@ -461,6 +461,18 @@ class PlacementTournamentTest(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
         self.assertEqual(form.cleaned_data['group_count'], 4)
 
+    def test_completed_placement_match_does_not_auto_assign_medals(self):
+        team1 = make_team(r1=1100, r2=1101)
+        team2 = make_team(r1=1102, r2=1103)
+        Match.objects.create(
+            division=self.division, team1=team1, team2=team2,
+            winner=team1, score='21-10, 21-10', status='completed',
+            phase='placement', group_number=1, match_round=10,
+        )
+
+        from .views import _compute_medals
+        self.assertEqual(_compute_medals(self.division), ([], [], []))
+
     def test_uneven_groups_generate_only_valid_placement_groups(self):
         groups = self._groups([5, 4, 4, 3])
         matches = generate_placement(self.division, groups)
