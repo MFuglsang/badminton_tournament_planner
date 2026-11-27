@@ -2149,6 +2149,21 @@ class MatchStartTest(TestCase):
         self.assertEqual(self.match.court, '1')
         self.assertIsNotNone(self.match.started_at)
 
+    def test_match_start_is_rejected_until_participants_are_resolved(self):
+        unresolved_match = Match.objects.create(
+            division=self.division, team2=self.t2, phase='placement',
+        )
+
+        response = self.client.post(
+            reverse('match_start', args=[unresolved_match.pk]), {'court': '1'},
+        )
+
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+        unresolved_match.refresh_from_db()
+        self.assertEqual(unresolved_match.status, 'pending')
+        self.assertIsNone(unresolved_match.court)
+        self.assertIsNone(unresolved_match.started_at)
+
     def test_match_start_is_rejected_while_player_is_resting(self):
         from datetime import timedelta
         from django.utils import timezone

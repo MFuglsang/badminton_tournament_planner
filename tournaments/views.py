@@ -987,7 +987,9 @@ def match_start(request, pk):
     """
     match = get_object_or_404(Match, pk=pk, division__tournament__owner=request.user)
     next_url = request.POST.get('next') or ''
-    if request.method == 'POST' and match.status == 'pending':
+    if request.method == 'POST' and match.status == 'pending' and (not match.team1 or not match.team2):
+        messages.error(request, _("This match is waiting for its participants to be determined."))
+    elif request.method == 'POST' and match.status == 'pending':
         errors = check_match_startable(match)
         if errors:
             messages.error(request, _("Cannot start match: ") + ' · '.join(errors))
