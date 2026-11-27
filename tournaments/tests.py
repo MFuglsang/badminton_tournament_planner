@@ -532,6 +532,40 @@ class PlacementTournamentTest(TestCase):
             group_end + datetime.timedelta(minutes=self.tournament.player_break_time),
         )
 
+    def test_unresolved_placement_reserves_possible_players_across_divisions(self):
+        groups = self._groups([2, 2])
+        self.tournament.player_break_time = 15
+        self.tournament.save(update_fields=['player_break_time'])
+        make_day(self.tournament, date=datetime.date(2026, 6, 1), courts=2)
+        matches = generate_schedule(self.division)
+        for match_number, match in enumerate(matches, start=1):
+            match.match_number = match_number
+            match.save(update_fields=['match_number'])
+
+        other_division = make_division(tournament=self.tournament)
+        other_match = Match.objects.create(
+            division=other_division,
+            team1=groups[0][0],
+            team2=make_team(r1=3000, r2=3001),
+            match_round=2,
+            match_number=1,
+        )
+
+        generate_time_schedule(self.tournament)
+
+        placement_matches = list(
+            Match.objects.filter(division=self.division, phase='placement')
+        )
+        other_match.refresh_from_db()
+        latest_placement_end = max(
+            match.scheduled_time + datetime.timedelta(minutes=self.tournament.double_match_duration)
+            for match in placement_matches
+        )
+        self.assertGreaterEqual(
+            other_match.scheduled_time,
+            latest_placement_end + datetime.timedelta(minutes=self.tournament.player_break_time),
+        )
+
 
 class TournamentCRUDViewTest(TestCase):
     def setUp(self):
