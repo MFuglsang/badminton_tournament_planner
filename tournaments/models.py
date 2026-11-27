@@ -241,6 +241,7 @@ class Division(models.Model):
     TOURNAMENT_TYPE_CHOICES = [
         ('group', _("Group (round-robin)")),
         ('playoff', _("Group + playoff bracket")),
+        ('placement', _("Placement groups")),
         ('tree', _("Single elimination")),
     ]
     tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name='divisions')
@@ -358,9 +359,17 @@ class Match(models.Model):
     group_number = models.IntegerField(null=True, blank=True, verbose_name=_("Group number"))
     phase = models.CharField(
         max_length=10, default='group',
-        choices=[('group', _("Group stage")), ('playoff', _("Playoff bracket"))],
+        choices=[
+            ('group', _("Group stage")),
+            ('playoff', _("Playoff bracket")),
+            ('placement', _("Placement groups")),
+        ],
         verbose_name=_("Phase"),
     )
+    team1_source_group = models.PositiveIntegerField(null=True, blank=True)
+    team1_source_position = models.PositiveIntegerField(null=True, blank=True)
+    team2_source_group = models.PositiveIntegerField(null=True, blank=True)
+    team2_source_position = models.PositiveIntegerField(null=True, blank=True)
 
     def __str__(self):
         """Return a readable match label.

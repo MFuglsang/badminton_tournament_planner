@@ -14,7 +14,7 @@ from .models import Tournament, Division, Match, DivisionSeed, TournamentDay, To
 from .forms import MatchResultForm, DivisionForm, TournamentForm, TournamentDayFormSet, get_participants_form, WalkoverForm
 from .standings import compute_standings, compute_group_standings
 from players.models import Player, Team
-from .scheduler import generate_schedule, advance_bracket, fill_playoff_bracket_from_group, get_bracket_data, regenerate_playoff_with_groups, _seeding_order, _bracket_placeholder_label
+from .scheduler import generate_schedule, advance_bracket, fill_playoff_bracket_from_group, get_bracket_data, regenerate_playoff_with_groups, generate_placement, resolve_placement_phase, _seeding_order, _bracket_placeholder_label
 from .schedule_planner import generate_time_schedule
 from .player_status import (
     get_busy_info, apply_status_to_matches, set_player_rest,
@@ -282,6 +282,10 @@ def tournament_export(request, pk):
                 "court": m.court,
                 "group_number": m.group_number,
                 "phase": m.phase,
+                "team1_source_group": m.team1_source_group,
+                "team1_source_position": m.team1_source_position,
+                "team2_source_group": m.team2_source_group,
+                "team2_source_position": m.team2_source_position,
             }
             for m in matches
         ],
@@ -474,6 +478,10 @@ def _do_tournament_import(request, data):
             court=md.get('court'),
             group_number=md.get('group_number'),
             phase=md.get('phase', 'group'),
+            team1_source_group=md.get('team1_source_group'),
+            team1_source_position=md.get('team1_source_position'),
+            team2_source_group=md.get('team2_source_group'),
+            team2_source_position=md.get('team2_source_position'),
         )
 
     # Seeds
@@ -512,7 +520,7 @@ def tournament_detail(request, pk):
 
     def _group_teams(d):
         """Return {group_number: [team, ...]} from existing group-stage matches."""
-        if d.tournament_type != 'playoff':
+        if d.tournament_type not in ('playoff', 'placement'):
             return {}
         result = {}
         seen = {}  # group_num -> set of team pks already added
@@ -546,7 +554,8 @@ def tournament_detail(request, pk):
         {
             'division': d,
             'standings': compute_standings(d) if d.tournament_type == 'group' else [],
-            'group_standings': compute_group_standings(d) if d.tournament_type == 'playoff' else [],
+            'group_standings': compute_group_standings(d) if d.tournament_type in ('playoff', 'placement') else [],
+            'placement_standings': compute_group_standings(d, phase='placement') if d.tournament_type == 'placement' else [],
             'participants_form': get_participants_form(d, owner=request.user),
             'player_items': _player_items(d),
             'match_count': d.matches.count(),
@@ -574,6 +583,11 @@ def tournament_detail(request, pk):
             row['status'] = s
             row['rest_until'] = ru
         for _gnum, g_rows in dd['group_standings']:
+            for row in g_rows:
+                s, ru = _team_status(row['team'], playing_pks, resting)
+                row['status'] = s
+                row['rest_until'] = ru
+        for _gnum, g_rows in dd['placement_standings']:
             for row in g_rows:
                 s, ru = _team_status(row['team'], playing_pks, resting)
                 row['status'] = s
@@ -723,8 +737,8 @@ def division_reassign_groups(request, pk):
     if request.method != 'POST':
         return redirect('tournament_detail', pk=division.tournament.pk)
 
-    if division.tournament_type != 'playoff':
-        messages.error(request, _("Group reassignment is only possible for divisions with group stage and playoff bracket."))
+    if division.tournament_type not in ('playoff', 'placement'):
+        messages.error(request, _("Group reassignment is only possible for divisions with group matches."))
         return redirect('tournament_detail', pk=division.tournament.pk)
 
     if division.tournament.schedule_locked:
@@ -745,8 +759,8 @@ def division_reassign_groups(request, pk):
 
     # Validate: every division team appears in exactly one group
     division_team_pks = set(division.teams.values_list('pk', flat=True))
-    submitted_pks = {pk for pks in groups_by_num.values() for pk in pks}
-    if submitted_pks != division_team_pks:
+    submitted_pks = [pk for pks in groups_by_num.values() for pk in pks]
+    if set(submitted_pks) != division_team_pks or len(submitted_pks) != len(division_team_pks):
         messages.error(request, _("Groups do not contain exactly the right teams."))
         return redirect('tournament_detail', pk=division.tournament.pk)
 
@@ -757,7 +771,16 @@ def division_reassign_groups(request, pk):
         for gnum in sorted(groups_by_num.keys())
     ]
 
-    matches = regenerate_playoff_with_groups(division, groups)
+    if division.tournament_type == 'placement':
+        if any(len(group) < 2 for group in groups):
+            messages.error(request, _("Every initial group must contain at least two teams."))
+            return redirect('tournament_detail', pk=division.tournament.pk)
+        matches = generate_placement(division, groups)
+        if matches:
+            division.group_count = len(groups)
+            division.save(update_fields=['group_count'])
+    else:
+        matches = regenerate_playoff_with_groups(division, groups)
 
     if matches:
         tournament_matches = Match.objects.filter(division__tournament=division.tournament)
@@ -893,6 +916,17 @@ def match_record_result(request, pk):
     match = get_object_or_404(Match, pk=pk, division__tournament__owner=request.user)
     next_url = request.GET.get('next') or request.POST.get('next') or ''
     popup_mode = request.GET.get('popup') == '1' or request.POST.get('popup') == '1'
+    if not match.team1 or not match.team2:
+        messages.error(request, _("This match is waiting for its participants to be determined."))
+        return redirect('tournament_detail', pk=match.division.tournament.pk)
+    if (
+        request.method == 'POST'
+        and match.division.tournament_type == 'placement'
+        and match.phase == 'group'
+        and match.division.matches.filter(phase='placement').exclude(status='pending').exists()
+    ):
+        messages.error(request, _("Initial group results cannot be changed after placement matches start."))
+        return redirect('tournament_detail', pk=match.division.tournament.pk)
     if request.method == 'POST':
         form = MatchResultForm(request.POST, instance=match)
         if form.is_valid():
@@ -905,6 +939,8 @@ def match_record_result(request, pk):
             advance_bracket(match)
             if match.division.tournament_type == 'playoff' and match.phase == 'group':
                 fill_playoff_bracket_from_group(match.division, match.group_number)
+            elif match.division.tournament_type == 'placement' and match.phase == 'group':
+                resolve_placement_phase(match.division)
             messages.success(request, _("Result saved."))
             if popup_mode:
                 return HttpResponse(status=204)
@@ -1009,6 +1045,17 @@ def match_walkover(request, pk):
     """
     match = get_object_or_404(Match, pk=pk, division__tournament__owner=request.user)
     next_url = request.GET.get('next') or request.POST.get('next') or ''
+    if not match.team1 or not match.team2:
+        messages.error(request, _("This match is waiting for its participants to be determined."))
+        return redirect('tournament_detail', pk=match.division.tournament.pk)
+    if (
+        request.method == 'POST'
+        and match.division.tournament_type == 'placement'
+        and match.phase == 'group'
+        and match.division.matches.filter(phase='placement').exclude(status='pending').exists()
+    ):
+        messages.error(request, _("Initial group results cannot be changed after placement matches start."))
+        return redirect('tournament_detail', pk=match.division.tournament.pk)
     if request.method == 'POST':
         form = WalkoverForm(request.POST, match=match)
         if form.is_valid():
@@ -1021,6 +1068,8 @@ def match_walkover(request, pk):
             advance_bracket(match)
             if match.division.tournament_type == 'playoff' and match.phase == 'group':
                 fill_playoff_bracket_from_group(match.division, match.group_number)
+            elif match.division.tournament_type == 'placement' and match.phase == 'group':
+                resolve_placement_phase(match.division)
             messages.success(request, _("Walk-over recorded – %(winner)s wins.") % {'winner': match.winner})
             if next_url:
                 return redirect(next_url)

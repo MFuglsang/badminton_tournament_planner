@@ -122,7 +122,7 @@ def compute_standings(division):
     return _apply_tiebreakers(sorted_rows, h2h)
 
 
-def compute_group_standings(division):
+def compute_group_standings(division, phase='group'):
     """
     For playoff divisions: return an ordered list of (group_number, standings_rows)
     where each standings_rows is the result of compute_standings for that group's matches.
@@ -131,7 +131,7 @@ def compute_group_standings(division):
 
     # Find all group numbers in use
     group_numbers = sorted(
-        division.matches.filter(phase='group')
+        division.matches.filter(phase=phase)
         .values_list('group_number', flat=True)
         .distinct()
     )
@@ -141,12 +141,12 @@ def compute_group_standings(division):
     for g_num in group_numbers:
         group_matches = list(
             division.matches
-            .filter(phase='group', group_number=g_num, status='completed')
+            .filter(phase=phase, group_number=g_num, status='completed')
             .select_related('team1', 'team2', 'winner')
         )
         # Collect all teams in this group from matches
         team_pks = set()
-        for m in division.matches.filter(phase='group', group_number=g_num).select_related('team1', 'team2'):
+        for m in division.matches.filter(phase=phase, group_number=g_num).select_related('team1', 'team2'):
             if m.team1_id:
                 team_pks.add(m.team1_id)
             if m.team2_id:

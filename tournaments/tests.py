@@ -5,8 +5,9 @@ from django.contrib.auth import get_user_model
 from players.models import Player, Team
 from .models import Tournament, Division, Match, DivisionSeed, TournamentDay, TournamentPlayerStatus
 from .forms import MatchResultForm, _parse_score as _form_parse_score, _validate_set
-from .scheduler import generate_round_robin, generate_bracket, generate_schedule, advance_bracket, get_bracket_data
+from .scheduler import generate_round_robin, generate_bracket, generate_schedule, advance_bracket, get_bracket_data, generate_placement, resolve_placement_phase
 from .standings import compute_standings, compute_group_standings, _parse_score, STANDINGS_CONFIG
+from .schedule_planner import generate_time_schedule
 
 User = get_user_model()
 
@@ -427,6 +428,97 @@ class GenerateScheduleRouterTest(TestCase):
         # 3 teams in 1 group: 3 group matches + 2 bracket slots (final)
         group_matches = [m for m in matches if m.phase == 'group']
         self.assertEqual(len(group_matches), 3)
+
+
+class PlacementTournamentTest(TestCase):
+    def setUp(self):
+        self.tournament = make_tournament()
+        self.division = make_division(tournament=self.tournament, tournament_type='placement')
+
+    def _groups(self, sizes):
+        next_player = 1000
+        groups = []
+        for size in sizes:
+            group = []
+            for _ in range(size):
+                group.append(make_team(r1=next_player, r2=next_player + 1))
+                next_player += 2
+            groups.append(group)
+        self.division.teams.set([team for group in groups for team in group])
+        self.division.group_count = len(groups)
+        self.division.save(update_fields=['group_count'])
+        return groups
+
+    def test_uneven_groups_generate_only_valid_placement_groups(self):
+        groups = self._groups([5, 4, 4, 3])
+        matches = generate_placement(self.division, groups)
+
+        self.assertEqual(len([m for m in matches if m.phase == 'group']), 25)
+        placement = [m for m in matches if m.phase == 'placement']
+        self.assertEqual(len(placement), 21)
+        self.assertEqual({m.group_number for m in placement}, {1, 2, 3, 4})
+        self.assertTrue(all(m.team1_id is None and m.team2_id is None for m in placement))
+        self.assertTrue(all(m.team1_source_group and m.team1_source_position for m in placement))
+        self.assertFalse(any(
+            m.team1_source_position == 5 or m.team2_source_position == 5
+            for m in placement
+        ))
+
+    def test_singleton_initial_group_is_rejected_without_creating_matches(self):
+        groups = self._groups([3, 1])
+
+        self.assertEqual(generate_placement(self.division, groups), [])
+        self.assertFalse(Match.objects.filter(division=self.division).exists())
+        self.assertEqual([len(group) for group in groups], [3, 1])
+
+    def test_activation_resolves_references_without_resetting_schedule(self):
+        groups = self._groups([2, 2])
+        matches = generate_schedule(self.division)
+        placement_match = next(m for m in matches if m.phase == 'placement')
+        placement_match.scheduled_time = datetime.datetime(2026, 6, 1, 12, 0, tzinfo=datetime.timezone.utc)
+        placement_match.court = '3'
+        placement_match.save(update_fields=['scheduled_time', 'court'])
+
+        self.assertFalse(resolve_placement_phase(self.division))
+        for match in Match.objects.filter(division=self.division, phase='group'):
+            group_index = match.group_number - 1
+            match.winner = groups[group_index][0]
+            match.score = '21-10, 21-10'
+            match.status = 'completed'
+            match.save()
+
+        self.assertTrue(resolve_placement_phase(self.division))
+        placement_match.refresh_from_db()
+        self.assertEqual(placement_match.team1, groups[placement_match.team1_source_group - 1][0])
+        self.assertEqual(placement_match.team2, groups[placement_match.team2_source_group - 1][0])
+        self.assertIsNone(placement_match.bracket_label)
+        self.assertEqual(placement_match.scheduled_time, datetime.datetime(2026, 6, 1, 12, 0, tzinfo=datetime.timezone.utc))
+        self.assertEqual(placement_match.court, '3')
+        standings = compute_group_standings(self.division, phase='placement')
+        self.assertTrue(all(row['points'] == 0 for _, rows in standings for row in rows))
+
+    def test_time_planner_schedules_unresolved_matches_after_initial_groups(self):
+        self._groups([2, 2])
+        make_day(self.tournament, date=datetime.date(2026, 6, 1), courts=2)
+        matches = generate_schedule(self.division)
+        for match_number, match in enumerate(matches, start=1):
+            match.match_number = match_number
+            match.save(update_fields=['match_number'])
+
+        scheduled_count = generate_time_schedule(self.tournament)
+
+        self.assertEqual(scheduled_count, len(matches))
+        group_end = max(
+            m.scheduled_time + datetime.timedelta(minutes=self.tournament.double_match_duration)
+            for m in Match.objects.filter(division=self.division, phase='group')
+        )
+        placement_start = min(
+            m.scheduled_time for m in Match.objects.filter(division=self.division, phase='placement')
+        )
+        self.assertGreaterEqual(
+            placement_start,
+            group_end + datetime.timedelta(minutes=self.tournament.player_break_time),
+        )
 
 
 class TournamentCRUDViewTest(TestCase):
@@ -3727,7 +3819,7 @@ class DivisionReassignGroupsTest(TestCase):
         )
         self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
         messages_list = list(response.wsgi_request._messages)
-        self.assertTrue(any('group stage' in str(m).lower() or 'gruppefase' in str(m).lower() for m in messages_list))
+        self.assertTrue(any('group matches' in str(m).lower() or 'gruppefase' in str(m).lower() for m in messages_list))
 
     def test_locked_tournament_shows_error(self):
         self.tournament.schedule_locked = True
@@ -3773,6 +3865,29 @@ class DivisionReassignGroupsTest(TestCase):
         self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
         # Should have matches
         self.assertGreater(Match.objects.filter(division=self.division).count(), 0)
+
+    def test_placement_reassignment_rejects_singleton_groups(self):
+        placement_division = Division.objects.create(
+            tournament=self.tournament, name="Placement", discipline='double',
+            tournament_type='placement', group_count=2,
+        )
+        teams = [make_team(r1=i * 2 + 20, r2=i * 2 + 21) for i in range(4)]
+        placement_division.teams.set(teams)
+        self.client.post(reverse('division_generate_schedule', args=[placement_division.pk]))
+        initial_count = Match.objects.filter(division=placement_division).count()
+
+        import json as _json
+        response = self.client.post(
+            reverse('division_reassign_groups', args=[placement_division.pk]),
+            {'groups': _json.dumps({'1': [teams[0].pk, teams[1].pk, teams[2].pk], '2': [teams[3].pk]})},
+        )
+
+        self.assertRedirects(response, reverse('tournament_detail', args=[self.tournament.pk]))
+        self.assertEqual(Match.objects.filter(division=placement_division).count(), initial_count)
+        self.assertTrue(any(
+            'at least two' in str(message).lower() or 'mindst to' in str(message).lower()
+            for message in response.wsgi_request._messages
+        ))
 
 
 # ---------------------------------------------------------------------------
