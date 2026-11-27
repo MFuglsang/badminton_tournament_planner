@@ -555,6 +555,7 @@ def generate_placement(division, groups=None):
     from .models import Match
 
     teams = list(division.teams.all().order_by('name'))
+    teams = _sort_teams_by_seed(division, teams)
     group_count = max(1, division.group_count)
     if groups is None:
         if len(teams) < group_count * 2:
