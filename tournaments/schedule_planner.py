@@ -59,7 +59,7 @@ def _build_day_windows(days):
 def _get_allowed_windows(match, day_windows):
     """Return the subset of day_windows this match is allowed to be scheduled in."""
     phase = getattr(match, 'phase', 'group')
-    if phase == 'group' and match.division.group_day_id:
+    if phase in ('group', 'placement') and match.division.group_day_id:
         filtered = [w for w in day_windows if w['day'].pk == match.division.group_day_id]
         return filtered or day_windows
     elif phase == 'playoff' and match.division.playoff_day_id:
@@ -143,9 +143,22 @@ def _schedule_greedy(tournament, matches, days):
     }
 
     player_free = {}        # player_pk → datetime
+    entrant_free = {}       # (division, source group, source position) → datetime
+    group_player_pks = {}
     bracket_slot_end = {}   # (div_id, round, slot) → datetime
     playoff_group_end = {}  # (div_id, day_pk) → datetime
     break_td = timedelta(minutes=tournament.player_break_time)
+
+    for match in matches:
+        if match.phase != 'group' or match.group_number is None:
+            continue
+        group_key = (match.division_id, match.group_number)
+        group_player_pks.setdefault(group_key, set())
+        for team in (match.team1, match.team2):
+            if team:
+                group_player_pks[group_key].update(
+                    pk for pk in (team.player1_id, team.player2_id) if pk
+                )
 
     current_priority_group = None
     current_group_ends = []
@@ -168,14 +181,48 @@ def _schedule_greedy(tournament, matches, days):
             else tournament.double_match_duration
         )
         player_pks = []
+        possible_player_pks = set()
 
-        if is_placeholder:
+        if is_placeholder and match.phase == 'placement':
+            entrant_keys = [
+                (match.division_id, group, position)
+                for group, position in (
+                    (match.team1_source_group, match.team1_source_position),
+                    (match.team2_source_group, match.team2_source_position),
+                )
+                if group is not None and position is not None
+            ]
+            possible_player_pks = {
+                pk
+                for div_id, group, _position in entrant_keys
+                for pk in group_player_pks.get((div_id, group), ())
+            }
+            earliest = max(
+                (
+                    player_free.get(pk, priority_floor - break_td) + break_td
+                    for pk in possible_player_pks
+                ),
+                default=priority_floor,
+            )
+            earliest = max(
+                earliest,
+                max(
+                    (
+                        entrant_free.get(key, priority_floor - break_td) + break_td
+                        for key in entrant_keys
+                    ),
+                    default=priority_floor,
+                ),
+            )
+        elif is_placeholder and match.bracket_slot is not None:
             r = match.match_round
             s = match.bracket_slot
             div_id = match.division_id
             feeder_end_1 = bracket_slot_end.get((div_id, r - 1, 2 * s - 1), priority_floor)
             feeder_end_2 = bracket_slot_end.get((div_id, r - 1, 2 * s), priority_floor)
             earliest = max(feeder_end_1, feeder_end_2) + break_td
+        elif is_placeholder:
+            earliest = priority_floor
         else:
             player_pks = [
                 pk for pk in [
@@ -195,17 +242,23 @@ def _schedule_greedy(tournament, matches, days):
                 earliest = priority_floor
 
         phase = getattr(match, 'phase', 'group')
-        if phase == 'playoff':
-            target_day_pk = match.division.playoff_day_id
-            if target_day_pk:
-                group_end = playoff_group_end.get((match.division_id, target_day_pk), priority_floor)
-            else:
-                # No assigned day — take the latest group-end across all days
+        if phase in ('playoff', 'placement'):
+            if phase == 'placement':
                 group_end = max(
                     (v for (div_id, _dpk), v in playoff_group_end.items()
                      if div_id == match.division_id),
                     default=priority_floor,
                 )
+            else:
+                target_day_pk = match.division.playoff_day_id
+                if target_day_pk:
+                    group_end = playoff_group_end.get((match.division_id, target_day_pk), priority_floor)
+                else:
+                    group_end = max(
+                        (v for (div_id, _dpk), v in playoff_group_end.items()
+                         if div_id == match.division_id),
+                        default=priority_floor,
+                    )
             earliest = max(earliest, group_end + break_td)
 
         earliest = max(earliest, priority_floor)
@@ -232,6 +285,11 @@ def _schedule_greedy(tournament, matches, days):
         if not is_placeholder:
             for pk in player_pks:
                 player_free[pk] = end_time
+        elif phase == 'placement':
+            for pk in possible_player_pks:
+                player_free[pk] = end_time
+            for key in entrant_keys:
+                entrant_free[key] = end_time
 
         if phase == 'group':
             key = (match.division_id, day_pk)

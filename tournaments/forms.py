@@ -136,7 +136,7 @@ class DivisionForm(forms.ModelForm):
         fields = ['name', 'discipline', 'tournament_type', 'group_count', 'advance_count', 'schedule_priority', 'gold_count', 'silver_count', 'bronze_count']
         widgets = {
             'name': forms.TextInput(attrs={'placeholder': _('e.g. Mens singles A, Womens doubles B …')}),
-            'group_count': forms.NumberInput(attrs={'min': 2, 'max': 16}),
+            'group_count': forms.NumberInput(attrs={'min': 1, 'max': 16}),
             'advance_count': forms.NumberInput(attrs={'min': 1, 'max': 8}),
             'schedule_priority': forms.NumberInput(attrs={'min': 1, 'max': 10, 'style': 'width:4rem;'}),
             'gold_count': forms.NumberInput(attrs={'min': 0, 'max': 4, 'style': 'width:4rem;'}),
@@ -172,7 +172,10 @@ class DivisionForm(forms.ModelForm):
             int: Provided group count or the default value ``2``.
         """
         val = self.cleaned_data.get('group_count')
-        return val if val is not None else 2
+        val = val if val is not None else 2
+        if val < 1:
+            raise forms.ValidationError(_("The number of groups must be at least one."))
+        return val
 
     def clean_advance_count(self):
         """Return a default advance count when omitted.

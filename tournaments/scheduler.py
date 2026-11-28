@@ -545,7 +545,114 @@ def generate_schedule(division):
         return generate_bracket(division)
     if division.tournament_type == 'playoff':
         return generate_playoff(division)
+    if division.tournament_type == 'placement':
+        return generate_placement(division)
     return generate_round_robin(division)
+
+
+def generate_placement(division, groups=None):
+    """Generate initial groups and all placement-group matches with source refs."""
+    from .models import Match
+
+    teams = list(division.teams.all().order_by('name'))
+    teams = _sort_teams_by_seed(division, teams)
+    group_count = max(1, division.group_count)
+    if groups is None:
+        if len(teams) < group_count * 2:
+            return []
+        groups = [[] for _ in range(group_count)]
+        for i, team in enumerate(teams):
+            cycle, pos = divmod(i, group_count)
+            group_idx = pos if cycle % 2 == 0 else group_count - 1 - pos
+            groups[group_idx].append(team)
+
+    group_team_pks = [team.pk for group in groups for team in group]
+    if (
+        not groups
+        or any(len(group) < 2 for group in groups)
+        or len(group_team_pks) != len(set(group_team_pks))
+        or set(group_team_pks) != set(division.teams.values_list('pk', flat=True))
+    ):
+        return []
+
+    if Match.objects.filter(division=division).exclude(status='pending').exists():
+        return []
+
+    Match.objects.filter(division=division).delete()
+    created = []
+    max_group_round = 0
+
+    for group_number, group_teams in enumerate(groups, start=1):
+        rounds = _round_robin_rounds(list(group_teams))
+        max_group_round = max(max_group_round, len(rounds))
+        for round_num, pairs in enumerate(rounds, start=1):
+            for team1, team2 in pairs:
+                created.append(Match.objects.create(
+                    division=division,
+                    team1=team1,
+                    team2=team2,
+                    match_round=round_num,
+                    group_number=group_number,
+                    phase='group',
+                    status='pending',
+                ))
+
+    max_position = max(map(len, groups))
+    for position in range(1, max_position + 1):
+        entrants = [
+            (group_number, position)
+            for group_number, group in enumerate(groups, start=1)
+            if len(group) >= position
+        ]
+        if len(entrants) < 2:
+            continue
+        for round_num, pairs in enumerate(_round_robin_rounds(entrants), start=1):
+            for (group1, pos1), (group2, pos2) in pairs:
+                created.append(Match.objects.create(
+                    division=division,
+                    match_round=max_group_round + round_num,
+                    group_number=position,
+                    phase='placement',
+                    bracket_label=f'G{group1} #{pos1} vs G{group2} #{pos2}',
+                    team1_source_group=group1,
+                    team1_source_position=pos1,
+                    team2_source_group=group2,
+                    team2_source_position=pos2,
+                    status='pending',
+                ))
+    return created
+
+
+def resolve_placement_phase(division):
+    """Resolve placement match references after all initial group matches finish."""
+    from .standings import compute_group_standings
+
+    group_matches = division.matches.filter(phase='group')
+    if not group_matches.exists() or group_matches.exclude(status='completed').exists():
+        return False
+    if division.matches.filter(phase='placement').exclude(status='pending').exists():
+        return False
+
+    qualified = {}
+    for group_number, rows in compute_group_standings(division, phase='group'):
+        for position, row in enumerate(rows, start=1):
+            qualified[(group_number, position)] = row['team']
+
+    placement_matches = list(division.matches.filter(phase='placement'))
+    resolved = []
+    for match in placement_matches:
+        team1 = qualified.get((match.team1_source_group, match.team1_source_position))
+        team2 = qualified.get((match.team2_source_group, match.team2_source_position))
+        if not team1 or not team2 or team1.pk == team2.pk:
+            return False
+        resolved.append((match, team1, team2))
+
+    for match, team1, team2 in resolved:
+        match.team1 = team1
+        match.team2 = team2
+        match.bracket_label = None
+        match.save(update_fields=['team1', 'team2', 'bracket_label'])
+    return True
 
 
 def regenerate_playoff_with_groups(division, groups):

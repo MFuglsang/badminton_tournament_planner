@@ -43,7 +43,7 @@
                 <span class="sched-dot dot-upcoming" style="background:#aaa;"></span>
                 <span class="sched-card-no">#{{ match.match_number }}</span>
                 <span class="sched-card-teams" style="color:#888; font-style:italic;">{{ match.bracket_label }}</span>
-                <span class="sched-card-div" style="margin-left:auto; font-size:0.8rem; color:#aaa;">{{ match.division.name }}</span>
+                <span class="sched-card-div" style="margin-left:auto; font-size:0.8rem; color:#aaa;">{{ match.division.name }}{% if match.division.tournament_type == 'placement' %} · {% if match.phase == 'placement' %}{% trans "Placement group" %} {{ match.group_number }}{% else %}{% trans "Initial group" %} {{ match.group_number }}{% endif %}{% endif %}</span>
             </div>
         {% elif match.status == 'completed' %}
             <details class="sched-card sched-done"
@@ -71,7 +71,7 @@
                 <span class="sched-card-no">#{{ match.match_number }}</span>
                 <span class="sched-card-teams">{{ match.team1.name }}{{ match.t1_seed }} <span title="{% trans 'Match in progress' %}">🏸</span> <span class="vs">vs</span> {{ match.team2.name }}{{ match.t2_seed }} <span title="{% trans 'Match in progress' %}">🏸</span></span>
                 <span class="sched-badge-active">{% trans "In progress" %}</span>
-                <span class="sched-card-div" style="margin-left:auto; font-size:0.8rem; color:#888;">{{ match.division.name }}</span>
+                <span class="sched-card-div" style="margin-left:auto; font-size:0.8rem; color:#888;">{{ match.division.name }}{% if match.division.tournament_type == 'placement' %} · {% if match.phase == 'placement' %}{% trans "Placement group" %} {{ match.group_number }}{% else %}{% trans "Initial group" %} {{ match.group_number }}{% endif %}{% endif %}</span>
             </div>
         {% else %}
             <div class="sched-card sched-upcoming"
@@ -79,7 +79,7 @@
                 <span class="sched-dot dot-upcoming"></span>
                 <span class="sched-card-no">#{{ match.match_number }}</span>
                 <span class="sched-card-teams">{{ match.team1.name }}{{ match.t1_seed }}{% if match.t1_status == 'playing' %} <span title="{% trans 'Match in progress' %}">🏸</span>{% elif match.t1_status == 'resting' %} <span class="status-badge-rest" style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ match.t1_rest_until|unix_ts }}"></span></span>{% endif %} <span class="vs">vs</span> {{ match.team2.name }}{{ match.t2_seed }}{% if match.t2_status == 'playing' %} <span title="{% trans 'Match in progress' %}">🏸</span>{% elif match.t2_status == 'resting' %} <span class="status-badge-rest" style="font-size:0.72rem; color:#d97706; white-space:nowrap;">⏱ <span class="rest-timer" data-until="{{ match.t2_rest_until|unix_ts }}"></span></span>{% endif %}</span>
-                <span class="sched-card-div" style="margin-left:auto; font-size:0.8rem; color:#888;">{{ match.division.name }}</span>
+                <span class="sched-card-div" style="margin-left:auto; font-size:0.8rem; color:#888;">{{ match.division.name }}{% if match.division.tournament_type == 'placement' %} · {% if match.phase == 'placement' %}{% trans "Placement group" %} {{ match.group_number }}{% else %}{% trans "Initial group" %} {{ match.group_number }}{% endif %}{% endif %}</span>
             </div>
         {% endif %}
     {% endfor %}

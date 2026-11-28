@@ -15,6 +15,43 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+# Placement-pool tournament format
+msgid "Placement groups"
+msgstr "Placeringspuljer"
+
+msgid "Initial and placement group matches"
+msgstr "Indledende pulje- og placeringskampe"
+
+msgid "Initial group standings"
+msgstr "Stillingen i de indledende puljer"
+
+msgid "Placement group standings"
+msgstr "Stillingen i placeringspuljerne"
+
+msgid "Placement group"
+msgstr "Placeringspulje"
+
+msgid "Initial group"
+msgstr "Indledende pulje"
+
+msgid "The number of groups must be at least one."
+msgstr "Antallet af puljer skal være mindst én."
+
+msgid "Number of groups in the initial group stage."
+msgstr "Antal puljer i den indledende puljefase."
+
+msgid "Every initial group must contain at least two teams."
+msgstr "Hver indledende pulje skal indeholde mindst to hold."
+
+msgid "Group reassignment is only possible for divisions with group matches."
+msgstr "Puljerne kan kun ændres for rækker med puljekampe."
+
+msgid "This match is waiting for its participants to be determined."
+msgstr "Denne kamp afventer, at deltagerne bliver afgjort."
+
+msgid "Initial group results cannot be changed after placement matches start."
+msgstr "Resultater fra de indledende puljer kan ikke ændres, efter placeringskampene er begyndt."
+
 #: players/forms.py:16
 msgid "— Select division —"
 msgstr "— Vælg række —"
